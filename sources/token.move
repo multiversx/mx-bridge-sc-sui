@@ -1,4 +1,4 @@
-module 0x1::token_module {
+module token_module::token_module {
     use sui::object::{UID, new};
     use sui::tx_context::TxContext;
     use 0x2::table::{Self, Table};
@@ -10,6 +10,10 @@ module 0x1::token_module {
         decimals: u8,
         total_supply: u64,
         balances: Table<address, u64>,
+    }
+
+    public fun get_token_address(token: &Token): address {
+        object::uid_to_address(&token.id)
     }
 
     public fun create(

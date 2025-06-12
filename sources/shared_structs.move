@@ -1,4 +1,4 @@
-module 0x1::shared_structs {
+module shared_structs::shared_structs {
 
     public enum DepositStatus has copy, drop, store {
         None,
