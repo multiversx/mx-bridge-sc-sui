@@ -213,14 +213,7 @@ fun try_transfer<T>(
     amount: u64,
     ctx: &mut TxContext,
 ): bool {
-    //TODO: add error handling
-    let stored_balance = safe::get_stored_coin_balance<T>(safe);
-    if (stored_balance >= amount) {
-        safe::transfer<T>(safe, bridge_cap, recipient, amount, ctx);
-        true
-    } else {
-        false
-    }
+    safe::transfer<T>(safe, bridge_cap, recipient, amount, ctx)
 }
 
 fun is_mvx_batch_final(bridge: &Bridge, created_block_number: u64, ctx: &TxContext): bool {

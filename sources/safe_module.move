@@ -432,24 +432,32 @@ module bridge_safe::safe {
         receiver: address,
         amount: u64,
         ctx: &mut TxContext,
-    ) {
-        let signer = tx_context::sender(ctx);
-        assert_bridge(safe, signer);
-
+    ): bool {
         let key = utils::type_name_bytes<T>();
 
-        {
-            let cfg_ref = table::borrow(&safe.token_cfg, key);
-            assert!(shared_structs::token_config_whitelisted(cfg_ref), ETokenNotWhitelisted);
-            let current_balance = shared_structs::token_config_total_balance(cfg_ref);
-            assert!(current_balance >= amount, EInsufficientBalance);
+        if (!table::contains(&safe.token_cfg, key)) {
+            return false
         };
 
-        assert!(bag::contains(&safe.coin_storage, key), EInsufficientBalance);
+        let cfg_ref = table::borrow(&safe.token_cfg, key);
+        if (!shared_structs::token_config_whitelisted(cfg_ref)) {
+            return false
+        };
+
+        let current_balance = shared_structs::token_config_total_balance(cfg_ref);
+        if (current_balance < amount) {
+            return false
+        };
+
+        if (!bag::contains(&safe.coin_storage, key)) {
+            return false
+        };
 
         let stored_coin = bag::borrow_mut<vector<u8>, Coin<T>>(&mut safe.coin_storage, key);
         let coin_value = coin::value(stored_coin);
-        assert!(coin_value >= amount, EInsufficientBalance);
+        if (coin_value < amount) {
+            return false
+        };
 
         let coin_to_transfer = coin::split(stored_coin, amount, ctx);
 
@@ -462,6 +470,8 @@ module bridge_safe::safe {
 
         let cfg_mut = borrow_token_cfg_mut(safe, key);
         shared_structs::subtract_from_token_config_total_balance(cfg_mut, amount);
+
+        true
     }
 
     public fun get_stored_coin_balance<T>(safe: &BridgeSafe): u64 {
