@@ -150,6 +150,14 @@ public fun subtract_from_token_config_total_balance(config: &mut TokenConfig, am
     config.total_balance = config.total_balance - amount;
 }
 
+public fun token_config_mint_burn(config: &TokenConfig): bool {
+    config.mint_burn
+}
+
+public fun token_config_is_native(config: &TokenConfig): bool {
+    config.is_native
+}
+
 public fun batch_nonce(batch: &Batch): u64 {
     batch.nonce
 }

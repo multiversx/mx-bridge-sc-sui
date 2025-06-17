@@ -3,7 +3,7 @@ module bridge_safe::bridge;
 use bridge_safe::pausable::{Self, Pause};
 use bridge_safe::roles::{BridgeCap, AdminCap};
 use bridge_safe::safe::{Self, BridgeSafe};
-use shared_structs::shared_structs::{Deposit, Batch};
+use shared_structs::shared_structs::{Self, Deposit, Batch, CrossTransferStatus, DepositStatus};
 use sui::event;
 use sui::table::{Self, Table};
 use sui::vec_set::{Self, VecSet};
@@ -38,6 +38,7 @@ public struct Bridge has key {
     relayers: VecSet<address>,
     executed_batches: Table<u64, bool>,
     execution_blocks: Table<u64, u64>,
+    cross_transfer_statuses: Table<u64, CrossTransferStatus>,
     safe: address,
 }
 
@@ -67,6 +68,7 @@ public fun initialize(
         relayers,
         executed_batches: table::new(ctx),
         execution_blocks: table::new(ctx),
+        cross_transfer_statuses: table::new(ctx),
         safe: safe_address,
     }
 }
@@ -150,13 +152,17 @@ public fun get_statuses_after_execution(
     bridge: &Bridge,
     batch_nonce_mvx: u64,
     ctx: &TxContext,
-): (bool, bool) {
-    if (table::contains(&bridge.execution_blocks, batch_nonce_mvx)) {
-        let execution_block = *table::borrow(&bridge.execution_blocks, batch_nonce_mvx);
-        let is_final = is_mvx_batch_final(bridge, execution_block, ctx);
-        (true, is_final)
+): (vector<DepositStatus>, bool) {
+    if (table::contains(&bridge.cross_transfer_statuses, batch_nonce_mvx)) {
+        let cross_status = table::borrow(&bridge.cross_transfer_statuses, batch_nonce_mvx);
+        let statuses = shared_structs::cross_transfer_status_statuses(cross_status);
+        let created_block = shared_structs::cross_transfer_status_created_block_number(
+            cross_status,
+        );
+        let is_final = is_mvx_batch_final(bridge, created_block, ctx);
+        (statuses, is_final)
     } else {
-        (false, false)
+        (vector::empty<DepositStatus>(), false)
     }
 }
 
@@ -179,9 +185,11 @@ public entry fun execute_transfer<T>(
     assert!(!was_batch_executed(bridge, batch_nonce_mvx), EBatchAlreadyExecuted);
 
     table::add(&mut bridge.executed_batches, batch_nonce_mvx, true);
+    table::add(&mut bridge.execution_blocks, batch_nonce_mvx, tx_context::epoch(ctx));
 
     let mut successful_count = 0;
     let mut failed_count = 0;
+    let mut transfer_statuses = vector::empty<DepositStatus>();
     let mut i = 0;
     while (i < vector::length(&tokens)) {
         let recipient = *vector::borrow(&recipients, i);
@@ -190,13 +198,21 @@ public entry fun execute_transfer<T>(
         let success = try_transfer<T>(safe, _bridge_cap, recipient, amount, ctx);
         if (success) {
             successful_count = successful_count + 1;
+            vector::push_back(&mut transfer_statuses, shared_structs::deposit_status_executed());
         } else {
             failed_count = failed_count + 1;
+            vector::push_back(&mut transfer_statuses, shared_structs::deposit_status_rejected());
         };
         i = i + 1;
     };
 
-    //TODO: store individual transfer results
+    // Store individual transfer results
+    let cross_status = shared_structs::create_cross_transfer_status(
+        transfer_statuses,
+        tx_context::epoch(ctx),
+    );
+    table::add(&mut bridge.cross_transfer_statuses, batch_nonce_mvx, cross_status);
+
     let total_transfers = vector::length(&tokens);
 
     event::emit(BatchExecuted {
@@ -246,4 +262,12 @@ public fun get_pause(bridge: &Bridge): &Pause {
 
 public fun get_pause_mut(bridge: &mut Bridge): &mut Pause {
     &mut bridge.pause
+}
+
+public fun get_relayers(bridge: &Bridge): &VecSet<address> {
+    &bridge.relayers
+}
+
+public fun get_relayer_count(bridge: &Bridge): u64 {
+    vec_set::size(&bridge.relayers)
 }

@@ -10,6 +10,8 @@ module bridge_safe::utils {
 }
 
 module bridge_safe::roles {
+    use sui::transfer;
+
     public struct AdminCap has key, store {
         id: UID,
     }
@@ -28,6 +30,19 @@ module bridge_safe::roles {
             BridgeCap { id: object::new(ctx) },
             RelayerCap { id: object::new(ctx) },
         )
+    }
+
+    public fun transfer_caps(
+        admin_cap: AdminCap,
+        bridge_cap: BridgeCap,
+        relayer_cap: RelayerCap,
+        admin_addr: address,
+        bridge_addr: address,
+        relayer_addr: address,
+    ) {
+        transfer::public_transfer(admin_cap, admin_addr);
+        transfer::public_transfer(bridge_cap, bridge_addr);
+        transfer::public_transfer(relayer_cap, relayer_addr);
     }
 }
 
@@ -74,12 +89,13 @@ module bridge_safe::events {
 module bridge_safe::safe {
     use bridge_safe::events;
     use bridge_safe::pausable::{Self, Pause};
-    use bridge_safe::roles::{AdminCap, BridgeCap};
+    use bridge_safe::roles::{AdminCap, BridgeCap, RelayerCap};
     use bridge_safe::utils;
     use shared_structs::shared_structs::{Self, TokenConfig, Batch, Deposit};
     use sui::bag::{Self, Bag};
     use sui::coin::{Self, Coin, TreasuryCap};
     use sui::table::{Self, Table};
+    use sui::transfer;
 
     const ENotAdmin: u64 = 0;
     const ETokenAlreadyExists: u64 = 2;
@@ -91,6 +107,7 @@ module bridge_safe::safe {
     const EAmountBelowMinimum: u64 = 11;
     const EAmountAboveMaximum: u64 = 12;
     const EInsufficientBalance: u64 = 13;
+    const ECannotInitMintBurnToken: u64 = 14;
 
     public struct BridgeSafe has key {
         id: UID,
@@ -106,6 +123,42 @@ module bridge_safe::safe {
         batches: Table<u64, Batch>,
         batch_deposits: Table<u64, vector<Deposit>>,
         coin_storage: Bag,
+    }
+
+    public entry fun initialize(
+        admin_addr: address,
+        bridge_addr: address,
+        relayer_addr: address,
+        ctx: &mut TxContext,
+    ) {
+        let (admin_cap, bridge_cap, rel_cap) = bridge_safe::roles::publish_caps(ctx);
+
+        let safe = BridgeSafe {
+            id: object::new(ctx),
+            pause: pausable::new(),
+            admin: admin_addr,
+            bridge_addr,
+            batch_size: 10,
+            batch_block_limit: 40,
+            batch_settle_limit: 40,
+            batches_count: 0,
+            deposits_count: 0,
+            token_cfg: table::new(ctx),
+            batches: table::new(ctx),
+            batch_deposits: table::new(ctx),
+            coin_storage: bag::new(ctx),
+        };
+
+        bridge_safe::roles::transfer_caps(
+            admin_cap,
+            bridge_cap,
+            rel_cap,
+            admin_addr,
+            bridge_addr,
+            relayer_addr,
+        );
+
+        transfer::share_object(safe);
     }
 
     #[test_only]
@@ -267,6 +320,31 @@ module bridge_safe::safe {
         let key = utils::type_name_bytes<T>();
         let cfg = table::borrow(&safe.token_cfg, key);
         shared_structs::token_config_max_limit(cfg)
+    }
+
+    public entry fun init_supply<T>(safe: &mut BridgeSafe, coin_in: Coin<T>, ctx: &mut TxContext) {
+        let signer = tx_context::sender(ctx);
+        assert_admin(safe, signer);
+
+        let key = utils::type_name_bytes<T>();
+
+        assert!(table::contains(&safe.token_cfg, key), ETokenNotWhitelisted);
+        let cfg_ref = table::borrow(&safe.token_cfg, key);
+        assert!(shared_structs::token_config_whitelisted(cfg_ref), ETokenNotWhitelisted);
+
+        assert!(!shared_structs::token_config_mint_burn(cfg_ref), ECannotInitMintBurnToken);
+
+        let amount = coin::value(&coin_in);
+
+        let cfg_mut = borrow_token_cfg_mut(safe, key);
+        shared_structs::add_to_token_config_total_balance(cfg_mut, amount);
+
+        if (bag::contains(&safe.coin_storage, key)) {
+            let existing_coin = bag::borrow_mut<vector<u8>, Coin<T>>(&mut safe.coin_storage, key);
+            coin::join(existing_coin, coin_in);
+        } else {
+            bag::add(&mut safe.coin_storage, key, coin_in);
+        };
     }
 
     /// Deposit function: Users send coins FROM their wallet TO the bridge safe contract

@@ -39,3 +39,6 @@ bridge_safe = "0x2"
 # and `--dev` modes.
 # alice = "0xB0B"
 
+[build]
+language_version = "1.0.0"
+
