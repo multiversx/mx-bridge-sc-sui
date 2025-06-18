@@ -42,8 +42,40 @@ public struct Bridge has key {
     safe: address,
 }
 
+public entry fun initialize(
+    board: vector<address>,
+    initial_quorum: u64,
+    safe_address: address,
+    ctx: &mut TxContext,
+) {
+    assert!(initial_quorum >= MINIMUM_QUORUM, EQuorumTooLow);
+    assert!(vector::length(&board) >= initial_quorum, EBoardTooSmall);
+
+    let mut relayers = vec_set::empty<address>();
+    let mut i = 0;
+    while (i < vector::length(&board)) {
+        vec_set::insert(&mut relayers, *vector::borrow(&board, i));
+        i = i + 1;
+    };
+
+    let bridge = Bridge {
+        id: object::new(ctx),
+        pause: pausable::new(),
+        admin: tx_context::sender(ctx),
+        quorum: initial_quorum,
+        batch_settle_block_count: 40,
+        relayers,
+        executed_batches: table::new(ctx),
+        execution_blocks: table::new(ctx),
+        cross_transfer_statuses: table::new(ctx),
+        safe: safe_address,
+    };
+
+    transfer::share_object(bridge);
+}
+
 #[test_only]
-public fun initialize(
+public fun test_initialize(
     board: vector<address>,
     initial_quorum: u64,
     safe_address: address,
@@ -206,7 +238,6 @@ public entry fun execute_transfer<T>(
         i = i + 1;
     };
 
-    // Store individual transfer results
     let cross_status = shared_structs::create_cross_transfer_status(
         transfer_statuses,
         tx_context::epoch(ctx),
@@ -270,4 +301,15 @@ public fun get_relayers(bridge: &Bridge): &VecSet<address> {
 
 public fun get_relayer_count(bridge: &Bridge): u64 {
     vec_set::size(&bridge.relayers)
+}
+
+public entry fun set_admin(
+    bridge: &mut Bridge,
+    _admin_cap: &AdminCap,
+    new_admin: address,
+    ctx: &mut TxContext,
+) {
+    let signer = tx_context::sender(ctx);
+    assert_admin(bridge, signer);
+    bridge.admin = new_admin;
 }

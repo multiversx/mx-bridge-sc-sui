@@ -10,8 +10,6 @@ module bridge_safe::utils {
 }
 
 module bridge_safe::roles {
-    use sui::transfer;
-
     public struct AdminCap has key, store {
         id: UID,
     }
@@ -95,7 +93,6 @@ module bridge_safe::safe {
     use sui::bag::{Self, Bag};
     use sui::coin::{Self, Coin, TreasuryCap};
     use sui::table::{Self, Table};
-    use sui::transfer;
 
     const ENotAdmin: u64 = 0;
     const ETokenAlreadyExists: u64 = 2;

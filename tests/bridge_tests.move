@@ -248,7 +248,7 @@ fun test_initialize_with_low_quorum() {
     let ctx = test_scenario::ctx(&mut scenario);
 
     let board = vector[RELAYER1, RELAYER2, RELAYER3];
-    let bridge = bridge::initialize(board, 2, @0x1, ctx); // Quorum too low (< 3)
+    let bridge = bridge::initialize(board, 2, @0x1, ctx);
 
     test_utils::destroy(bridge);
     test_scenario::end(scenario);
@@ -260,8 +260,8 @@ fun test_initialize_with_small_board() {
     let mut scenario = test_scenario::begin(ADMIN);
     let ctx = test_scenario::ctx(&mut scenario);
 
-    let board = vector[RELAYER1, RELAYER2]; // Only 2 relayers
-    let bridge = bridge::initialize(board, 3, @0x1, ctx); // But quorum is 3
+    let board = vector[RELAYER1, RELAYER2];
+    let bridge = bridge::initialize(board, 3, @0x1, ctx);
 
     test_utils::destroy(bridge);
     test_scenario::end(scenario);
@@ -273,7 +273,7 @@ fun test_set_quorum_too_low() {
     let (mut scenario, mut bridge, safe, admin_cap, bridge_cap) = setup_bridge_test();
     let ctx = test_scenario::ctx(&mut scenario);
 
-    bridge::set_quorum(&mut bridge, &admin_cap, 2, ctx); // Below minimum
+    bridge::set_quorum(&mut bridge, &admin_cap, 2, ctx);
 
     cleanup_bridge_test(scenario, bridge, safe, admin_cap, bridge_cap);
 }
@@ -295,7 +295,7 @@ fun test_execute_transfer_insufficient_signatures() {
     let tokens = vector[b"SUI"];
     let recipients = vector[RECIPIENT];
     let amounts = vector[1000];
-    let signatures = vector[b"sig1", b"sig2"]; // Only 2 signatures, need 3
+    let signatures = vector[b"sig1", b"sig2"];
 
     bridge::execute_transfer<SUI>(
         &mut bridge,
@@ -343,7 +343,6 @@ fun test_execute_transfer_batch_already_executed() {
         ctx,
     );
 
-    // Try to execute same batch again
     bridge::execute_transfer<SUI>(
         &mut bridge,
         &mut safe,
