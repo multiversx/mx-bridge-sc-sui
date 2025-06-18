@@ -1,0 +1,2000 @@
+{
+  "doc": null,
+  "immediate_dependencies": [
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "bag"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "coin"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "events"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "object"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "pausable"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "roles"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "table"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "transfer"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "tx_context"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "utils"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000123",
+      "name": "shared_structs"
+    }
+  ],
+  "attributes": [
+    {
+      "Parameterized": [
+        "allow",
+        [
+          {
+            "Name": "unused_use"
+          }
+        ]
+      ]
+    }
+  ],
+  "functions": {
+    "initialize": {
+      "source_index": 0,
+      "index": 0,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": true,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "admin_addr",
+          "type_": "address"
+        },
+        {
+          "name": "bridge_addr",
+          "type_": "address"
+        },
+        {
+          "name": "relayer_addr",
+          "type_": "address"
+        },
+        {
+          "name": "ctx",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "tx_context"
+                  },
+                  "name": "TxContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": []
+    },
+    "assert_admin": {
+      "source_index": 1,
+      "index": 1,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Private",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "s",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "safe"
+                  },
+                  "name": "BridgeSafe",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "signer",
+          "type_": "address"
+        }
+      ],
+      "return_": []
+    },
+    "assert_bridge": {
+      "source_index": 2,
+      "index": 2,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Private",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "s",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "safe"
+                  },
+                  "name": "BridgeSafe",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "signer",
+          "type_": "address"
+        }
+      ],
+      "return_": []
+    },
+    "borrow_token_cfg_mut": {
+      "source_index": 3,
+      "index": 3,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Private",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "safe",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "safe"
+                  },
+                  "name": "BridgeSafe",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "key",
+          "type_": {
+            "vector": "u8"
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Reference": [
+            true,
+            {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000123",
+                  "name": "shared_structs"
+                },
+                "name": "TokenConfig",
+                "type_arguments": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "whitelist_token": {
+      "source_index": 4,
+      "index": 4,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": true,
+      "type_parameters": [
+        {
+          "name": "T",
+          "constraints": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "safe",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "safe"
+                  },
+                  "name": "BridgeSafe",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "_admin_cap",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "roles"
+                  },
+                  "name": "AdminCap",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "minimum_amount",
+          "type_": "u64"
+        },
+        {
+          "name": "maximum_amount",
+          "type_": "u64"
+        },
+        {
+          "name": "mint_burn",
+          "type_": "bool"
+        },
+        {
+          "name": "is_native",
+          "type_": "bool"
+        },
+        {
+          "name": "ctx",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "tx_context"
+                  },
+                  "name": "TxContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": []
+    },
+    "remove_token_from_whitelist": {
+      "source_index": 5,
+      "index": 5,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": true,
+      "type_parameters": [
+        {
+          "name": "T",
+          "constraints": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "safe",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "safe"
+                  },
+                  "name": "BridgeSafe",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "_admin_cap",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "roles"
+                  },
+                  "name": "AdminCap",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "ctx",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "tx_context"
+                  },
+                  "name": "TxContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": []
+    },
+    "is_token_whitelisted": {
+      "source_index": 6,
+      "index": 6,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [
+        {
+          "name": "T",
+          "constraints": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "safe",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "safe"
+                  },
+                  "name": "BridgeSafe",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "bool"
+      ]
+    },
+    "set_batch_block_limit": {
+      "source_index": 7,
+      "index": 7,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": true,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "safe",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "safe"
+                  },
+                  "name": "BridgeSafe",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "_admin_cap",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "roles"
+                  },
+                  "name": "AdminCap",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "new_limit",
+          "type_": "u8"
+        },
+        {
+          "name": "ctx",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "tx_context"
+                  },
+                  "name": "TxContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": []
+    },
+    "set_batch_settle_limit": {
+      "source_index": 8,
+      "index": 8,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": true,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "safe",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "safe"
+                  },
+                  "name": "BridgeSafe",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "_admin_cap",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "roles"
+                  },
+                  "name": "AdminCap",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "new_limit",
+          "type_": "u8"
+        },
+        {
+          "name": "ctx",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "tx_context"
+                  },
+                  "name": "TxContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": []
+    },
+    "set_batch_size": {
+      "source_index": 9,
+      "index": 9,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": true,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "safe",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "safe"
+                  },
+                  "name": "BridgeSafe",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "_admin_cap",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "roles"
+                  },
+                  "name": "AdminCap",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "new_size",
+          "type_": "u16"
+        },
+        {
+          "name": "ctx",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "tx_context"
+                  },
+                  "name": "TxContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": []
+    },
+    "set_token_min_limit": {
+      "source_index": 10,
+      "index": 10,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": true,
+      "type_parameters": [
+        {
+          "name": "T",
+          "constraints": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "safe",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "safe"
+                  },
+                  "name": "BridgeSafe",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "_admin_cap",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "roles"
+                  },
+                  "name": "AdminCap",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "amount",
+          "type_": "u64"
+        },
+        {
+          "name": "ctx",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "tx_context"
+                  },
+                  "name": "TxContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": []
+    },
+    "get_token_min_limit": {
+      "source_index": 11,
+      "index": 11,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [
+        {
+          "name": "T",
+          "constraints": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "safe",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "safe"
+                  },
+                  "name": "BridgeSafe",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u64"
+      ]
+    },
+    "set_token_max_limit": {
+      "source_index": 12,
+      "index": 12,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": true,
+      "type_parameters": [
+        {
+          "name": "T",
+          "constraints": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "safe",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "safe"
+                  },
+                  "name": "BridgeSafe",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "_admin_cap",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "roles"
+                  },
+                  "name": "AdminCap",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "amount",
+          "type_": "u64"
+        },
+        {
+          "name": "ctx",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "tx_context"
+                  },
+                  "name": "TxContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": []
+    },
+    "get_token_max_limit": {
+      "source_index": 13,
+      "index": 13,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [
+        {
+          "name": "T",
+          "constraints": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "safe",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "safe"
+                  },
+                  "name": "BridgeSafe",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u64"
+      ]
+    },
+    "init_supply": {
+      "source_index": 14,
+      "index": 14,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": true,
+      "type_parameters": [
+        {
+          "name": "T",
+          "constraints": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "safe",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "safe"
+                  },
+                  "name": "BridgeSafe",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "coin_in",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                "name": "coin"
+              },
+              "name": "Coin",
+              "type_arguments": [
+                {
+                  "NamedTypeParameter": "T"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "ctx",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "tx_context"
+                  },
+                  "name": "TxContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": []
+    },
+    "deposit": {
+      "source_index": 15,
+      "index": 15,
+      "doc": " Deposit function: Users send coins FROM their wallet TO the bridge safe contract\n The coins are stored in the contract's coin_storage for later transfer",
+      "attributes": [],
+      "visibility": "Public",
+      "entry": true,
+      "type_parameters": [
+        {
+          "name": "T",
+          "constraints": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "safe",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "safe"
+                  },
+                  "name": "BridgeSafe",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "coin_in",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                "name": "coin"
+              },
+              "name": "Coin",
+              "type_arguments": [
+                {
+                  "NamedTypeParameter": "T"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "recipient",
+          "type_": "address"
+        },
+        {
+          "name": "ctx",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "tx_context"
+                  },
+                  "name": "TxContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": []
+    },
+    "get_batch": {
+      "source_index": 16,
+      "index": 16,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "safe",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "safe"
+                  },
+                  "name": "BridgeSafe",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "batch_nonce",
+          "type_": "u64"
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000123",
+              "name": "shared_structs"
+            },
+            "name": "Batch",
+            "type_arguments": []
+          }
+        },
+        "bool"
+      ]
+    },
+    "get_deposits": {
+      "source_index": 17,
+      "index": 17,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "safe",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "safe"
+                  },
+                  "name": "BridgeSafe",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "batch_nonce",
+          "type_": "u64"
+        }
+      ],
+      "return_": [
+        {
+          "vector": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000123",
+                "name": "shared_structs"
+              },
+              "name": "Deposit",
+              "type_arguments": []
+            }
+          }
+        },
+        "bool"
+      ]
+    },
+    "is_any_batch_in_progress": {
+      "source_index": 18,
+      "index": 18,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "safe",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "safe"
+                  },
+                  "name": "BridgeSafe",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "bool"
+      ]
+    },
+    "create_new_batch_internal": {
+      "source_index": 19,
+      "index": 19,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "safe",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "safe"
+                  },
+                  "name": "BridgeSafe",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "ctx",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "tx_context"
+                  },
+                  "name": "TxContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": []
+    },
+    "should_create_new_batch_internal": {
+      "source_index": 20,
+      "index": 20,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Private",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "safe",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "safe"
+                  },
+                  "name": "BridgeSafe",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "bool"
+      ]
+    },
+    "is_batch_progress_over_internal": {
+      "source_index": 21,
+      "index": 21,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Private",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "safe",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "safe"
+                  },
+                  "name": "BridgeSafe",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "dep_count",
+          "type_": "u16"
+        },
+        {
+          "name": "blk",
+          "type_": "u64"
+        }
+      ],
+      "return_": [
+        "bool"
+      ]
+    },
+    "is_batch_final_internal": {
+      "source_index": 22,
+      "index": 22,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Private",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "safe",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "safe"
+                  },
+                  "name": "BridgeSafe",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "batch",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000123",
+                    "name": "shared_structs"
+                  },
+                  "name": "Batch",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "bool"
+      ]
+    },
+    "is_any_batch_in_progress_internal": {
+      "source_index": 23,
+      "index": 23,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Private",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "safe",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "safe"
+                  },
+                  "name": "BridgeSafe",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "bool"
+      ]
+    },
+    "get_admin": {
+      "source_index": 24,
+      "index": 24,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "safe",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "safe"
+                  },
+                  "name": "BridgeSafe",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "address"
+      ]
+    },
+    "get_bridge_addr": {
+      "source_index": 25,
+      "index": 25,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "safe",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "safe"
+                  },
+                  "name": "BridgeSafe",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "address"
+      ]
+    },
+    "get_batch_size": {
+      "source_index": 26,
+      "index": 26,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "safe",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "safe"
+                  },
+                  "name": "BridgeSafe",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u16"
+      ]
+    },
+    "get_batch_block_limit": {
+      "source_index": 27,
+      "index": 27,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "safe",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "safe"
+                  },
+                  "name": "BridgeSafe",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u8"
+      ]
+    },
+    "get_batch_settle_limit": {
+      "source_index": 28,
+      "index": 28,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "safe",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "safe"
+                  },
+                  "name": "BridgeSafe",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u8"
+      ]
+    },
+    "get_batches_count": {
+      "source_index": 29,
+      "index": 29,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "safe",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "safe"
+                  },
+                  "name": "BridgeSafe",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u64"
+      ]
+    },
+    "get_deposits_count": {
+      "source_index": 30,
+      "index": 30,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "safe",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "safe"
+                  },
+                  "name": "BridgeSafe",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u64"
+      ]
+    },
+    "get_pause": {
+      "source_index": 31,
+      "index": 31,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "safe",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "safe"
+                  },
+                  "name": "BridgeSafe",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Reference": [
+            false,
+            {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "pausable"
+                },
+                "name": "Pause",
+                "type_arguments": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "get_pause_mut": {
+      "source_index": 32,
+      "index": 32,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "safe",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "safe"
+                  },
+                  "name": "BridgeSafe",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Reference": [
+            true,
+            {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "pausable"
+                },
+                "name": "Pause",
+                "type_arguments": []
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "get_batch_nonce": {
+      "source_index": 33,
+      "index": 33,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "batch",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000123",
+                    "name": "shared_structs"
+                  },
+                  "name": "Batch",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u64"
+      ]
+    },
+    "get_batch_deposits_count": {
+      "source_index": 34,
+      "index": 34,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "batch",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000123",
+                    "name": "shared_structs"
+                  },
+                  "name": "Batch",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u16"
+      ]
+    },
+    "transfer": {
+      "source_index": 35,
+      "index": 35,
+      "doc": " Transfer function: Bridge sends coins FROM the bridge safe contract TO recipient\n Only the bridge (with BridgeCap) can call this function\n The coins are taken from the contract's storage and sent to recipient",
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [
+        {
+          "name": "T",
+          "constraints": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "safe",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "safe"
+                  },
+                  "name": "BridgeSafe",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "_bridge_cap",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "roles"
+                  },
+                  "name": "BridgeCap",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "receiver",
+          "type_": "address"
+        },
+        {
+          "name": "amount",
+          "type_": "u64"
+        },
+        {
+          "name": "ctx",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "tx_context"
+                  },
+                  "name": "TxContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "bool"
+      ]
+    },
+    "get_stored_coin_balance": {
+      "source_index": 36,
+      "index": 36,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [
+        {
+          "name": "T",
+          "constraints": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "safe",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "safe"
+                  },
+                  "name": "BridgeSafe",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u64"
+      ]
+    }
+  },
+  "structs": {
+    "BridgeSafe": {
+      "index": 0,
+      "doc": null,
+      "attributes": [],
+      "abilities": [
+        "Key"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "id": {
+            "index": 0,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "object"
+                },
+                "name": "UID",
+                "type_arguments": []
+              }
+            }
+          },
+          "pause": {
+            "index": 1,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "pausable"
+                },
+                "name": "Pause",
+                "type_arguments": []
+              }
+            }
+          },
+          "admin": {
+            "index": 2,
+            "doc": null,
+            "type_": "address"
+          },
+          "bridge_addr": {
+            "index": 3,
+            "doc": null,
+            "type_": "address"
+          },
+          "batch_size": {
+            "index": 4,
+            "doc": null,
+            "type_": "u16"
+          },
+          "batch_block_limit": {
+            "index": 5,
+            "doc": null,
+            "type_": "u8"
+          },
+          "batch_settle_limit": {
+            "index": 6,
+            "doc": null,
+            "type_": "u8"
+          },
+          "batches_count": {
+            "index": 7,
+            "doc": null,
+            "type_": "u64"
+          },
+          "deposits_count": {
+            "index": 8,
+            "doc": null,
+            "type_": "u64"
+          },
+          "token_cfg": {
+            "index": 9,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "table"
+                },
+                "name": "Table",
+                "type_arguments": [
+                  {
+                    "vector": "u8"
+                  },
+                  {
+                    "Datatype": {
+                      "module": {
+                        "address": "0000000000000000000000000000000000000000000000000000000000000123",
+                        "name": "shared_structs"
+                      },
+                      "name": "TokenConfig",
+                      "type_arguments": []
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "batches": {
+            "index": 10,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "table"
+                },
+                "name": "Table",
+                "type_arguments": [
+                  "u64",
+                  {
+                    "Datatype": {
+                      "module": {
+                        "address": "0000000000000000000000000000000000000000000000000000000000000123",
+                        "name": "shared_structs"
+                      },
+                      "name": "Batch",
+                      "type_arguments": []
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "batch_deposits": {
+            "index": 11,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "table"
+                },
+                "name": "Table",
+                "type_arguments": [
+                  "u64",
+                  {
+                    "vector": {
+                      "Datatype": {
+                        "module": {
+                          "address": "0000000000000000000000000000000000000000000000000000000000000123",
+                          "name": "shared_structs"
+                        },
+                        "name": "Deposit",
+                        "type_arguments": []
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "coin_storage": {
+            "index": 12,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "bag"
+                },
+                "name": "Bag",
+                "type_arguments": []
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "enums": {}
+}

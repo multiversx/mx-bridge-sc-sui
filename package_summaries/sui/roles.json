@@ -1,0 +1,234 @@
+{
+  "doc": null,
+  "immediate_dependencies": [
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "object"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "transfer"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "tx_context"
+    }
+  ],
+  "attributes": [],
+  "functions": {
+    "publish_caps": {
+      "source_index": 0,
+      "index": 0,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "ctx",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "tx_context"
+                  },
+                  "name": "TxContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000002",
+              "name": "roles"
+            },
+            "name": "AdminCap",
+            "type_arguments": []
+          }
+        },
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000002",
+              "name": "roles"
+            },
+            "name": "BridgeCap",
+            "type_arguments": []
+          }
+        },
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000002",
+              "name": "roles"
+            },
+            "name": "RelayerCap",
+            "type_arguments": []
+          }
+        }
+      ]
+    },
+    "transfer_caps": {
+      "source_index": 1,
+      "index": 1,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "admin_cap",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                "name": "roles"
+              },
+              "name": "AdminCap",
+              "type_arguments": []
+            }
+          }
+        },
+        {
+          "name": "bridge_cap",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                "name": "roles"
+              },
+              "name": "BridgeCap",
+              "type_arguments": []
+            }
+          }
+        },
+        {
+          "name": "relayer_cap",
+          "type_": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                "name": "roles"
+              },
+              "name": "RelayerCap",
+              "type_arguments": []
+            }
+          }
+        },
+        {
+          "name": "admin_addr",
+          "type_": "address"
+        },
+        {
+          "name": "bridge_addr",
+          "type_": "address"
+        },
+        {
+          "name": "relayer_addr",
+          "type_": "address"
+        }
+      ],
+      "return_": []
+    }
+  },
+  "structs": {
+    "AdminCap": {
+      "index": 0,
+      "doc": null,
+      "attributes": [],
+      "abilities": [
+        "Key",
+        "Store"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "id": {
+            "index": 0,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "object"
+                },
+                "name": "UID",
+                "type_arguments": []
+              }
+            }
+          }
+        }
+      }
+    },
+    "BridgeCap": {
+      "index": 1,
+      "doc": null,
+      "attributes": [],
+      "abilities": [
+        "Key",
+        "Store"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "id": {
+            "index": 0,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "object"
+                },
+                "name": "UID",
+                "type_arguments": []
+              }
+            }
+          }
+        }
+      }
+    },
+    "RelayerCap": {
+      "index": 2,
+      "doc": null,
+      "attributes": [],
+      "abilities": [
+        "Key",
+        "Store"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "id": {
+            "index": 0,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "object"
+                },
+                "name": "UID",
+                "type_arguments": []
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "enums": {}
+}

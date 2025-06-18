@@ -1,0 +1,1237 @@
+{
+  "doc": null,
+  "immediate_dependencies": [
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "object"
+    }
+  ],
+  "attributes": [],
+  "functions": {
+    "create_deposit": {
+      "source_index": 0,
+      "index": 0,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "nonce",
+          "type_": "u64"
+        },
+        {
+          "name": "token_key",
+          "type_": {
+            "vector": "u8"
+          }
+        },
+        {
+          "name": "amount",
+          "type_": "u64"
+        },
+        {
+          "name": "sender",
+          "type_": "address"
+        },
+        {
+          "name": "recipient",
+          "type_": "address"
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000123",
+              "name": "shared_structs"
+            },
+            "name": "Deposit",
+            "type_arguments": []
+          }
+        }
+      ]
+    },
+    "create_batch": {
+      "source_index": 1,
+      "index": 1,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "nonce",
+          "type_": "u64"
+        },
+        {
+          "name": "block_number",
+          "type_": "u64"
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000123",
+              "name": "shared_structs"
+            },
+            "name": "Batch",
+            "type_arguments": []
+          }
+        }
+      ]
+    },
+    "create_cross_transfer_status": {
+      "source_index": 2,
+      "index": 2,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "statuses",
+          "type_": {
+            "vector": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000123",
+                  "name": "shared_structs"
+                },
+                "name": "DepositStatus",
+                "type_arguments": []
+              }
+            }
+          }
+        },
+        {
+          "name": "created_block_number",
+          "type_": "u64"
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000123",
+              "name": "shared_structs"
+            },
+            "name": "CrossTransferStatus",
+            "type_arguments": []
+          }
+        }
+      ]
+    },
+    "cross_transfer_status_statuses": {
+      "source_index": 3,
+      "index": 3,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "status",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000123",
+                    "name": "shared_structs"
+                  },
+                  "name": "CrossTransferStatus",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        {
+          "vector": {
+            "Datatype": {
+              "module": {
+                "address": "0000000000000000000000000000000000000000000000000000000000000123",
+                "name": "shared_structs"
+              },
+              "name": "DepositStatus",
+              "type_arguments": []
+            }
+          }
+        }
+      ]
+    },
+    "cross_transfer_status_created_block_number": {
+      "source_index": 4,
+      "index": 4,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "status",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000123",
+                    "name": "shared_structs"
+                  },
+                  "name": "CrossTransferStatus",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u64"
+      ]
+    },
+    "deposit_status_none": {
+      "source_index": 5,
+      "index": 5,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000123",
+              "name": "shared_structs"
+            },
+            "name": "DepositStatus",
+            "type_arguments": []
+          }
+        }
+      ]
+    },
+    "deposit_status_pending": {
+      "source_index": 6,
+      "index": 6,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000123",
+              "name": "shared_structs"
+            },
+            "name": "DepositStatus",
+            "type_arguments": []
+          }
+        }
+      ]
+    },
+    "deposit_status_in_progress": {
+      "source_index": 7,
+      "index": 7,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000123",
+              "name": "shared_structs"
+            },
+            "name": "DepositStatus",
+            "type_arguments": []
+          }
+        }
+      ]
+    },
+    "deposit_status_executed": {
+      "source_index": 8,
+      "index": 8,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000123",
+              "name": "shared_structs"
+            },
+            "name": "DepositStatus",
+            "type_arguments": []
+          }
+        }
+      ]
+    },
+    "deposit_status_rejected": {
+      "source_index": 9,
+      "index": 9,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000123",
+              "name": "shared_structs"
+            },
+            "name": "DepositStatus",
+            "type_arguments": []
+          }
+        }
+      ]
+    },
+    "update_batch_last_updated": {
+      "source_index": 10,
+      "index": 10,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "batch",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000123",
+                    "name": "shared_structs"
+                  },
+                  "name": "Batch",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "block_number",
+          "type_": "u64"
+        }
+      ],
+      "return_": []
+    },
+    "increment_batch_deposits": {
+      "source_index": 11,
+      "index": 11,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "batch",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000123",
+                    "name": "shared_structs"
+                  },
+                  "name": "Batch",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": []
+    },
+    "token_config_whitelisted": {
+      "source_index": 12,
+      "index": 12,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "config",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000123",
+                    "name": "shared_structs"
+                  },
+                  "name": "TokenConfig",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "bool"
+      ]
+    },
+    "token_config_min_limit": {
+      "source_index": 13,
+      "index": 13,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "config",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000123",
+                    "name": "shared_structs"
+                  },
+                  "name": "TokenConfig",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u64"
+      ]
+    },
+    "token_config_max_limit": {
+      "source_index": 14,
+      "index": 14,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "config",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000123",
+                    "name": "shared_structs"
+                  },
+                  "name": "TokenConfig",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u64"
+      ]
+    },
+    "token_config_total_balance": {
+      "source_index": 15,
+      "index": 15,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "config",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000123",
+                    "name": "shared_structs"
+                  },
+                  "name": "TokenConfig",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u64"
+      ]
+    },
+    "set_token_config_whitelisted": {
+      "source_index": 16,
+      "index": 16,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "config",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000123",
+                    "name": "shared_structs"
+                  },
+                  "name": "TokenConfig",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "whitelisted",
+          "type_": "bool"
+        }
+      ],
+      "return_": []
+    },
+    "set_token_config_min_limit": {
+      "source_index": 17,
+      "index": 17,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "config",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000123",
+                    "name": "shared_structs"
+                  },
+                  "name": "TokenConfig",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "min_limit",
+          "type_": "u64"
+        }
+      ],
+      "return_": []
+    },
+    "set_token_config_max_limit": {
+      "source_index": 18,
+      "index": 18,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "config",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000123",
+                    "name": "shared_structs"
+                  },
+                  "name": "TokenConfig",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "max_limit",
+          "type_": "u64"
+        }
+      ],
+      "return_": []
+    },
+    "add_to_token_config_total_balance": {
+      "source_index": 19,
+      "index": 19,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "config",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000123",
+                    "name": "shared_structs"
+                  },
+                  "name": "TokenConfig",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "amount",
+          "type_": "u64"
+        }
+      ],
+      "return_": []
+    },
+    "subtract_from_token_config_total_balance": {
+      "source_index": 20,
+      "index": 20,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "config",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000123",
+                    "name": "shared_structs"
+                  },
+                  "name": "TokenConfig",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "amount",
+          "type_": "u64"
+        }
+      ],
+      "return_": []
+    },
+    "token_config_mint_burn": {
+      "source_index": 21,
+      "index": 21,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "config",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000123",
+                    "name": "shared_structs"
+                  },
+                  "name": "TokenConfig",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "bool"
+      ]
+    },
+    "token_config_is_native": {
+      "source_index": 22,
+      "index": 22,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "config",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000123",
+                    "name": "shared_structs"
+                  },
+                  "name": "TokenConfig",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "bool"
+      ]
+    },
+    "batch_nonce": {
+      "source_index": 23,
+      "index": 23,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "batch",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000123",
+                    "name": "shared_structs"
+                  },
+                  "name": "Batch",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u64"
+      ]
+    },
+    "batch_deposits_count": {
+      "source_index": 24,
+      "index": 24,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "batch",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000123",
+                    "name": "shared_structs"
+                  },
+                  "name": "Batch",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u16"
+      ]
+    },
+    "batch_last_updated_block": {
+      "source_index": 25,
+      "index": 25,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "batch",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000123",
+                    "name": "shared_structs"
+                  },
+                  "name": "Batch",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u64"
+      ]
+    },
+    "batch_block_number": {
+      "source_index": 26,
+      "index": 26,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "batch",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000123",
+                    "name": "shared_structs"
+                  },
+                  "name": "Batch",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": [
+        "u64"
+      ]
+    },
+    "set_batch_deposits_count": {
+      "source_index": 27,
+      "index": 27,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "batch",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000123",
+                    "name": "shared_structs"
+                  },
+                  "name": "Batch",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "count",
+          "type_": "u16"
+        }
+      ],
+      "return_": []
+    },
+    "set_batch_last_updated_block": {
+      "source_index": 28,
+      "index": 28,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "batch",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000123",
+                    "name": "shared_structs"
+                  },
+                  "name": "Batch",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "block",
+          "type_": "u64"
+        }
+      ],
+      "return_": []
+    },
+    "create_token_config": {
+      "source_index": 29,
+      "index": 29,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "whitelisted",
+          "type_": "bool"
+        },
+        {
+          "name": "mint_burn",
+          "type_": "bool"
+        },
+        {
+          "name": "is_native",
+          "type_": "bool"
+        },
+        {
+          "name": "min_limit",
+          "type_": "u64"
+        },
+        {
+          "name": "max_limit",
+          "type_": "u64"
+        }
+      ],
+      "return_": [
+        {
+          "Datatype": {
+            "module": {
+              "address": "0000000000000000000000000000000000000000000000000000000000000123",
+              "name": "shared_structs"
+            },
+            "name": "TokenConfig",
+            "type_arguments": []
+          }
+        }
+      ]
+    }
+  },
+  "structs": {
+    "Deposit": {
+      "index": 0,
+      "doc": null,
+      "attributes": [],
+      "abilities": [
+        "Copy",
+        "Drop",
+        "Store"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "nonce": {
+            "index": 0,
+            "doc": null,
+            "type_": "u64"
+          },
+          "token_key": {
+            "index": 1,
+            "doc": null,
+            "type_": {
+              "vector": "u8"
+            }
+          },
+          "amount": {
+            "index": 2,
+            "doc": null,
+            "type_": "u64"
+          },
+          "sender": {
+            "index": 3,
+            "doc": null,
+            "type_": "address"
+          },
+          "recipient": {
+            "index": 4,
+            "doc": null,
+            "type_": "address"
+          }
+        }
+      }
+    },
+    "CrossTransferStatus": {
+      "index": 1,
+      "doc": null,
+      "attributes": [],
+      "abilities": [
+        "Copy",
+        "Drop",
+        "Store"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "statuses": {
+            "index": 0,
+            "doc": null,
+            "type_": {
+              "vector": {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000123",
+                    "name": "shared_structs"
+                  },
+                  "name": "DepositStatus",
+                  "type_arguments": []
+                }
+              }
+            }
+          },
+          "created_block_number": {
+            "index": 1,
+            "doc": null,
+            "type_": "u64"
+          }
+        }
+      }
+    },
+    "Batch": {
+      "index": 2,
+      "doc": null,
+      "attributes": [],
+      "abilities": [
+        "Copy",
+        "Drop",
+        "Store"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "nonce": {
+            "index": 0,
+            "doc": null,
+            "type_": "u64"
+          },
+          "block_number": {
+            "index": 1,
+            "doc": null,
+            "type_": "u64"
+          },
+          "last_updated_block": {
+            "index": 2,
+            "doc": null,
+            "type_": "u64"
+          },
+          "deposits_count": {
+            "index": 3,
+            "doc": null,
+            "type_": "u16"
+          }
+        }
+      }
+    },
+    "TokenConfig": {
+      "index": 3,
+      "doc": null,
+      "attributes": [],
+      "abilities": [
+        "Copy",
+        "Drop",
+        "Store"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "whitelisted": {
+            "index": 0,
+            "doc": null,
+            "type_": "bool"
+          },
+          "mint_burn": {
+            "index": 1,
+            "doc": null,
+            "type_": "bool"
+          },
+          "is_native": {
+            "index": 2,
+            "doc": null,
+            "type_": "bool"
+          },
+          "min_limit": {
+            "index": 3,
+            "doc": null,
+            "type_": "u64"
+          },
+          "max_limit": {
+            "index": 4,
+            "doc": null,
+            "type_": "u64"
+          },
+          "total_balance": {
+            "index": 5,
+            "doc": null,
+            "type_": "u64"
+          },
+          "mint_balance": {
+            "index": 6,
+            "doc": null,
+            "type_": "u64"
+          },
+          "burn_balance": {
+            "index": 7,
+            "doc": null,
+            "type_": "u64"
+          }
+        }
+      }
+    },
+    "AdminRole": {
+      "index": 4,
+      "doc": null,
+      "attributes": [],
+      "abilities": [
+        "Key"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "id": {
+            "index": 0,
+            "doc": null,
+            "type_": {
+              "Datatype": {
+                "module": {
+                  "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                  "name": "object"
+                },
+                "name": "UID",
+                "type_arguments": []
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "enums": {
+    "DepositStatus": {
+      "index": 0,
+      "doc": null,
+      "attributes": [],
+      "abilities": [
+        "Copy",
+        "Drop",
+        "Store"
+      ],
+      "type_parameters": [],
+      "variants": {
+        "None": {
+          "index": 0,
+          "doc": null,
+          "fields": {
+            "positional_fields": false,
+            "fields": {}
+          }
+        },
+        "Pending": {
+          "index": 1,
+          "doc": null,
+          "fields": {
+            "positional_fields": false,
+            "fields": {}
+          }
+        },
+        "InProgress": {
+          "index": 2,
+          "doc": null,
+          "fields": {
+            "positional_fields": false,
+            "fields": {}
+          }
+        },
+        "Executed": {
+          "index": 3,
+          "doc": null,
+          "fields": {
+            "positional_fields": false,
+            "fields": {}
+          }
+        },
+        "Rejected": {
+          "index": 4,
+          "doc": null,
+          "fields": {
+            "positional_fields": false,
+            "fields": {}
+          }
+        }
+      }
+    }
+  }
+}

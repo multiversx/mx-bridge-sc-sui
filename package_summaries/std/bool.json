@@ -1,0 +1,19 @@
+{
+  "doc": null,
+  "immediate_dependencies": [],
+  "attributes": [
+    {
+      "Parameterized": [
+        "defines_primitive",
+        [
+          {
+            "Name": "bool"
+          }
+        ]
+      ]
+    }
+  ],
+  "functions": {},
+  "structs": {},
+  "enums": {}
+}

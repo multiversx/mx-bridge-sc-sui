@@ -1,0 +1,60 @@
+{
+  "doc": null,
+  "immediate_dependencies": [
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "event"
+    }
+  ],
+  "attributes": [],
+  "functions": {
+    "emit_deposit": {
+      "source_index": 0,
+      "index": 0,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "batch_id",
+          "type_": "u64"
+        },
+        {
+          "name": "deposit_nonce",
+          "type_": "u64"
+        }
+      ],
+      "return_": []
+    }
+  },
+  "structs": {
+    "DepositEvent": {
+      "index": 0,
+      "doc": null,
+      "attributes": [],
+      "abilities": [
+        "Copy",
+        "Drop"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "batch_id": {
+            "index": 0,
+            "doc": null,
+            "type_": "u64"
+          },
+          "deposit_nonce": {
+            "index": 1,
+            "doc": null,
+            "type_": "u64"
+          }
+        }
+      }
+    }
+  },
+  "enums": {}
+}
