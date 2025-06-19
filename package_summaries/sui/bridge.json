@@ -7,6 +7,10 @@
     },
     {
       "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "events"
+    },
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
       "name": "object"
     },
     {
@@ -1258,6 +1262,138 @@
         {
           "name": "new_admin",
           "type_": "address"
+        },
+        {
+          "name": "ctx",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "tx_context"
+                  },
+                  "name": "TxContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": []
+    },
+    "pause_contract": {
+      "source_index": 23,
+      "index": 23,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": true,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "bridge",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "bridge"
+                  },
+                  "name": "Bridge",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "_admin_cap",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "roles"
+                  },
+                  "name": "AdminCap",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "ctx",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "tx_context"
+                  },
+                  "name": "TxContext",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "return_": []
+    },
+    "unpause_contract": {
+      "source_index": 24,
+      "index": 24,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": true,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "bridge",
+          "type_": {
+            "Reference": [
+              true,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "bridge"
+                  },
+                  "name": "Bridge",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "_admin_cap",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "roles"
+                  },
+                  "name": "AdminCap",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
         },
         {
           "name": "ctx",

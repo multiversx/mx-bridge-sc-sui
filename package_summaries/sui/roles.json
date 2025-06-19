@@ -77,15 +77,33 @@
         }
       ]
     },
-    "transfer_caps": {
+    "transfer_admin_capability": {
       "source_index": 1,
       "index": 1,
       "doc": null,
       "attributes": [],
       "visibility": "Public",
-      "entry": false,
+      "entry": true,
       "type_parameters": [],
       "parameters": [
+        {
+          "name": "_current_admin_cap",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "roles"
+                  },
+                  "name": "AdminCap",
+                  "type_arguments": []
+                }
+              }
+            ]
+          }
+        },
         {
           "name": "admin_cap",
           "type_": {
@@ -97,6 +115,40 @@
               "name": "AdminCap",
               "type_arguments": []
             }
+          }
+        },
+        {
+          "name": "new_admin",
+          "type_": "address"
+        }
+      ],
+      "return_": []
+    },
+    "transfer_bridge_capability": {
+      "source_index": 2,
+      "index": 2,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": true,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "_admin_cap",
+          "type_": {
+            "Reference": [
+              false,
+              {
+                "Datatype": {
+                  "module": {
+                    "address": "0000000000000000000000000000000000000000000000000000000000000002",
+                    "name": "roles"
+                  },
+                  "name": "AdminCap",
+                  "type_arguments": []
+                }
+              }
+            ]
           }
         },
         {
@@ -113,28 +165,7 @@
           }
         },
         {
-          "name": "relayer_cap",
-          "type_": {
-            "Datatype": {
-              "module": {
-                "address": "0000000000000000000000000000000000000000000000000000000000000002",
-                "name": "roles"
-              },
-              "name": "RelayerCap",
-              "type_arguments": []
-            }
-          }
-        },
-        {
-          "name": "admin_addr",
-          "type_": "address"
-        },
-        {
-          "name": "bridge_addr",
-          "type_": "address"
-        },
-        {
-          "name": "relayer_addr",
+          "name": "new_bridge",
           "type_": "address"
         }
       ],

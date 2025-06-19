@@ -27,6 +27,102 @@
         }
       ],
       "return_": []
+    },
+    "emit_admin_role_transferred": {
+      "source_index": 1,
+      "index": 1,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "previous_admin",
+          "type_": "address"
+        },
+        {
+          "name": "new_admin",
+          "type_": "address"
+        }
+      ],
+      "return_": []
+    },
+    "emit_bridge_transferred": {
+      "source_index": 2,
+      "index": 2,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "previous_bridge",
+          "type_": "address"
+        },
+        {
+          "name": "new_bridge",
+          "type_": "address"
+        }
+      ],
+      "return_": []
+    },
+    "emit_relayer_added": {
+      "source_index": 3,
+      "index": 3,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "account",
+          "type_": "address"
+        },
+        {
+          "name": "sender",
+          "type_": "address"
+        }
+      ],
+      "return_": []
+    },
+    "emit_relayer_removed": {
+      "source_index": 4,
+      "index": 4,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "account",
+          "type_": "address"
+        },
+        {
+          "name": "sender",
+          "type_": "address"
+        }
+      ],
+      "return_": []
+    },
+    "emit_pause": {
+      "source_index": 5,
+      "index": 5,
+      "doc": null,
+      "attributes": [],
+      "visibility": "Public",
+      "entry": false,
+      "type_parameters": [],
+      "parameters": [
+        {
+          "name": "is_pause",
+          "type_": "bool"
+        }
+      ],
+      "return_": []
     }
   },
   "structs": {
@@ -51,6 +147,126 @@
             "index": 1,
             "doc": null,
             "type_": "u64"
+          }
+        }
+      }
+    },
+    "AdminRoleTransferred": {
+      "index": 1,
+      "doc": null,
+      "attributes": [],
+      "abilities": [
+        "Copy",
+        "Drop"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "previous_admin": {
+            "index": 0,
+            "doc": null,
+            "type_": "address"
+          },
+          "new_admin": {
+            "index": 1,
+            "doc": null,
+            "type_": "address"
+          }
+        }
+      }
+    },
+    "BridgeTransferred": {
+      "index": 2,
+      "doc": null,
+      "attributes": [],
+      "abilities": [
+        "Copy",
+        "Drop"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "previous_bridge": {
+            "index": 0,
+            "doc": null,
+            "type_": "address"
+          },
+          "new_bridge": {
+            "index": 1,
+            "doc": null,
+            "type_": "address"
+          }
+        }
+      }
+    },
+    "RelayerAdded": {
+      "index": 3,
+      "doc": null,
+      "attributes": [],
+      "abilities": [
+        "Copy",
+        "Drop"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "account": {
+            "index": 0,
+            "doc": null,
+            "type_": "address"
+          },
+          "sender": {
+            "index": 1,
+            "doc": null,
+            "type_": "address"
+          }
+        }
+      }
+    },
+    "RelayerRemoved": {
+      "index": 4,
+      "doc": null,
+      "attributes": [],
+      "abilities": [
+        "Copy",
+        "Drop"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "account": {
+            "index": 0,
+            "doc": null,
+            "type_": "address"
+          },
+          "sender": {
+            "index": 1,
+            "doc": null,
+            "type_": "address"
+          }
+        }
+      }
+    },
+    "Pause": {
+      "index": 5,
+      "doc": null,
+      "attributes": [],
+      "abilities": [
+        "Copy",
+        "Drop"
+      ],
+      "type_parameters": [],
+      "fields": {
+        "positional_fields": false,
+        "fields": {
+          "is_pause": {
+            "index": 0,
+            "doc": null,
+            "type_": "bool"
           }
         }
       }

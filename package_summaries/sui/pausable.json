@@ -1,6 +1,11 @@
 {
   "doc": null,
-  "immediate_dependencies": [],
+  "immediate_dependencies": [
+    {
+      "address": "0000000000000000000000000000000000000000000000000000000000000002",
+      "name": "events"
+    }
+  ],
   "attributes": [],
   "functions": {
     "new": {
