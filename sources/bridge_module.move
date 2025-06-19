@@ -1,5 +1,6 @@
 module bridge_safe::bridge;
 
+use bridge_safe::events;
 use bridge_safe::pausable::{Self, Pause};
 use bridge_safe::roles::{BridgeCap, AdminCap};
 use bridge_safe::safe::{Self, BridgeSafe};
@@ -151,6 +152,7 @@ public entry fun add_relayer(
     let signer = tx_context::sender(ctx);
     assert_admin(bridge, signer);
     vec_set::insert(&mut bridge.relayers, relayer);
+    events::emit_relayer_added(relayer, signer);
 }
 
 public entry fun remove_relayer(
@@ -162,6 +164,7 @@ public entry fun remove_relayer(
     let signer = tx_context::sender(ctx);
     assert_admin(bridge, signer);
     vec_set::remove(&mut bridge.relayers, &relayer);
+    events::emit_relayer_removed(relayer, signer);
 }
 
 public fun get_batch(safe: &BridgeSafe, batch_nonce: u64): (Batch, bool) {
@@ -311,5 +314,19 @@ public entry fun set_admin(
 ) {
     let signer = tx_context::sender(ctx);
     assert_admin(bridge, signer);
+    let previous_admin = bridge.admin;
     bridge.admin = new_admin;
+    events::emit_admin_role_transferred(previous_admin, new_admin);
+}
+
+public entry fun pause_contract(bridge: &mut Bridge, _admin_cap: &AdminCap, ctx: &mut TxContext) {
+    let signer = tx_context::sender(ctx);
+    assert_admin(bridge, signer);
+    pausable::pause(&mut bridge.pause);
+}
+
+public entry fun unpause_contract(bridge: &mut Bridge, _admin_cap: &AdminCap, ctx: &mut TxContext) {
+    let signer = tx_context::sender(ctx);
+    assert_admin(bridge, signer);
+    pausable::unpause(&mut bridge.pause);
 }
