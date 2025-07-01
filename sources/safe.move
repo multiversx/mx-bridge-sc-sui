@@ -1,7 +1,6 @@
 #[allow(unused_use)]
 module bridge_safe::safe;
 
-use bridge::bridge_env::ctx;
 use bridge_safe::events;
 use bridge_safe::pausable::{Self, Pause};
 use bridge_safe::roles::{AdminCap, BridgeCap, RelayerCap};
