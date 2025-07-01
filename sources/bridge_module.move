@@ -200,14 +200,14 @@ public fun get_statuses_after_execution(
     }
 }
 
-public entry fun execute_transfer<T>(
+public entry fun execute_transfer(
     bridge: &mut Bridge,
     safe: &mut BridgeSafe,
     _bridge_cap: &BridgeCap,
     tokens: vector<vector<u8>>,
     recipients: vector<address>,
     amounts: vector<u64>,
-    _deposit_nonces: vector<u64>,
+    deposit_nonces: vector<u64>,
     batch_nonce_mvx: u64,
     signatures: vector<vector<u8>>,
     ctx: &mut TxContext,
@@ -230,7 +230,7 @@ public entry fun execute_transfer<T>(
         let recipient = *vector::borrow(&recipients, i);
         let amount = *vector::borrow(&amounts, i);
 
-        let success = try_transfer<T>(safe, _bridge_cap, recipient, amount, ctx);
+        let success = try_transfer<T>(safe, recipient, amount, ctx);
         if (success) {
             successful_count = successful_count + 1;
             vector::push_back(&mut transfer_statuses, shared_structs::deposit_status_executed());
@@ -258,7 +258,6 @@ public entry fun execute_transfer<T>(
 
 fun try_transfer<T>(
     safe: &mut BridgeSafe,
-    bridge_cap: &BridgeCap,
     recipient: address,
     amount: u64,
     ctx: &mut TxContext,

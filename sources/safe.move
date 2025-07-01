@@ -465,7 +465,6 @@ public fun get_batch_deposits_count(batch: &Batch): u16 {
 /// The coins are taken from the contract's storage and sent to recipient
 public fun transfer<T>(
     safe: &mut BridgeSafe,
-    _bridge_cap: &BridgeCap,
     receiver: address,
     amount: u64,
     ctx: &mut TxContext,

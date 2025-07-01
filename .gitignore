@@ -3,3 +3,4 @@ build/*
 .vscode
 .cursor
 .prettierrc
+node_modules/

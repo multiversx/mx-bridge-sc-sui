@@ -19,10 +19,10 @@ edition = "2024.beta" # edition = "legacy" to use legacy (pre-2024) Move
 
 [addresses]
 mx_bridge_sc_sui = "0x0"
-shared_structs = "0x123"
-token_module = "0x12"
-safe_module = "0x1"
-bridge_safe = "0x2"
+shared_structs = "0x0"
+token_module = "0x0"
+safe_module = "0x0"
+bridge_safe = "0x0"
 
 
 # Named addresses will be accessible in Move as `@name`. They're also exported:
