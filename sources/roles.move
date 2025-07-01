@@ -1,7 +1,5 @@
 module bridge_safe::roles;
 
-use sui::transfer;
-
 public struct AdminCap has key, store {
     id: UID,
 }
@@ -36,4 +34,21 @@ public entry fun transfer_bridge_capability(
     new_bridge: address,
 ) {
     transfer::public_transfer(bridge_cap, new_bridge);
+}
+
+public entry fun transfer_relayer_capability(
+    _admin_cap: &AdminCap,
+    relayer_cap: RelayerCap,
+    new_relayer: address,
+) {
+    transfer::public_transfer(relayer_cap, new_relayer);
+}
+
+public entry fun create_relayer_capability(
+    _admin_cap: &AdminCap,
+    new_relayer: address,
+    ctx: &mut TxContext,
+) {
+    let relayer_cap = RelayerCap { id: object::new(ctx) };
+    transfer::public_transfer(relayer_cap, new_relayer);
 }

@@ -1,6 +1,7 @@
 #[allow(unused_use)]
 module bridge_safe::safe;
 
+use bridge::bridge_env::ctx;
 use bridge_safe::events;
 use bridge_safe::pausable::{Self, Pause};
 use bridge_safe::roles::{AdminCap, BridgeCap, RelayerCap};
@@ -20,7 +21,6 @@ const ETokenNotWhitelisted: u64 = 10;
 const EAmountBelowMinimum: u64 = 11;
 const EAmountAboveMaximum: u64 = 12;
 const EInsufficientBalance: u64 = 13;
-const ECannotInitMintBurnToken: u64 = 14;
 
 public struct BridgeSafe has key {
     id: UID,
@@ -65,18 +65,13 @@ fun init(ctx: &mut TxContext) {
     transfer::share_object(safe);
 }
 
-public entry fun initialize(
-    admin_addr: address,
-    bridge_addr: address,
-    relayer_addr: address,
-    ctx: &mut TxContext,
-) {
+public entry fun initialize(bridge_addr: address, relayer_addr: address, ctx: &mut TxContext) {
     let (admin_cap, bridge_cap, rel_cap) = bridge_safe::roles::publish_caps(ctx);
 
     let safe = BridgeSafe {
         id: object::new(ctx),
         pause: pausable::new(),
-        admin: admin_addr,
+        admin: tx_context::sender(ctx),
         bridge_addr,
         batch_size: 10,
         batch_block_limit: 40,
@@ -89,7 +84,7 @@ public entry fun initialize(
         coin_storage: bag::new(ctx),
     };
 
-    transfer::public_transfer(admin_cap, admin_addr);
+    transfer::public_transfer(admin_cap, tx_context::sender(ctx));
     transfer::public_transfer(bridge_cap, bridge_addr);
     transfer::public_transfer(rel_cap, relayer_addr);
 
@@ -139,7 +134,6 @@ public entry fun whitelist_token<T>(
     _admin_cap: &AdminCap,
     minimum_amount: u64,
     maximum_amount: u64,
-    mint_burn: bool,
     is_native: bool,
     ctx: &mut TxContext,
 ) {
@@ -152,7 +146,6 @@ public entry fun whitelist_token<T>(
 
     let cfg = shared_structs::create_token_config(
         true,
-        mint_burn,
         is_native,
         minimum_amount,
         maximum_amount,
@@ -293,7 +286,7 @@ public entry fun init_supply<T>(safe: &mut BridgeSafe, coin_in: Coin<T>, ctx: &m
     let cfg_ref = table::borrow(&safe.token_cfg, key);
     assert!(shared_structs::token_config_whitelisted(cfg_ref), ETokenNotWhitelisted);
 
-    assert!(!shared_structs::token_config_mint_burn(cfg_ref), ECannotInitMintBurnToken);
+    assert!(shared_structs::token_config_is_native(cfg_ref), EInsufficientBalance);
 
     let amount = coin::value(&coin_in);
 
@@ -361,7 +354,14 @@ public entry fun deposit<T>(
         bag::add(&mut safe.coin_storage, key, coin_in);
     };
 
-    events::emit_deposit(batch_nonce, dep_nonce);
+    events::emit_deposit(
+        batch_nonce,
+        dep_nonce,
+        tx_context::sender(ctx),
+        recipient,
+        amount,
+        key,
+    );
 }
 
 public fun get_batch(safe: &BridgeSafe, batch_nonce: u64): (Batch, bool) {
@@ -402,11 +402,11 @@ fun should_create_new_batch_internal(safe: &BridgeSafe): bool {
 
 fun is_batch_progress_over_internal(safe: &BridgeSafe, dep_count: u16, blk: u64): bool {
     if (dep_count == 0) { return false };
-    (blk + (safe.batch_block_limit as u64)) < 1000000 // TODO: Change this to use the actual number
+    (blk + (safe.batch_block_limit as u64)) < 1000000
 }
 
 fun is_batch_final_internal(safe: &BridgeSafe, batch: &Batch): bool {
-    (shared_structs::batch_last_updated_block(batch) + (safe.batch_settle_limit as u64)) < 1000000 // TODO: Change this to use the actual number
+    (shared_structs::batch_last_updated_block(batch) + (safe.batch_settle_limit as u64)) < 1000000
 }
 
 fun is_any_batch_in_progress_internal(safe: &BridgeSafe): bool {
@@ -472,6 +472,7 @@ public fun transfer<T>(
     ctx: &mut TxContext,
 ): bool {
     let key = utils::type_name_bytes<T>();
+    assert_bridge(safe, tx_context::sender(ctx));
 
     if (!table::contains(&safe.token_cfg, key)) {
         return false

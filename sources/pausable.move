@@ -2,6 +2,9 @@ module bridge_safe::pausable;
 
 use bridge_safe::events;
 
+const EContractPaused: u64 = 0;
+const EContractNotPaused: u64 = 1;
+
 public struct Pause has copy, drop, store {
     paused: bool,
 }
@@ -11,19 +14,27 @@ public fun new(): Pause {
 }
 
 public fun pause(p: &mut Pause) {
-    p.paused = true;
-    events::emit_pause(true);
+    if (!p.paused) {
+        p.paused = true;
+        events::emit_pause(true);
+    }
 }
 
 public fun unpause(p: &mut Pause) {
-    p.paused = false;
-    events::emit_pause(false);
+    if (p.paused) {
+        p.paused = false;
+        events::emit_pause(false);
+    }
 }
 
 public fun assert_not_paused(p: &Pause) {
-    assert!(!p.paused, 0);
+    assert!(!p.paused, EContractPaused);
 }
 
 public fun assert_paused(p: &Pause) {
-    assert!(p.paused, 0);
+    assert!(p.paused, EContractNotPaused);
+}
+
+public fun is_paused(p: &Pause): bool {
+    p.paused
 }

@@ -30,13 +30,10 @@ public struct Batch has copy, drop, store {
 
 public struct TokenConfig has copy, drop, store {
     whitelisted: bool,
-    mint_burn: bool,
     is_native: bool,
     min_limit: u64,
     max_limit: u64,
     total_balance: u64,
-    mint_balance: u64,
-    burn_balance: u64,
 }
 
 public struct AdminRole has key {
@@ -150,10 +147,6 @@ public fun subtract_from_token_config_total_balance(config: &mut TokenConfig, am
     config.total_balance = config.total_balance - amount;
 }
 
-public fun token_config_mint_burn(config: &TokenConfig): bool {
-    config.mint_burn
-}
-
 public fun token_config_is_native(config: &TokenConfig): bool {
     config.is_native
 }
@@ -184,19 +177,15 @@ public fun set_batch_last_updated_block(batch: &mut Batch, block: u64) {
 
 public fun create_token_config(
     whitelisted: bool,
-    mint_burn: bool,
     is_native: bool,
     min_limit: u64,
     max_limit: u64,
 ): TokenConfig {
     TokenConfig {
         whitelisted,
-        mint_burn,
         is_native,
         min_limit,
         max_limit,
         total_balance: 0,
-        mint_balance: 0,
-        burn_balance: 0,
     }
 }

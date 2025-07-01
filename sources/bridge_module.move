@@ -13,7 +13,6 @@ const EQuorumTooLow: u64 = 0;
 const EBoardTooSmall: u64 = 1;
 const ENotEnoughSignatures: u64 = 2;
 const EBatchAlreadyExecuted: u64 = 3;
-const EQuorumNotMet: u64 = 4;
 const ENotRelayer: u64 = 5;
 const ENotAdmin: u64 = 6;
 const EPendingBatches: u64 = 7;
@@ -208,6 +207,7 @@ public entry fun execute_transfer<T>(
     tokens: vector<vector<u8>>,
     recipients: vector<address>,
     amounts: vector<u64>,
+    _deposit_nonces: vector<u64>,
     batch_nonce_mvx: u64,
     signatures: vector<vector<u8>>,
     ctx: &mut TxContext,
