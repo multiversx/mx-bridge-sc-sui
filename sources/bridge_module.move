@@ -40,12 +40,14 @@ public struct Bridge has key {
     execution_blocks: Table<u64, u64>,
     cross_transfer_statuses: Table<u64, CrossTransferStatus>,
     safe: address,
+    bridge_cap: BridgeCap,
 }
 
 public entry fun initialize(
     board: vector<address>,
     initial_quorum: u64,
     safe_address: address,
+    bridge_cap: BridgeCap,
     ctx: &mut TxContext,
 ) {
     assert!(initial_quorum >= MINIMUM_QUORUM, EQuorumTooLow);
@@ -69,40 +71,10 @@ public entry fun initialize(
         execution_blocks: table::new(ctx),
         cross_transfer_statuses: table::new(ctx),
         safe: safe_address,
+        bridge_cap,
     };
 
     transfer::share_object(bridge);
-}
-
-#[test_only]
-public fun test_initialize(
-    board: vector<address>,
-    initial_quorum: u64,
-    safe_address: address,
-    ctx: &mut TxContext,
-): Bridge {
-    assert!(initial_quorum >= MINIMUM_QUORUM, EQuorumTooLow);
-    assert!(vector::length(&board) >= initial_quorum, EBoardTooSmall);
-
-    let mut relayers = vec_set::empty<address>();
-    let mut i = 0;
-    while (i < vector::length(&board)) {
-        vec_set::insert(&mut relayers, *vector::borrow(&board, i));
-        i = i + 1;
-    };
-
-    Bridge {
-        id: object::new(ctx),
-        pause: pausable::new(),
-        admin: tx_context::sender(ctx),
-        quorum: initial_quorum,
-        batch_settle_block_count: 40,
-        relayers,
-        executed_batches: table::new(ctx),
-        execution_blocks: table::new(ctx),
-        cross_transfer_statuses: table::new(ctx),
-        safe: safe_address,
-    }
 }
 
 fun assert_admin(bridge: &Bridge, signer: address) {
@@ -200,14 +172,13 @@ public fun get_statuses_after_execution(
     }
 }
 
-public entry fun execute_transfer(
+public entry fun execute_transfer<T>(
     bridge: &mut Bridge,
     safe: &mut BridgeSafe,
-    _bridge_cap: &BridgeCap,
     tokens: vector<vector<u8>>,
     recipients: vector<address>,
     amounts: vector<u64>,
-    deposit_nonces: vector<u64>,
+    _deposit_nonces: vector<u64>,
     batch_nonce_mvx: u64,
     signatures: vector<vector<u8>>,
     ctx: &mut TxContext,
@@ -230,7 +201,7 @@ public entry fun execute_transfer(
         let recipient = *vector::borrow(&recipients, i);
         let amount = *vector::borrow(&amounts, i);
 
-        let success = try_transfer<T>(safe, recipient, amount, ctx);
+        let success = try_transfer<T>(safe, &bridge.bridge_cap, recipient, amount, ctx);
         if (success) {
             successful_count = successful_count + 1;
             vector::push_back(&mut transfer_statuses, shared_structs::deposit_status_executed());
@@ -258,6 +229,7 @@ public entry fun execute_transfer(
 
 fun try_transfer<T>(
     safe: &mut BridgeSafe,
+    bridge_cap: &BridgeCap,
     recipient: address,
     amount: u64,
     ctx: &mut TxContext,

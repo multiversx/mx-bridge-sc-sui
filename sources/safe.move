@@ -3,7 +3,7 @@ module bridge_safe::safe;
 
 use bridge_safe::events;
 use bridge_safe::pausable::{Self, Pause};
-use bridge_safe::roles::{AdminCap, BridgeCap, RelayerCap};
+use bridge_safe::roles::{AdminCap, BridgeCap};
 use bridge_safe::utils;
 use shared_structs::shared_structs::{Self, TokenConfig, Batch, Deposit};
 use sui::bag::{Self, Bag};
@@ -20,6 +20,8 @@ const ETokenNotWhitelisted: u64 = 10;
 const EAmountBelowMinimum: u64 = 11;
 const EAmountAboveMaximum: u64 = 12;
 const EInsufficientBalance: u64 = 13;
+const EInvalidRecipient: u64 = 14;
+const EZeroAmount: u64 = 15;
 
 public struct BridgeSafe has key {
     id: UID,
@@ -39,7 +41,7 @@ public struct BridgeSafe has key {
 
 fun init(ctx: &mut TxContext) {
     let deployer = tx_context::sender(ctx);
-    let (admin_cap, bridge_cap, rel_cap) = bridge_safe::roles::publish_caps(ctx);
+    let (admin_cap, bridge_cap) = bridge_safe::roles::publish_caps(ctx);
 
     let safe = BridgeSafe {
         id: object::new(ctx),
@@ -59,69 +61,12 @@ fun init(ctx: &mut TxContext) {
 
     transfer::public_transfer(admin_cap, deployer);
     transfer::public_transfer(bridge_cap, deployer);
-    transfer::public_transfer(rel_cap, deployer);
 
     transfer::share_object(safe);
 }
 
-public entry fun initialize(bridge_addr: address, relayer_addr: address, ctx: &mut TxContext) {
-    let (admin_cap, bridge_cap, rel_cap) = bridge_safe::roles::publish_caps(ctx);
-
-    let safe = BridgeSafe {
-        id: object::new(ctx),
-        pause: pausable::new(),
-        admin: tx_context::sender(ctx),
-        bridge_addr,
-        batch_size: 10,
-        batch_block_limit: 40,
-        batch_settle_limit: 40,
-        batches_count: 0,
-        deposits_count: 0,
-        token_cfg: table::new(ctx),
-        batches: table::new(ctx),
-        batch_deposits: table::new(ctx),
-        coin_storage: bag::new(ctx),
-    };
-
-    transfer::public_transfer(admin_cap, tx_context::sender(ctx));
-    transfer::public_transfer(bridge_cap, bridge_addr);
-    transfer::public_transfer(rel_cap, relayer_addr);
-
-    transfer::share_object(safe);
-}
-
-#[test_only]
-public fun publish(
-    ctx: &mut TxContext,
-    admin_addr: address,
-    bridge_addr: address,
-): (BridgeSafe, AdminCap, BridgeCap) {
-    let (admin_cap, bridge_cap, _rel_cap) = bridge_safe::roles::publish_caps(ctx);
-    let safe = BridgeSafe {
-        id: object::new(ctx),
-        pause: pausable::new(),
-        admin: admin_addr,
-        bridge_addr,
-        batch_size: 10,
-        batch_block_limit: 40,
-        batch_settle_limit: 40,
-        batches_count: 0,
-        deposits_count: 0,
-        token_cfg: table::new(ctx),
-        batches: table::new(ctx),
-        batch_deposits: table::new(ctx),
-        coin_storage: bag::new(ctx),
-    };
-    sui::test_utils::destroy(_rel_cap);
-    (safe, admin_cap, bridge_cap)
-}
-
-fun assert_admin(s: &BridgeSafe, signer: address) {
-    assert!(signer == s.admin, ENotAdmin);
-}
-
-fun assert_bridge(s: &BridgeSafe, signer: address) {
-    assert!(signer == s.bridge_addr, ENotAdmin);
+fun assert_admin(safe: &BridgeSafe, signer: address) {
+    assert!(signer == safe.admin, ENotAdmin);
 }
 
 fun borrow_token_cfg_mut(safe: &mut BridgeSafe, key: vector<u8>): &mut TokenConfig {
@@ -249,19 +194,6 @@ public fun get_token_max_limit<T>(safe: &BridgeSafe): u64 {
     shared_structs::token_config_max_limit(cfg)
 }
 
-public entry fun set_admin(
-    safe: &mut BridgeSafe,
-    _admin_cap: &AdminCap,
-    new_admin: address,
-    ctx: &mut TxContext,
-) {
-    let signer = tx_context::sender(ctx);
-    assert_admin(safe, signer);
-    let previous_admin = safe.admin;
-    safe.admin = new_admin;
-    events::emit_admin_role_transferred(previous_admin, new_admin);
-}
-
 public entry fun set_bridge_addr(
     safe: &mut BridgeSafe,
     _admin_cap: &AdminCap,
@@ -275,7 +207,12 @@ public entry fun set_bridge_addr(
     events::emit_bridge_transferred(previous_bridge, new_bridge_addr);
 }
 
-public entry fun init_supply<T>(safe: &mut BridgeSafe, coin_in: Coin<T>, ctx: &mut TxContext) {
+public entry fun init_supply<T>(
+    _admin_cap: &AdminCap,
+    safe: &mut BridgeSafe,
+    coin_in: Coin<T>,
+    ctx: &mut TxContext,
+) {
     let signer = tx_context::sender(ctx);
     assert_admin(safe, signer);
 
@@ -309,11 +246,15 @@ public entry fun deposit<T>(
     ctx: &mut TxContext,
 ) {
     pausable::assert_not_paused(&safe.pause);
+
+    assert!(recipient != @0x0, EInvalidRecipient);
+
     let key = utils::type_name_bytes<T>();
     let cfg_ref = table::borrow(&safe.token_cfg, key);
     assert!(shared_structs::token_config_whitelisted(cfg_ref), ETokenNotWhitelisted);
 
     let amount = coin::value(&coin_in);
+    assert!(amount > 0, EZeroAmount);
     assert!(amount >= shared_structs::token_config_min_limit(cfg_ref), EAmountBelowMinimum);
     assert!(amount <= shared_structs::token_config_max_limit(cfg_ref), EAmountAboveMaximum);
 
@@ -416,12 +357,12 @@ fun is_any_batch_in_progress_internal(safe: &BridgeSafe): bool {
     !is_batch_final_internal(safe, batch)
 }
 
-public fun get_admin(safe: &BridgeSafe): address {
-    safe.admin
-}
-
 public fun get_bridge_addr(safe: &BridgeSafe): address {
     safe.bridge_addr
+}
+
+public fun get_admin(safe: &BridgeSafe): address {
+    safe.admin
 }
 
 public fun get_batch_size(safe: &BridgeSafe): u16 {
@@ -465,12 +406,12 @@ public fun get_batch_deposits_count(batch: &Batch): u16 {
 /// The coins are taken from the contract's storage and sent to recipient
 public fun transfer<T>(
     safe: &mut BridgeSafe,
+    _bridge_cap: &BridgeCap,
     receiver: address,
     amount: u64,
     ctx: &mut TxContext,
 ): bool {
     let key = utils::type_name_bytes<T>();
-    assert_bridge(safe, tx_context::sender(ctx));
 
     if (!table::contains(&safe.token_cfg, key)) {
         return false
