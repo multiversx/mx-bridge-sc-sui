@@ -489,3 +489,8 @@ public entry fun unpause_contract(
     assert_admin(safe, signer);
     pausable::unpause(&mut safe.pause);
 }
+
+#[test_only]
+public fun init_for_testing(ctx: &mut TxContext) {
+    init(ctx);
+}
