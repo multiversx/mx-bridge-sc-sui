@@ -18,13 +18,13 @@ public struct Deposit has copy, drop, store {
 
 public struct CrossTransferStatus has copy, drop, store {
     statuses: vector<DepositStatus>,
-    created_block_number: u64,
+    created_timestamp_ms: u64,
 }
 
 public struct Batch has copy, drop, store {
     nonce: u64,
-    block_number: u64,
-    last_updated_block: u64,
+    timestamp_ms: u64,
+    last_updated_timestamp_ms: u64,
     deposits_count: u16,
 }
 
@@ -56,22 +56,22 @@ public fun create_deposit(
     }
 }
 
-public fun create_batch(nonce: u64, block_number: u64): Batch {
+public fun create_batch(nonce: u64, timestamp_ms: u64): Batch {
     Batch {
         nonce,
-        block_number,
-        last_updated_block: block_number,
+        timestamp_ms,
+        last_updated_timestamp_ms: timestamp_ms,
         deposits_count: 0,
     }
 }
 
 public fun create_cross_transfer_status(
     statuses: vector<DepositStatus>,
-    created_block_number: u64,
+    created_timestamp_ms: u64,
 ): CrossTransferStatus {
     CrossTransferStatus {
         statuses,
-        created_block_number,
+        created_timestamp_ms,
     }
 }
 
@@ -79,8 +79,8 @@ public fun cross_transfer_status_statuses(status: &CrossTransferStatus): vector<
     status.statuses
 }
 
-public fun cross_transfer_status_created_block_number(status: &CrossTransferStatus): u64 {
-    status.created_block_number
+public fun cross_transfer_status_created_timestamp_ms(status: &CrossTransferStatus): u64 {
+    status.created_timestamp_ms
 }
 
 public fun deposit_status_none(): DepositStatus {
@@ -103,8 +103,8 @@ public fun deposit_status_rejected(): DepositStatus {
     DepositStatus::Rejected
 }
 
-public fun update_batch_last_updated(batch: &mut Batch, block_number: u64) {
-    batch.last_updated_block = block_number;
+public fun update_batch_last_updated(batch: &mut Batch, timestamp_ms: u64) {
+    batch.last_updated_timestamp_ms = timestamp_ms;
 }
 
 public fun increment_batch_deposits(batch: &mut Batch) {
@@ -159,20 +159,20 @@ public fun batch_deposits_count(batch: &Batch): u16 {
     batch.deposits_count
 }
 
-public fun batch_last_updated_block(batch: &Batch): u64 {
-    batch.last_updated_block
+public fun batch_last_updated_timestamp_ms(batch: &Batch): u64 {
+    batch.last_updated_timestamp_ms
 }
 
-public fun batch_block_number(batch: &Batch): u64 {
-    batch.block_number
+public fun batch_timestamp_ms(batch: &Batch): u64 {
+    batch.timestamp_ms
 }
 
 public fun set_batch_deposits_count(batch: &mut Batch, count: u16) {
     batch.deposits_count = count;
 }
 
-public fun set_batch_last_updated_block(batch: &mut Batch, block: u64) {
-    batch.last_updated_block = block;
+public fun set_batch_last_updated_timestamp_ms(batch: &mut Batch, timestamp_ms: u64) {
+    batch.last_updated_timestamp_ms = timestamp_ms;
 }
 
 public fun create_token_config(

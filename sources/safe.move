@@ -7,6 +7,7 @@ use bridge_safe::roles::{AdminCap, BridgeCap};
 use bridge_safe::utils;
 use shared_structs::shared_structs::{Self, TokenConfig, Batch, Deposit};
 use sui::bag::{Self, Bag};
+use sui::clock::{Self, Clock};
 use sui::coin::{Self, Coin, TreasuryCap};
 use sui::table::{Self, Table};
 
@@ -29,8 +30,8 @@ public struct BridgeSafe has key {
     admin: address,
     bridge_addr: address,
     batch_size: u16,
-    batch_block_limit: u8,
-    batch_settle_limit: u8,
+    batch_timeout_ms: u64, // Timeout in milliseconds for batch progress
+    batch_settle_timeout_ms: u64, // Timeout in milliseconds for batch settlement
     batches_count: u64,
     deposits_count: u64,
     token_cfg: Table<vector<u8>, TokenConfig>,
@@ -49,8 +50,8 @@ fun init(ctx: &mut TxContext) {
         admin: deployer,
         bridge_addr: deployer,
         batch_size: 10,
-        batch_block_limit: 40,
-        batch_settle_limit: 40,
+        batch_timeout_ms: 10 * 60 * 1000, // 10 minutes for batch progress
+        batch_settle_timeout_ms: 60 * 60 * 1000, // 60 minutes for batch settlement
         batches_count: 0,
         deposits_count: 0,
         token_cfg: table::new(ctx),
@@ -118,30 +119,31 @@ public fun is_token_whitelisted<T>(safe: &BridgeSafe): bool {
     shared_structs::token_config_whitelisted(cfg)
 }
 
-public entry fun set_batch_block_limit(
+public entry fun set_batch_timeout_ms(
     safe: &mut BridgeSafe,
     _admin_cap: &AdminCap,
-    new_limit: u8,
+    new_timeout_ms: u64,
     ctx: &mut TxContext,
 ) {
     let signer = tx_context::sender(ctx);
     assert_admin(safe, signer);
-    assert!(new_limit <= safe.batch_settle_limit, EBatchBlockLimitExceedsSettle);
-    safe.batch_block_limit = new_limit;
+    assert!(new_timeout_ms <= safe.batch_settle_timeout_ms, EBatchBlockLimitExceedsSettle);
+    safe.batch_timeout_ms = new_timeout_ms;
 }
 
-public entry fun set_batch_settle_limit(
+public entry fun set_batch_settle_timeout_ms(
     safe: &mut BridgeSafe,
     _admin_cap: &AdminCap,
-    new_limit: u8,
+    new_timeout_ms: u64,
+    clock: &Clock,
     ctx: &mut TxContext,
 ) {
     pausable::assert_paused(&safe.pause);
     let signer = tx_context::sender(ctx);
     assert_admin(safe, signer);
-    assert!(new_limit >= safe.batch_block_limit, EBatchSettleLimitBelowBlock);
-    assert!(!is_any_batch_in_progress_internal(safe), EBatchInProgress);
-    safe.batch_settle_limit = new_limit;
+    assert!(new_timeout_ms >= safe.batch_timeout_ms, EBatchSettleLimitBelowBlock);
+    assert!(!is_any_batch_in_progress_internal(safe, clock), EBatchInProgress);
+    safe.batch_settle_timeout_ms = new_timeout_ms;
 }
 
 public entry fun set_batch_size(
@@ -243,6 +245,7 @@ public entry fun deposit<T>(
     safe: &mut BridgeSafe,
     coin_in: Coin<T>,
     recipient: address,
+    clock: &Clock,
     ctx: &mut TxContext,
 ) {
     pausable::assert_not_paused(&safe.pause);
@@ -258,8 +261,8 @@ public entry fun deposit<T>(
     assert!(amount >= shared_structs::token_config_min_limit(cfg_ref), EAmountBelowMinimum);
     assert!(amount <= shared_structs::token_config_max_limit(cfg_ref), EAmountAboveMaximum);
 
-    if (should_create_new_batch_internal(safe)) {
-        create_new_batch_internal(safe, ctx);
+    if (should_create_new_batch_internal(safe, clock)) {
+        create_new_batch_internal(safe, clock, ctx);
     };
     let batch_index = safe.batches_count - 1;
     let batch = table::borrow_mut(&mut safe.batches, batch_index);
@@ -280,7 +283,7 @@ public entry fun deposit<T>(
 
     safe.deposits_count = dep_nonce;
     shared_structs::increment_batch_deposits(batch);
-    shared_structs::set_batch_last_updated_block(batch, tx_context::epoch(ctx));
+    shared_structs::set_batch_last_updated_timestamp_ms(batch, clock::timestamp_ms(clock));
 
     let batch_nonce = shared_structs::batch_nonce(batch);
 
@@ -304,13 +307,17 @@ public entry fun deposit<T>(
     );
 }
 
-public fun get_batch(safe: &BridgeSafe, batch_nonce: u64): (Batch, bool) {
+public fun get_batch(safe: &BridgeSafe, batch_nonce: u64, clock: &Clock): (Batch, bool) {
     let batch = *table::borrow(&safe.batches, batch_nonce - 1);
-    let is_final = is_batch_final_internal(safe, &batch);
+    let is_final = is_batch_final_internal(safe, &batch, clock);
     (batch, is_final)
 }
 
-public fun get_deposits(safe: &BridgeSafe, batch_nonce: u64): (vector<Deposit>, bool) {
+public fun get_deposits(
+    safe: &BridgeSafe,
+    batch_nonce: u64,
+    clock: &Clock,
+): (vector<Deposit>, bool) {
     let batch_index = batch_nonce - 1;
     let deposits = if (table::contains(&safe.batch_deposits, batch_index)) {
         *table::borrow(&safe.batch_deposits, batch_index)
@@ -318,43 +325,48 @@ public fun get_deposits(safe: &BridgeSafe, batch_nonce: u64): (vector<Deposit>, 
         vector::empty()
     };
     let batch = table::borrow(&safe.batches, batch_index);
-    let is_final = is_batch_final_internal(safe, batch);
+    let is_final = is_batch_final_internal(safe, batch, clock);
     (deposits, is_final)
 }
 
-public fun is_any_batch_in_progress(safe: &BridgeSafe): bool {
-    is_any_batch_in_progress_internal(safe)
+public fun is_any_batch_in_progress(safe: &BridgeSafe, clock: &Clock): bool {
+    is_any_batch_in_progress_internal(safe, clock)
 }
 
-public fun create_new_batch_internal(safe: &mut BridgeSafe, ctx: &mut TxContext) {
+public fun create_new_batch_internal(safe: &mut BridgeSafe, clock: &Clock, _ctx: &mut TxContext) {
     let nonce = safe.batches_count + 1;
-    let batch = shared_structs::create_batch(nonce, tx_context::epoch(ctx));
+    let batch = shared_structs::create_batch(nonce, clock::timestamp_ms(clock));
     table::add(&mut safe.batches, safe.batches_count, batch);
     safe.batches_count = nonce;
 }
 
-fun should_create_new_batch_internal(safe: &BridgeSafe): bool {
+fun should_create_new_batch_internal(safe: &BridgeSafe, clock: &Clock): bool {
     if (safe.batches_count == 0) { return true };
     let last_index = safe.batches_count - 1;
     let batch = table::borrow(&safe.batches, last_index);
-    is_batch_progress_over_internal(safe, shared_structs::batch_deposits_count(batch), shared_structs::batch_block_number(batch)) || (shared_structs::batch_deposits_count(batch) >= safe.batch_size)
+    is_batch_progress_over_internal(safe, shared_structs::batch_deposits_count(batch), shared_structs::batch_timestamp_ms(batch), clock) || (shared_structs::batch_deposits_count(batch) >= safe.batch_size)
 }
 
-fun is_batch_progress_over_internal(safe: &BridgeSafe, dep_count: u16, blk: u64): bool {
+fun is_batch_progress_over_internal(
+    safe: &BridgeSafe,
+    dep_count: u16,
+    timestamp_ms: u64,
+    clock: &Clock,
+): bool {
     if (dep_count == 0) { return false };
-    (blk + (safe.batch_block_limit as u64)) < 1000000
+    (timestamp_ms + safe.batch_timeout_ms) <= clock::timestamp_ms(clock)
 }
 
-fun is_batch_final_internal(safe: &BridgeSafe, batch: &Batch): bool {
-    (shared_structs::batch_last_updated_block(batch) + (safe.batch_settle_limit as u64)) < 1000000
+fun is_batch_final_internal(safe: &BridgeSafe, batch: &Batch, clock: &Clock): bool {
+    (shared_structs::batch_last_updated_timestamp_ms(batch) + safe.batch_settle_timeout_ms) <= clock::timestamp_ms(clock)
 }
 
-fun is_any_batch_in_progress_internal(safe: &BridgeSafe): bool {
+fun is_any_batch_in_progress_internal(safe: &BridgeSafe, clock: &Clock): bool {
     if (safe.batches_count == 0) { return false };
     let last_index = safe.batches_count - 1;
-    if (!should_create_new_batch_internal(safe)) { return true };
+    if (!should_create_new_batch_internal(safe, clock)) { return true };
     let batch = table::borrow(&safe.batches, last_index);
-    !is_batch_final_internal(safe, batch)
+    !is_batch_final_internal(safe, batch, clock)
 }
 
 public fun get_bridge_addr(safe: &BridgeSafe): address {
@@ -369,12 +381,12 @@ public fun get_batch_size(safe: &BridgeSafe): u16 {
     safe.batch_size
 }
 
-public fun get_batch_block_limit(safe: &BridgeSafe): u8 {
-    safe.batch_block_limit
+public fun get_batch_timeout_ms(safe: &BridgeSafe): u64 {
+    safe.batch_timeout_ms
 }
 
-public fun get_batch_settle_limit(safe: &BridgeSafe): u8 {
-    safe.batch_settle_limit
+public fun get_batch_settle_timeout_ms(safe: &BridgeSafe): u64 {
+    safe.batch_settle_timeout_ms
 }
 
 public fun get_batches_count(safe: &BridgeSafe): u64 {
