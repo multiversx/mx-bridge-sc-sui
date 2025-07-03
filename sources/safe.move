@@ -196,6 +196,18 @@ public fun get_token_max_limit<T>(safe: &BridgeSafe): u64 {
     shared_structs::token_config_max_limit(cfg)
 }
 
+public fun get_token_is_mint_burn<T>(safe: &BridgeSafe): bool {
+    let key = utils::type_name_bytes<T>();
+    let cfg = table::borrow(&safe.token_cfg, key);
+    shared_structs::token_config_is_mint_burn(cfg)
+}
+
+public fun get_token_is_native<T>(safe: &BridgeSafe): bool {
+    let key = utils::type_name_bytes<T>();
+    let cfg = table::borrow(&safe.token_cfg, key);
+    shared_structs::token_config_is_native(cfg)
+}
+
 public entry fun set_bridge_addr(
     safe: &mut BridgeSafe,
     _admin_cap: &AdminCap,

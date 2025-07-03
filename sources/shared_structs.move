@@ -31,6 +31,7 @@ public struct Batch has copy, drop, store {
 public struct TokenConfig has copy, drop, store {
     whitelisted: bool,
     is_native: bool,
+    is_mint_burn: bool,
     min_limit: u64,
     max_limit: u64,
     total_balance: u64,
@@ -151,6 +152,10 @@ public fun token_config_is_native(config: &TokenConfig): bool {
     config.is_native
 }
 
+public fun token_config_is_mint_burn(config: &TokenConfig): bool {
+    config.is_mint_burn
+}
+
 public fun batch_nonce(batch: &Batch): u64 {
     batch.nonce
 }
@@ -184,6 +189,7 @@ public fun create_token_config(
     TokenConfig {
         whitelisted,
         is_native,
+        is_mint_burn: false,
         min_limit,
         max_limit,
         total_balance: 0,
