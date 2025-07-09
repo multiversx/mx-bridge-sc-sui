@@ -17,6 +17,7 @@ public entry fun transfer_admin_capability(
     admin_cap: AdminCap,
     new_admin: address,
 ) {
+    assert!(new_admin != @0x0, 0);
     transfer::public_transfer(admin_cap, new_admin);
 }
 
@@ -25,5 +26,6 @@ public entry fun transfer_bridge_capability(
     bridge_cap: BridgeCap,
     new_bridge: address,
 ) {
+    assert!(new_bridge != @0x0, 0);
     transfer::public_transfer(bridge_cap, new_bridge);
 }

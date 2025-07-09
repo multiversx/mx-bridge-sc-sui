@@ -140,11 +140,18 @@ public fun set_token_config_max_limit(config: &mut TokenConfig, max_limit: u64) 
     config.max_limit = max_limit;
 }
 
+const EUnderflow: u64 = 0;
+const EOverflow: u64 = 1;
+
+const MAX_U64: u64 = 18446744073709551615;
+
 public fun add_to_token_config_total_balance(config: &mut TokenConfig, amount: u64) {
+    assert!(config.total_balance <= MAX_U64 - amount, EOverflow);
     config.total_balance = config.total_balance + amount;
 }
 
 public fun subtract_from_token_config_total_balance(config: &mut TokenConfig, amount: u64) {
+    assert!(config.total_balance >= amount, EUnderflow);
     config.total_balance = config.total_balance - amount;
 }
 

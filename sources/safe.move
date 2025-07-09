@@ -23,6 +23,11 @@ const EAmountAboveMaximum: u64 = 12;
 const EInsufficientBalance: u64 = 13;
 const EInvalidRecipient: u64 = 14;
 const EZeroAmount: u64 = 15;
+const EOverflow: u64 = 16;
+const EBatchNotFound: u64 = 17;
+const EBatchSizeZero: u64 = 18;
+
+const MAX_U64: u64 = 18446744073709551615;
 
 public struct BridgeSafe has key {
     id: UID,
@@ -50,8 +55,8 @@ fun init(ctx: &mut TxContext) {
         admin: deployer,
         bridge_addr: deployer,
         batch_size: 10,
-        batch_timeout_ms: 10 * 60 * 1000, // 10 minutes for batch progress
-        batch_settle_timeout_ms: 60 * 60 * 1000, // 60 minutes for batch settlement
+        batch_timeout_ms: 10 * 60 * 1000,
+        batch_settle_timeout_ms: 60 * 60 * 1000,
         batches_count: 0,
         deposits_count: 0,
         token_cfg: table::new(ctx),
@@ -96,6 +101,14 @@ public entry fun whitelist_token<T>(
         maximum_amount,
     );
     table::add(&mut safe.token_cfg, key, cfg);
+
+    events::emit_token_whitelisted(
+        key,
+        minimum_amount,
+        maximum_amount,
+        is_native,
+        false,
+    );
 }
 
 public entry fun remove_token_from_whitelist<T>(
@@ -108,6 +121,8 @@ public entry fun remove_token_from_whitelist<T>(
     let key = utils::type_name_bytes<T>();
     let cfg = borrow_token_cfg_mut(safe, key);
     shared_structs::set_token_config_whitelisted(cfg, false);
+
+    events::emit_token_removed_from_whitelist(key);
 }
 
 public fun is_token_whitelisted<T>(safe: &BridgeSafe): bool {
@@ -154,6 +169,7 @@ public entry fun set_batch_size(
 ) {
     let signer = tx_context::sender(ctx);
     assert_admin(safe, signer);
+    assert!(new_size > 0, EBatchSizeZero);
     assert!(new_size <= 100, EBatchSizeTooLarge);
     safe.batch_size = new_size;
 }
@@ -168,7 +184,10 @@ public entry fun set_token_min_limit<T>(
     assert_admin(safe, signer);
     let key = utils::type_name_bytes<T>();
     let cfg = borrow_token_cfg_mut(safe, key);
+    let old_max = shared_structs::token_config_max_limit(cfg);
     shared_structs::set_token_config_min_limit(cfg, amount);
+
+    events::emit_token_limits_updated(key, amount, old_max);
 }
 
 public fun get_token_min_limit<T>(safe: &BridgeSafe): u64 {
@@ -187,7 +206,10 @@ public entry fun set_token_max_limit<T>(
     assert_admin(safe, signer);
     let key = utils::type_name_bytes<T>();
     let cfg = borrow_token_cfg_mut(safe, key);
+    let old_min = shared_structs::token_config_min_limit(cfg);
     shared_structs::set_token_config_max_limit(cfg, amount);
+
+    events::emit_token_limits_updated(key, old_min, amount);
 }
 
 public fun get_token_max_limit<T>(safe: &BridgeSafe): u64 {
@@ -279,6 +301,7 @@ public entry fun deposit<T>(
     let batch_index = safe.batches_count - 1;
     let batch = table::borrow_mut(&mut safe.batches, batch_index);
 
+    assert!(safe.deposits_count < MAX_U64, EOverflow);
     let dep_nonce = safe.deposits_count + 1;
     let dep = shared_structs::create_deposit(
         dep_nonce,
@@ -320,7 +343,10 @@ public entry fun deposit<T>(
 }
 
 public fun get_batch(safe: &BridgeSafe, batch_nonce: u64, clock: &Clock): (Batch, bool) {
-    let batch = *table::borrow(&safe.batches, batch_nonce - 1);
+    assert!(batch_nonce > 0, EBatchNotFound);
+    assert!(batch_nonce <= safe.batches_count, EBatchNotFound);
+    let batch_index = batch_nonce - 1;
+    let batch = *table::borrow(&safe.batches, batch_index);
     let is_final = is_batch_final_internal(safe, &batch, clock);
     (batch, is_final)
 }
@@ -330,6 +356,8 @@ public fun get_deposits(
     batch_nonce: u64,
     clock: &Clock,
 ): (vector<Deposit>, bool) {
+    assert!(batch_nonce > 0, EBatchNotFound);
+    assert!(batch_nonce <= safe.batches_count, EBatchNotFound);
     let batch_index = batch_nonce - 1;
     let deposits = if (table::contains(&safe.batch_deposits, batch_index)) {
         *table::borrow(&safe.batch_deposits, batch_index)
@@ -346,6 +374,7 @@ public fun is_any_batch_in_progress(safe: &BridgeSafe, clock: &Clock): bool {
 }
 
 public fun create_new_batch_internal(safe: &mut BridgeSafe, clock: &Clock, _ctx: &mut TxContext) {
+    assert!(safe.batches_count < MAX_U64, EOverflow);
     let nonce = safe.batches_count + 1;
     let batch = shared_structs::create_batch(nonce, clock::timestamp_ms(clock));
     table::add(&mut safe.batches, safe.batches_count, batch);
