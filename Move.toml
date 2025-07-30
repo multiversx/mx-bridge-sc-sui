@@ -1,22 +1,8 @@
 [package]
 name = "mx-bridge-sc-sui"
-edition = "2024.beta" # edition = "legacy" to use legacy (pre-2024) Move
-# license = ""           # e.g., "MIT", "GPL", "Apache 2.0"
-# authors = ["..."]      # e.g., ["Joe Smith (joesmith@noemail.com)", "John Snow (johnsnow@noemail.com)"]
+edition = "2024.beta"
 
 [dependencies]
-
-# For remote import, use the `{ git = "...", subdir = "...", rev = "..." }`.
-# Revision can be a branch, a tag, and a commit hash.
-# MyRemotePackage = { git = "https://some.remote/host.git", subdir = "remote/path", rev = "main" }
-
-# For local dependencies use `local = path`. Path is relative to the package root
-# Local = { local = "../path/to" }
-
-# To resolve a version conflict and force a specific version for dependency
-# override use `override = true`
-# Override = { local = "../conflicting/version", override = true }
-Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "main" }
 
 [addresses]
 mx_bridge_sc_sui = "0x0"
