@@ -278,13 +278,13 @@ public entry fun init_supply<T>(
 public entry fun deposit<T>(
     safe: &mut BridgeSafe,
     coin_in: Coin<T>,
-    recipient: address,
+    recipient: vector<u8>,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
     pausable::assert_not_paused(&safe.pause);
 
-    assert!(recipient != @0x0, EInvalidRecipient);
+    assert!(vector::length(&recipient) == 32, EInvalidRecipient);
 
     let key = utils::type_name_bytes<T>();
     let cfg_ref = table::borrow(&safe.token_cfg, key);

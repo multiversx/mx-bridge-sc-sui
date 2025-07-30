@@ -1,10 +1,7 @@
 #!/bin/bash
 
-# Sui Bridge Smart Contracts Deployment Script
-
 set -e  # Exit on any error
 
-# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -19,12 +16,25 @@ MIN_AMOUNT=${MIN_AMOUNT:-"1000"}      # Minimum deposit amount (1000 MIST = 0.00
 MAX_AMOUNT=${MAX_AMOUNT:-"1000000000000"}  # Maximum deposit amount (1000 SUI)
 DEBUG=${DEBUG:-"false"}  # Set to "true" for debug output
 
+# Bridge Configuration
+INITIAL_QUORUM=${INITIAL_QUORUM:-"3"}  # Minimum quorum for bridge operations
+RELAYER1_ADDRESS=${RELAYER1_ADDRESS:-""}  # Will use deployer if not set
+RELAYER2_ADDRESS=${RELAYER2_ADDRESS:-""}  # Will use deployer if not set  
+RELAYER3_ADDRESS=${RELAYER3_ADDRESS:-""}  # Will use deployer if not set
+
+# Test relayer public keys (32 bytes each) - FOR TESTING ONLY!
+# In production, these should be real Ed25519 public keys from the relayers
+RELAYER1_PUBKEY="0x12345678901234567890123456789012"
+RELAYER2_PUBKEY="0xabcdefghijklmnopqrstuvwxyz123456"
+RELAYER3_PUBKEY="0xABCDEFGHIJKLMNOPQRSTUVWXYZ123456"
+
 # Addresses (will be filled during execution)
 DEPLOYER_ADDRESS=""
 BRIDGE_ADDRESS=""
 RELAYER_ADDRESS=""
 PACKAGE_ID=""
 BRIDGE_SAFE_OBJECT=""
+BRIDGE_OBJECT=""
 ADMIN_CAP=""
 BRIDGE_CAP=""
 RELAYER_CAP=""
@@ -99,9 +109,18 @@ get_addresses() {
     BRIDGE_ADDRESS=${BRIDGE_ADDRESS:-$DEPLOYER_ADDRESS}
     RELAYER_ADDRESS=${RELAYER_ADDRESS:-$DEPLOYER_ADDRESS}
     
+    # Set up relayer addresses - use deployer if not specified
+    RELAYER1_ADDRESS=${RELAYER1_ADDRESS:-$DEPLOYER_ADDRESS}
+    RELAYER2_ADDRESS=${RELAYER2_ADDRESS:-$DEPLOYER_ADDRESS}
+    RELAYER3_ADDRESS=${RELAYER3_ADDRESS:-$DEPLOYER_ADDRESS}
+    
     print_info "Deployer Address: $DEPLOYER_ADDRESS"
     print_info "Bridge Address: $BRIDGE_ADDRESS" 
     print_info "Relayer Address: $RELAYER_ADDRESS"
+    print_info "Relayer 1 Address: $RELAYER1_ADDRESS"
+    print_info "Relayer 2 Address: $RELAYER2_ADDRESS"
+    print_info "Relayer 3 Address: $RELAYER3_ADDRESS"
+    print_info "Initial Quorum: $INITIAL_QUORUM"
 }
 
 # Deploy the smart contracts
@@ -110,11 +129,11 @@ deploy_contracts() {
     print_warning "Note: Dependency verification is enabled for security"
     
     # Deploy the package with dependency verification
-    DEPLOY_OUTPUT=$(sui client publish --gas-budget $GAS_BUDGET --verify-deps --json 2>/dev/null)
+    DEPLOY_OUTPUT=$(sui client publish --verify-deps --json 2>/dev/null)
     
     if [ $? -ne 0 ]; then
         print_warning "Deploy with --verify-deps failed, retrying without verification..."
-        DEPLOY_OUTPUT=$(sui client publish --gas-budget $GAS_BUDGET --json 2>/dev/null)
+        DEPLOY_OUTPUT=$(sui client publish --json 2>/dev/null)
         
         if [ $? -ne 0 ]; then
             print_error "Failed to deploy contracts"
@@ -232,6 +251,51 @@ configure_batch_size() {
     fi
 }
 
+# Initialize the bridge module with relayers
+initialize_bridge_module() {
+    print_info "Initializing bridge module..."
+    print_warning "Using test public keys - replace with real keys in production!"
+    
+    # Convert hex strings to proper format for Sui CLI
+    # Remove 0x prefix and ensure exactly 32 bytes (64 hex chars)
+    PK1=$(echo $RELAYER1_PUBKEY | sed 's/0x//' | head -c 64)
+    PK2=$(echo $RELAYER2_PUBKEY | sed 's/0x//' | head -c 64)
+    PK3=$(echo $RELAYER3_PUBKEY | sed 's/0x//' | head -c 64)
+    
+    # Pad with zeros if needed to make exactly 32 bytes
+    PK1=$(printf "%-64s" "$PK1" | tr ' ' '0')
+    PK2=$(printf "%-64s" "$PK2" | tr ' ' '0')
+    PK3=$(printf "%-64s" "$PK3" | tr ' ' '0')
+    
+    print_debug "Relayer addresses: [$RELAYER1_ADDRESS, $RELAYER2_ADDRESS, $RELAYER3_ADDRESS]"
+    print_debug "Public keys: [0x$PK1, 0x$PK2, 0x$PK3]"
+    
+    BRIDGE_INIT_OUTPUT=$(sui client call \
+        --package $PACKAGE_ID \
+        --module bridge \
+        --function initialize \
+        --args "[$RELAYER1_ADDRESS,$RELAYER2_ADDRESS,$RELAYER3_ADDRESS]" "[0x$PK1,0x$PK2,0x$PK3]" $INITIAL_QUORUM $BRIDGE_SAFE_OBJECT $BRIDGE_CAP \
+        --gas-budget $GAS_BUDGET \
+        --json)
+    
+    if [ $? -eq 0 ]; then
+        print_status "Bridge module initialized successfully!"
+        
+        # Extract the Bridge object ID from the output
+        BRIDGE_OBJECT=$(echo "$BRIDGE_INIT_OUTPUT" | jq -r '.objectChanges[] | select(.objectType | contains("Bridge")) | .objectId')
+        
+        if [ -n "$BRIDGE_OBJECT" ] && [ "$BRIDGE_OBJECT" != "null" ]; then
+            print_info "Bridge Object ID: $BRIDGE_OBJECT"
+        else
+            print_warning "Could not extract Bridge object ID from output"
+        fi
+        
+        print_debug "Bridge initialization output: $BRIDGE_INIT_OUTPUT"
+    else
+        print_error "Failed to initialize bridge module"
+    fi
+}
+
 # Test deposit functionality
 test_deposit() {
     print_info "Testing deposit functionality with SUI..."
@@ -291,12 +355,26 @@ save_deployment_info() {
   "network": "$NETWORK",
   "package_id": "$PACKAGE_ID",
   "bridge_safe_object": "$BRIDGE_SAFE_OBJECT",
+  "bridge_object": "$BRIDGE_OBJECT",
   "admin_cap": "$ADMIN_CAP",
   "bridge_cap": "$BRIDGE_CAP",
   "relayer_cap": "$RELAYER_CAP",
   "deployer_address": "$DEPLOYER_ADDRESS",
   "bridge_address": "$BRIDGE_ADDRESS",
   "relayer_address": "$RELAYER_ADDRESS",
+  "relayer_addresses": {
+    "relayer1": "$RELAYER1_ADDRESS",
+    "relayer2": "$RELAYER2_ADDRESS", 
+    "relayer3": "$RELAYER3_ADDRESS"
+  },
+  "bridge_config": {
+    "initial_quorum": $INITIAL_QUORUM,
+    "relayer_public_keys": {
+      "relayer1": "$RELAYER1_PUBKEY",
+      "relayer2": "$RELAYER2_PUBKEY",
+      "relayer3": "$RELAYER3_PUBKEY"
+    }
+  },
   "whitelisted_tokens": {
     "SUI": "$SUI_TYPE"
   },
@@ -329,11 +407,22 @@ print_usage_instructions() {
     echo ""
     echo -e "${YELLOW}To check bridge status:${NC}"
     echo "sui client object $BRIDGE_SAFE_OBJECT"
+    if [ -n "$BRIDGE_OBJECT" ] && [ "$BRIDGE_OBJECT" != "null" ]; then
+        echo "sui client object $BRIDGE_OBJECT"
+    fi
     echo ""
     echo -e "${YELLOW}Important addresses:${NC}"
     echo "Package ID: $PACKAGE_ID"
     echo "BridgeSafe Object: $BRIDGE_SAFE_OBJECT"
+    if [ -n "$BRIDGE_OBJECT" ] && [ "$BRIDGE_OBJECT" != "null" ]; then
+        echo "Bridge Object: $BRIDGE_OBJECT"
+    fi
     echo "Admin Capability: $ADMIN_CAP"
+    echo "Bridge Capability: $BRIDGE_CAP"
+    echo ""
+    echo -e "${YELLOW}Bridge Configuration:${NC}"
+    echo "Initial Quorum: $INITIAL_QUORUM"
+    echo "Relayers: $RELAYER1_ADDRESS, $RELAYER2_ADDRESS, $RELAYER3_ADDRESS"
     echo ""
     echo -e "${BLUE}All deployment details saved in deployment_info.json${NC}"
 }
@@ -347,6 +436,7 @@ main() {
     whitelist_sui
     # whitelist_usdc  # Uncomment if you want to try whitelisting USDC
     configure_batch_size
+    initialize_bridge_module
     test_deposit
     save_deployment_info
     print_usage_instructions

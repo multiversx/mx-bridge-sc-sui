@@ -15,6 +15,7 @@ const ADMIN: address = @0xa11ce;
 const USER: address = @0xb0b;
 const BRIDGE: address = @0xc0de;
 const RECIPIENT: address = @0xdea1;
+const RECIPIENT_VECTOR: vector<u8> = b"12345678901234567890123456789012";
 
 const MIN_AMOUNT: u64 = 100;
 const MAX_AMOUNT: u64 = 1000000;
@@ -62,7 +63,7 @@ fun test_deposit_basic() {
         safe::deposit<TEST_COIN>(
             &mut safe,
             coin,
-            RECIPIENT,
+            RECIPIENT_VECTOR,
             &clock,
             ts::ctx(&mut scenario),
         );
@@ -124,9 +125,27 @@ fun test_deposit_multiple_same_batch() {
         let coin2 = coin::mint_for_testing<TEST_COIN>(2000, ts::ctx(&mut scenario));
         let coin3 = coin::mint_for_testing<TEST_COIN>(3000, ts::ctx(&mut scenario));
 
-        safe::deposit<TEST_COIN>(&mut safe, coin1, RECIPIENT, &clock, ts::ctx(&mut scenario));
-        safe::deposit<TEST_COIN>(&mut safe, coin2, RECIPIENT, &clock, ts::ctx(&mut scenario));
-        safe::deposit<TEST_COIN>(&mut safe, coin3, RECIPIENT, &clock, ts::ctx(&mut scenario));
+        safe::deposit<TEST_COIN>(
+            &mut safe,
+            coin1,
+            RECIPIENT_VECTOR,
+            &clock,
+            ts::ctx(&mut scenario),
+        );
+        safe::deposit<TEST_COIN>(
+            &mut safe,
+            coin2,
+            RECIPIENT_VECTOR,
+            &clock,
+            ts::ctx(&mut scenario),
+        );
+        safe::deposit<TEST_COIN>(
+            &mut safe,
+            coin3,
+            RECIPIENT_VECTOR,
+            &clock,
+            ts::ctx(&mut scenario),
+        );
 
         // Should have 3 deposits, 1 batch
         assert!(safe::get_deposits_count(&safe) == 3, 0);
@@ -184,10 +203,28 @@ fun test_deposit_triggers_new_batch() {
         let coin2 = coin::mint_for_testing<TEST_COIN>(2000, ts::ctx(&mut scenario));
         let coin3 = coin::mint_for_testing<TEST_COIN>(3000, ts::ctx(&mut scenario));
 
-        safe::deposit<TEST_COIN>(&mut safe, coin1, RECIPIENT, &clock, ts::ctx(&mut scenario));
-        safe::deposit<TEST_COIN>(&mut safe, coin2, RECIPIENT, &clock, ts::ctx(&mut scenario));
+        safe::deposit<TEST_COIN>(
+            &mut safe,
+            coin1,
+            RECIPIENT_VECTOR,
+            &clock,
+            ts::ctx(&mut scenario),
+        );
+        safe::deposit<TEST_COIN>(
+            &mut safe,
+            coin2,
+            RECIPIENT_VECTOR,
+            &clock,
+            ts::ctx(&mut scenario),
+        );
         // Third deposit should trigger new batch
-        safe::deposit<TEST_COIN>(&mut safe, coin3, RECIPIENT, &clock, ts::ctx(&mut scenario));
+        safe::deposit<TEST_COIN>(
+            &mut safe,
+            coin3,
+            RECIPIENT_VECTOR,
+            &clock,
+            ts::ctx(&mut scenario),
+        );
 
         // Should have 3 deposits, 2 batches
         assert!(safe::get_deposits_count(&safe) == 3, 0);
@@ -239,7 +276,7 @@ fun test_deposit_invalid_recipient() {
         let clock = clock::create_for_testing(ts::ctx(&mut scenario));
         let coin = coin::mint_for_testing<TEST_COIN>(DEPOSIT_AMOUNT, ts::ctx(&mut scenario));
 
-        safe::deposit<TEST_COIN>(&mut safe, coin, @0x0, &clock, ts::ctx(&mut scenario));
+        safe::deposit<TEST_COIN>(&mut safe, coin, b"0x0", &clock, ts::ctx(&mut scenario));
 
         clock::destroy_for_testing(clock);
         ts::return_shared(safe);
@@ -261,7 +298,7 @@ fun test_deposit_token_not_whitelisted() {
         let clock = clock::create_for_testing(ts::ctx(&mut scenario));
         let coin = coin::mint_for_testing<TEST_COIN>(DEPOSIT_AMOUNT, ts::ctx(&mut scenario));
 
-        safe::deposit<TEST_COIN>(&mut safe, coin, RECIPIENT, &clock, ts::ctx(&mut scenario));
+        safe::deposit<TEST_COIN>(&mut safe, coin, RECIPIENT_VECTOR, &clock, ts::ctx(&mut scenario));
 
         clock::destroy_for_testing(clock);
         ts::return_shared(safe);
@@ -301,7 +338,7 @@ fun test_deposit_zero_amount() {
         let clock = clock::create_for_testing(ts::ctx(&mut scenario));
         let coin = coin::mint_for_testing<TEST_COIN>(0, ts::ctx(&mut scenario));
 
-        safe::deposit<TEST_COIN>(&mut safe, coin, RECIPIENT, &clock, ts::ctx(&mut scenario));
+        safe::deposit<TEST_COIN>(&mut safe, coin, RECIPIENT_VECTOR, &clock, ts::ctx(&mut scenario));
 
         clock::destroy_for_testing(clock);
         ts::return_shared(safe);
@@ -341,7 +378,7 @@ fun test_deposit_amount_below_minimum() {
         let clock = clock::create_for_testing(ts::ctx(&mut scenario));
         let coin = coin::mint_for_testing<TEST_COIN>(MIN_AMOUNT - 1, ts::ctx(&mut scenario));
 
-        safe::deposit<TEST_COIN>(&mut safe, coin, RECIPIENT, &clock, ts::ctx(&mut scenario));
+        safe::deposit<TEST_COIN>(&mut safe, coin, RECIPIENT_VECTOR, &clock, ts::ctx(&mut scenario));
 
         clock::destroy_for_testing(clock);
         ts::return_shared(safe);
@@ -381,7 +418,7 @@ fun test_deposit_amount_above_maximum() {
         let clock = clock::create_for_testing(ts::ctx(&mut scenario));
         let coin = coin::mint_for_testing<TEST_COIN>(MAX_AMOUNT + 1, ts::ctx(&mut scenario));
 
-        safe::deposit<TEST_COIN>(&mut safe, coin, RECIPIENT, &clock, ts::ctx(&mut scenario));
+        safe::deposit<TEST_COIN>(&mut safe, coin, RECIPIENT_VECTOR, &clock, ts::ctx(&mut scenario));
 
         clock::destroy_for_testing(clock);
         ts::return_shared(safe);
@@ -423,7 +460,7 @@ fun test_deposit_when_paused() {
         let clock = clock::create_for_testing(ts::ctx(&mut scenario));
         let coin = coin::mint_for_testing<TEST_COIN>(DEPOSIT_AMOUNT, ts::ctx(&mut scenario));
 
-        safe::deposit<TEST_COIN>(&mut safe, coin, RECIPIENT, &clock, ts::ctx(&mut scenario));
+        safe::deposit<TEST_COIN>(&mut safe, coin, RECIPIENT_VECTOR, &clock, ts::ctx(&mut scenario));
 
         clock::destroy_for_testing(clock);
         ts::return_shared(safe);
@@ -833,7 +870,7 @@ fun test_deposit_then_transfer_integration() {
         let clock = clock::create_for_testing(ts::ctx(&mut scenario));
         let coin = coin::mint_for_testing<TEST_COIN>(DEPOSIT_AMOUNT, ts::ctx(&mut scenario));
 
-        safe::deposit<TEST_COIN>(&mut safe, coin, RECIPIENT, &clock, ts::ctx(&mut scenario));
+        safe::deposit<TEST_COIN>(&mut safe, coin, RECIPIENT_VECTOR, &clock, ts::ctx(&mut scenario));
 
         assert!(safe::get_stored_coin_balance<TEST_COIN>(&safe) == DEPOSIT_AMOUNT, 0);
 

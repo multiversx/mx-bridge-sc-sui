@@ -3,10 +3,9 @@ module bridge_safe::bridge_comprehensive_tests;
 
 use bridge_safe::bridge::{Self, Bridge};
 use bridge_safe::pausable;
-use bridge_safe::roles::{Self, AdminCap, BridgeCap};
+use bridge_safe::roles::{AdminCap, BridgeCap};
 use bridge_safe::safe::{Self, BridgeSafe};
-use sui::clock::{Self, Clock};
-use sui::coin;
+use sui::clock;
 use sui::test_scenario as ts;
 
 public struct TEST_COIN has drop {}
@@ -65,7 +64,7 @@ fun test_initialize_bridge_success() {
         );
 
         ts::return_shared(safe);
-        ts::return_to_sender(&mut scenario, admin_cap);
+        ts::return_to_sender(&scenario, admin_cap);
     };
 
     ts::next_tx(&mut scenario, ADMIN);
@@ -216,7 +215,7 @@ fun test_set_quorum_success() {
         );
 
         ts::return_shared(safe);
-        ts::return_to_sender(&mut scenario, admin_cap);
+        ts::return_to_sender(&scenario, admin_cap);
     };
 
     ts::next_tx(&mut scenario, ADMIN);
@@ -271,7 +270,7 @@ fun test_set_quorum_not_admin() {
         );
 
         ts::return_shared(safe);
-        ts::return_to_sender(&mut scenario, admin_cap);
+        ts::return_to_sender(&scenario, admin_cap);
     };
 
     ts::next_tx(&mut scenario, USER); // Switch to non-admin
@@ -324,7 +323,7 @@ fun test_add_relayer_success() {
         );
 
         ts::return_shared(safe);
-        ts::return_to_sender(&mut scenario, admin_cap);
+        ts::return_to_sender(&scenario, admin_cap);
     };
 
     ts::next_tx(&mut scenario, ADMIN);
@@ -383,7 +382,7 @@ fun test_remove_relayer_success() {
         );
 
         ts::return_shared(safe);
-        ts::return_to_sender(&mut scenario, admin_cap);
+        ts::return_to_sender(&scenario, admin_cap);
     };
 
     ts::next_tx(&mut scenario, ADMIN);
@@ -443,7 +442,7 @@ fun test_remove_relayer_below_quorum() {
         );
 
         ts::return_shared(safe);
-        ts::return_to_sender(&mut scenario, admin_cap);
+        ts::return_to_sender(&scenario, admin_cap);
     };
 
     ts::next_tx(&mut scenario, ADMIN);
@@ -496,7 +495,7 @@ fun test_pause_unpause_contract() {
         );
 
         ts::return_shared(safe);
-        ts::return_to_sender(&mut scenario, admin_cap);
+        ts::return_to_sender(&scenario, admin_cap);
     };
 
     ts::next_tx(&mut scenario, ADMIN);
@@ -560,7 +559,7 @@ fun test_getter_functions() {
         );
 
         ts::return_shared(safe);
-        ts::return_to_sender(&mut scenario, admin_cap);
+        ts::return_to_sender(&scenario, admin_cap);
     };
 
     ts::next_tx(&mut scenario, ADMIN);
@@ -634,7 +633,7 @@ fun test_set_admin_success() {
         );
 
         ts::return_shared(safe);
-        ts::return_to_sender(&mut scenario, admin_cap);
+        ts::return_to_sender(&scenario, admin_cap);
     };
 
     ts::next_tx(&mut scenario, ADMIN);
@@ -692,7 +691,7 @@ fun test_set_admin_not_admin() {
         );
 
         ts::return_shared(safe);
-        ts::return_to_sender(&mut scenario, admin_cap);
+        ts::return_to_sender(&scenario, admin_cap);
     };
 
     ts::next_tx(&mut scenario, USER); // Switch to non-admin
@@ -745,7 +744,7 @@ fun test_set_batch_settle_timeout_success() {
         );
 
         ts::return_shared(safe);
-        ts::return_to_sender(&mut scenario, admin_cap);
+        ts::return_to_sender(&scenario, admin_cap);
     };
 
     ts::next_tx(&mut scenario, ADMIN);
@@ -817,7 +816,7 @@ fun test_set_batch_settle_timeout_not_admin() {
         );
 
         ts::return_shared(safe);
-        ts::return_to_sender(&mut scenario, admin_cap);
+        ts::return_to_sender(&scenario, admin_cap);
     };
 
     ts::next_tx(&mut scenario, USER); // Switch to non-admin
@@ -882,7 +881,7 @@ fun test_execute_transfer_invalid_signature_length() {
         );
 
         ts::return_shared(safe);
-        ts::return_to_sender(&mut scenario, admin_cap);
+        ts::return_to_sender(&scenario, admin_cap);
     };
 
     ts::next_tx(&mut scenario, RELAYER1);
@@ -955,7 +954,7 @@ fun test_execute_transfer_insufficient_signatures() {
         );
 
         ts::return_shared(safe);
-        ts::return_to_sender(&mut scenario, admin_cap);
+        ts::return_to_sender(&scenario, admin_cap);
     };
 
     ts::next_tx(&mut scenario, RELAYER1);
@@ -1039,7 +1038,7 @@ fun test_add_relayer_invalid_public_key_length() {
         );
 
         ts::return_shared(safe);
-        ts::return_to_sender(&mut scenario, admin_cap);
+        ts::return_to_sender(&scenario, admin_cap);
     };
 
     ts::next_tx(&mut scenario, ADMIN);
@@ -1094,7 +1093,7 @@ fun test_add_relayer_not_admin() {
         );
 
         ts::return_shared(safe);
-        ts::return_to_sender(&mut scenario, admin_cap);
+        ts::return_to_sender(&scenario, admin_cap);
     };
 
     ts::next_tx(&mut scenario, USER); // Switch to non-admin
@@ -1148,7 +1147,7 @@ fun test_remove_relayer_not_admin() {
         );
 
         ts::return_shared(safe);
-        ts::return_to_sender(&mut scenario, admin_cap);
+        ts::return_to_sender(&scenario, admin_cap);
     };
 
     ts::next_tx(&mut scenario, USER); // Switch to non-admin
@@ -1202,7 +1201,7 @@ fun test_pause_contract_not_admin() {
         );
 
         ts::return_shared(safe);
-        ts::return_to_sender(&mut scenario, admin_cap);
+        ts::return_to_sender(&scenario, admin_cap);
     };
 
     ts::next_tx(&mut scenario, USER); // Switch to non-admin
@@ -1256,7 +1255,7 @@ fun test_unpause_contract_not_admin() {
         );
 
         ts::return_shared(safe);
-        ts::return_to_sender(&mut scenario, admin_cap);
+        ts::return_to_sender(&scenario, admin_cap);
     };
 
     ts::next_tx(&mut scenario, ADMIN);
