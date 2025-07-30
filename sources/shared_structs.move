@@ -13,7 +13,7 @@ public struct Deposit has copy, drop, store {
     token_key: vector<u8>,
     amount: u64,
     sender: address,
-    recipient: address,
+    recipient: vector<u8>,
 }
 
 public struct CrossTransferStatus has copy, drop, store {
@@ -46,7 +46,7 @@ public fun create_deposit(
     token_key: vector<u8>,
     amount: u64,
     sender: address,
-    recipient: address,
+    recipient: vector<u8>,
 ): Deposit {
     Deposit {
         nonce,

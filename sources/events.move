@@ -6,7 +6,7 @@ public struct DepositEvent has copy, drop {
     batch_id: u64,
     deposit_nonce: u64,
     sender: address,
-    recipient: address,
+    recipient: vector<u8>,
     amount: u64,
     token_type: vector<u8>,
 }
@@ -75,7 +75,7 @@ public fun emit_deposit(
     batch_id: u64,
     deposit_nonce: u64,
     sender: address,
-    recipient: address,
+    recipient: vector<u8>,
     amount: u64,
     token_type: vector<u8>,
 ) {
