@@ -28,6 +28,8 @@ const EBatchNotFound: u64 = 17;
 const EBatchSizeZero: u64 = 18;
 
 const MAX_U64: u64 = 18446744073709551615;
+const DEFAULT_BATCH_TIMEOUT_MS: u64 = 1 * 60 * 1000;
+const DEFAULT_BATCH_SETTLE_TIMEOUT_MS: u64 = 5 * 60 * 1000;
 
 public struct BridgeSafe has key {
     id: UID,
@@ -55,8 +57,8 @@ fun init(ctx: &mut TxContext) {
         admin: deployer,
         bridge_addr: deployer,
         batch_size: 10,
-        batch_timeout_ms: 10 * 60 * 1000,
-        batch_settle_timeout_ms: 60 * 60 * 1000,
+        batch_timeout_ms: DEFAULT_BATCH_TIMEOUT_MS,
+        batch_settle_timeout_ms: DEFAULT_BATCH_SETTLE_TIMEOUT_MS,
         batches_count: 0,
         deposits_count: 0,
         token_cfg: table::new(ctx),
@@ -344,8 +346,13 @@ public entry fun deposit<T>(
 
 public fun get_batch(safe: &BridgeSafe, batch_nonce: u64, clock: &Clock): (Batch, bool) {
     assert!(batch_nonce > 0, EBatchNotFound);
-    assert!(batch_nonce <= safe.batches_count, EBatchNotFound);
     let batch_index = batch_nonce - 1;
+
+    if (!table::contains(&safe.batches, batch_index)) {
+        let empty_batch = shared_structs::create_batch(0, 0);
+        return (empty_batch, false)
+    };
+
     let batch = *table::borrow(&safe.batches, batch_index);
     let is_final = is_batch_final_internal(safe, &batch, clock);
     (batch, is_final)
@@ -357,13 +364,16 @@ public fun get_deposits(
     clock: &Clock,
 ): (vector<Deposit>, bool) {
     assert!(batch_nonce > 0, EBatchNotFound);
-    assert!(batch_nonce <= safe.batches_count, EBatchNotFound);
     let batch_index = batch_nonce - 1;
     let deposits = if (table::contains(&safe.batch_deposits, batch_index)) {
         *table::borrow(&safe.batch_deposits, batch_index)
     } else {
         vector::empty()
     };
+    if (!table::contains(&safe.batches, batch_index)) {
+        return (deposits, false)
+    };
+
     let batch = table::borrow(&safe.batches, batch_index);
     let is_final = is_batch_final_internal(safe, batch, clock);
     (deposits, is_final)

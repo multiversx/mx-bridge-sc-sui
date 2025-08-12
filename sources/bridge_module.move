@@ -29,6 +29,7 @@ const ECannotRemoveRelayerBelowQuorum: u64 = 13;
 const MINIMUM_QUORUM: u64 = 3;
 const ED25519_PUBLIC_KEY_LENGTH: u64 = 32;
 const SIGNATURE_LENGTH: u64 = 96;
+const DEFAULT_BATCH_SETTLE_TIMEOUT_MS: u64 = 5 * 60 * 1000;
 
 public struct QuorumChanged has copy, drop {
     new_quorum: u64,
@@ -73,7 +74,6 @@ public entry fun initialize(
     while (i < vector::length(&board)) {
         let relayer = *vector::borrow(&board, i);
         let pk = *vector::borrow(&public_keys, i);
-        assert!(vector::length(&pk) == ED25519_PUBLIC_KEY_LENGTH, EInvalidSignatureLength);
 
         vec_set::insert(&mut relayers, relayer);
         table::add(&mut relayer_public_keys, relayer, pk);
@@ -85,7 +85,7 @@ public entry fun initialize(
         pause: pausable::new(),
         admin: tx_context::sender(ctx),
         quorum: initial_quorum,
-        batch_settle_timeout_ms: 60 * 60 * 1000, // 60 minutes default timeout
+        batch_settle_timeout_ms: DEFAULT_BATCH_SETTLE_TIMEOUT_MS,
         relayers,
         relayer_public_keys,
         executed_batches: table::new(ctx),
@@ -298,16 +298,16 @@ public fun get_admin(bridge: &Bridge): address {
     bridge.admin
 }
 
-public fun get_pause(bridge: &Bridge): &Pause {
-    &bridge.pause
+public fun get_pause(bridge: &Bridge): bool {
+    bridge.pause.is_paused()
 }
 
 public fun get_pause_mut(bridge: &mut Bridge): &mut Pause {
     &mut bridge.pause
 }
 
-public fun get_relayers(bridge: &Bridge): &VecSet<address> {
-    &bridge.relayers
+public fun get_relayers(bridge: &Bridge): vector<address> {
+    *vec_set::keys(&bridge.relayers)
 }
 
 public fun get_relayer_count(bridge: &Bridge): u64 {
