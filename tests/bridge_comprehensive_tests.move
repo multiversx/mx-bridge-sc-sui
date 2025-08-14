@@ -4,7 +4,10 @@ module bridge_safe::bridge_comprehensive_tests;
 use bridge_safe::bridge::{Self, Bridge};
 use bridge_safe::roles::{AdminCap, BridgeCap};
 use bridge_safe::safe::{Self, BridgeSafe};
+use std::debug;
+use std::hash::{Self, sha3_256};
 use sui::clock;
+use sui::hash::blake2b256;
 use sui::test_scenario as ts;
 
 public struct TEST_COIN has drop {}
@@ -1249,4 +1252,34 @@ fun test_unpause_contract_not_admin() {
     };
 
     ts::end(scenario);
+}
+
+const USER1: address = @0x8a42f7e422c48a26e39dc424d883d6a4ed3e9d0dfa9932d752cc7441e75b994f;
+const USER2: address = @0xc0de;
+const USER3: address = @0xd00d;
+
+#[test]
+fun test_construct_batch_message() {
+    let batch_id = 1;
+    let tokens = vector[
+        b"0x8ca6fd3d13d8de0f00492d2ddc750a0072217b2ab36d1ec85bb015390299fafe::test_coin::TEST_COIN",
+        b"0x8ca6fd3d13d8de0f00492d2ddc750a0072217b2ab36d1ec85bb015390299fafe::test_coin::TEST_COIN",
+    ];
+    let recipients = vector[USER1, USER1];
+    let amounts = vector[2450, 250];
+    let deposit_nonces = vector[1, 2];
+
+    let message = bridge::construct_batch_message(
+        batch_id,
+        &tokens,
+        &recipients,
+        &amounts,
+        &deposit_nonces,
+    );
+
+    // print the message
+    debug::print(&message);
+
+    let message_hash = hash::sha3_256(message);
+    debug::print(&message_hash);
 }
