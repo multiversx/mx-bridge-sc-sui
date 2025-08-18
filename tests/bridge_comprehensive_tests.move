@@ -6,7 +6,9 @@ use bridge_safe::roles::{AdminCap, BridgeCap};
 use bridge_safe::safe::{Self, BridgeSafe};
 use std::debug;
 use std::hash::{Self, sha3_256};
+use sui::bcs;
 use sui::clock;
+use sui::ed25519;
 use sui::hash::blake2b256;
 use sui::test_scenario as ts;
 
@@ -1257,19 +1259,25 @@ fun test_unpause_contract_not_admin() {
 const USER1: address = @0x8a42f7e422c48a26e39dc424d883d6a4ed3e9d0dfa9932d752cc7441e75b994f;
 const USER2: address = @0xc0de;
 const USER3: address = @0xd00d;
+const PUBLIC_KEY: vector<u8> = x"a3c6a5bbfe23e5ca4a7c6ad220796f53b4563905472d7175220a534fdd7b3c90";
+
+const SIGNATURE: vector<u8> =
+    x"23ef807e663e0aba2f18636138569069f4964f0b37c7eab466491ddc6586caad4fccb0c28fd5d54b7f8c82905ec91438b0d42bd40aabd6ab04694f06d20403093e51a7be10f2c9e4b06419d6b6e0949bf8869d279c37133b142762325d1a4111";
+
+const MESSAGE: vector<u8> = x"2910dabe85881cb06855be204ba3f406382f7b6043ebc3c611befdd0e62cf30c";
 
 #[test]
 fun test_construct_batch_message() {
     let batch_id = 1;
     let tokens = vector[
-        b"0x8ca6fd3d13d8de0f00492d2ddc750a0072217b2ab36d1ec85bb015390299fafe::test_coin::TEST_COIN",
-        b"0x8ca6fd3d13d8de0f00492d2ddc750a0072217b2ab36d1ec85bb015390299fafe::test_coin::TEST_COIN",
+        b"0x95346740b2dae5d41bde0b935a94780be322a019212a0d9cb8ffb26c8af29d25::test_coin::TEST_COIN",
+        b"0x95346740b2dae5d41bde0b935a94780be322a019212a0d9cb8ffb26c8af29d25::test_coin::TEST_COIN",
     ];
     let recipients = vector[USER1, USER1];
     let amounts = vector[2450, 250];
     let deposit_nonces = vector[1, 2];
 
-    let message = bridge::construct_batch_message(
+    let message = bridge::compute_message(
         batch_id,
         &tokens,
         &recipients,
@@ -1277,9 +1285,61 @@ fun test_construct_batch_message() {
         &deposit_nonces,
     );
 
-    // print the message
-    debug::print(&message);
+    let public_key = bridge::extract_public_key(&SIGNATURE);
+    debug::print(&public_key);
+    let signature = bridge::extract_signature(&SIGNATURE);
+    debug::print(&signature);
 
-    let message_hash = hash::sha3_256(message);
-    debug::print(&message_hash);
+    let valid = ed25519::ed25519_verify(&signature, &public_key, &message);
+    debug::print(&valid);
+    debug::print(&message);
 }
+
+// #[test]
+// fun test_verify_signature() {
+//     let mut intent = vector[3u8, 0u8, 0u8];
+//     let encoded_message = bcs::to_bytes(&MESSAGE);
+//     vector::append(&mut intent, encoded_message);
+//     let message_hash = sui::hash::blake2b256(&intent);
+//     debug::print(&message_hash);
+//     let valid = ed25519::ed25519_verify(&SIGNATURE, &PUBLIC_KEY, &message_hash);
+//     debug::print(&valid);
+// }
+
+// const TOKENS: vector<vector<u8>> = vector[
+//     b"0x8ca6fd3d13d8de0f00492d2ddc750a0072217b2ab36d1ec85bb015390299fafe::test_coin::TEST_COIN",
+//     b"0x8ca6fd3d13d8de0f00492d2ddc750a0072217b2ab36d1ec85bb015390299fafe::test_coin::TEST_COIN",
+// ];
+
+// const RECIPIENTS: vector<address> = vector[USER1, USER1];
+// const AMOUNTS: vector<u64> = vector[2450, 250];
+// const DEPOSIT_NONCES: vector<u64> = vector[1, 2];
+
+// #[test]
+// fun test_compute_message() {
+//     let message = bridge::compute_message(
+//         1,
+//         &TOKENS,
+//         &RECIPIENTS,
+//         &AMOUNTS,
+//         &DEPOSIT_NONCES,
+//     );
+//     debug::print(&message);
+// }
+
+// #[test]
+// fun compute_extract_and_verify_signature() {
+//     let message = bridge::compute_message(
+//         1,
+//         &TOKENS,
+//         &RECIPIENTS,
+//         &AMOUNTS,
+//         &DEPOSIT_NONCES,
+//     );
+//     let signature =
+//         b"0x8ca6fd3d13d8de0f00492d2ddc750a0072217b2ab36d1ec85bb015390299fafe::test_coin::TEST_COIN";
+
+//     let valid = ed25519::ed25519_verify(&signature, &public_key, &message);
+//     debug::print(&valid);
+//     debug::print(&message);
+// }
