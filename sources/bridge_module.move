@@ -28,7 +28,7 @@ const ECannotRemoveRelayerBelowQuorum: u64 = 13;
 
 const MINIMUM_QUORUM: u64 = 3;
 const ED25519_PUBLIC_KEY_LENGTH: u64 = 32;
-const SIGNATURE_LENGTH: u64 = 64;
+const SIGNATURE_LENGTH: u64 = 96;
 const DEFAULT_BATCH_SETTLE_TIMEOUT_MS: u64 = 10 * 1000;
 
 public struct QuorumChanged has copy, drop {
@@ -367,19 +367,19 @@ fun validate_quorum(
     while (i < num_signatures) {
         let signature = vector::borrow(&signatures, i);
 
-        //assert!(vector::length(signature) == SIGNATURE_LENGTH, EInvalidSignatureLength);
+        assert!(vector::length(signature) == SIGNATURE_LENGTH, EInvalidSignatureLength);
 
         let public_key = extract_public_key(signature);
         let sig_bytes = extract_signature(signature);
 
         let mut relayer_opt = find_relayer_by_public_key(bridge, &public_key);
-        //assert!(option::is_some(&relayer_opt), EInvalidSignature);
+        assert!(option::is_some(&relayer_opt), EInvalidSignature);
 
         let relayer = option::extract(&mut relayer_opt);
 
         assert!(!vec_set::contains(&verified_relayers, &relayer), EDuplicateSignature);
 
-        //assert!(ed25519::ed25519_verify(&sig_bytes, &public_key, &message), EInvalidSignature);
+        assert!(ed25519::ed25519_verify(&sig_bytes, &public_key, &message), EInvalidSignature);
 
         vec_set::insert(&mut verified_relayers, relayer);
         i = i + 1;
