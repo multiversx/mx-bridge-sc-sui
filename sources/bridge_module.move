@@ -360,6 +360,7 @@ fun validate_quorum(
     assert!(num_signatures >= bridge.quorum, EQuorumNotReached);
 
     let message = construct_batch_message(batch_id, tokens, recipients, amounts, deposit_nonces);
+    let message_hash = sui::hash::blake2b256(&message);
 
     let mut verified_relayers = vec_set::empty<address>();
     let mut i = 0;
@@ -379,7 +380,7 @@ fun validate_quorum(
 
         assert!(!vec_set::contains(&verified_relayers, &relayer), EDuplicateSignature);
 
-        assert!(ed25519::ed25519_verify(&sig_bytes, &public_key, &message), EInvalidSignature);
+        assert!(ed25519::ed25519_verify(&sig_bytes, &public_key, &message_hash), EInvalidSignature);
 
         vec_set::insert(&mut verified_relayers, relayer);
         i = i + 1;
@@ -416,8 +417,8 @@ public fun construct_batch_message(
 
 fun extract_public_key(signature: &vector<u8>): vector<u8> {
     let mut public_key = vector::empty<u8>();
-    let mut i = 0;
-    while (i < ED25519_PUBLIC_KEY_LENGTH) {
+    let mut i = 64;
+    while (i < vector::length(signature)) {
         vector::push_back(&mut public_key, *vector::borrow(signature, i));
         i = i + 1;
     };
@@ -426,8 +427,8 @@ fun extract_public_key(signature: &vector<u8>): vector<u8> {
 
 fun extract_signature(signature: &vector<u8>): vector<u8> {
     let mut sig_bytes = vector::empty<u8>();
-    let mut i = ED25519_PUBLIC_KEY_LENGTH;
-    while (i < vector::length(signature)) {
+    let mut i = 0;
+    while (i < 64) {
         vector::push_back(&mut sig_bytes, *vector::borrow(signature, i));
         i = i + 1;
     };
