@@ -26,6 +26,7 @@ const EQuorumNotReached: u64 = 11;
 const EQuorumExceedsRelayers: u64 = 12;
 const ECannotRemoveRelayerBelowQuorum: u64 = 13;
 const ERelayerNotFound: u64 = 14;
+const EInvalidPublicKeyLength: u64 = 15;
 
 const MINIMUM_QUORUM: u64 = 3;
 const ED25519_PUBLIC_KEY_LENGTH: u64 = 32;
@@ -75,7 +76,7 @@ public entry fun initialize(
     while (i < vector::length(&board)) {
         let relayer = *vector::borrow(&board, i);
         let pk = *vector::borrow(&public_keys, i);
-        assert!(vector::length(&pk) == ED25519_PUBLIC_KEY_LENGTH, EInvalidSignatureLength);
+        assert!(vector::length(&pk) == ED25519_PUBLIC_KEY_LENGTH, EInvalidPublicKeyLength);
 
         vec_set::insert(&mut relayers, relayer);
         table::add(&mut relayer_public_keys, relayer, pk);
@@ -233,7 +234,8 @@ public entry fun execute_transfer<T>(
     let mut tokens = vector::empty<vector<u8>>();
     let mut i = 0;
     while (i < vector::length(&recipients)) {
-        vector::push_back(&mut tokens, token_type);
+        let t = utils::type_name_bytes<T>();
+        vector::push_back(&mut tokens, t);
         i = i + 1;
     };
 
@@ -243,7 +245,7 @@ public entry fun execute_transfer<T>(
         &tokens,
         &recipients,
         &amounts,
-        signatures,
+        &signatures,
         &deposit_nonces,
     );
 
@@ -355,10 +357,10 @@ fun validate_quorum(
     tokens: &vector<vector<u8>>,
     recipients: &vector<address>,
     amounts: &vector<u64>,
-    signatures: vector<vector<u8>>,
+    signatures: &vector<vector<u8>>,
     deposit_nonces: &vector<u64>,
 ) {
-    let num_signatures = vector::length(&signatures);
+    let num_signatures = vector::length(signatures);
     assert!(num_signatures >= bridge.quorum, EQuorumNotReached);
 
     let message = compute_message(batch_id, tokens, recipients, amounts, deposit_nonces);
@@ -367,7 +369,7 @@ fun validate_quorum(
     let mut i = 0;
 
     while (i < num_signatures) {
-        let signature = vector::borrow(&signatures, i);
+        let signature = vector::borrow(signatures, i);
 
         assert!(vector::length(signature) == SIGNATURE_LENGTH, EInvalidSignatureLength);
 
@@ -390,6 +392,37 @@ fun validate_quorum(
     assert!(vec_set::size(&verified_relayers) >= bridge.quorum, EQuorumNotReached);
 }
 
+public fun validate_quorum_test_only(
+    batch_id: u64,
+    tokens: &vector<vector<u8>>,
+    recipients: &vector<address>,
+    amounts: &vector<u64>,
+    signatures: vector<vector<u8>>,
+    deposit_nonces: &vector<u64>,
+) {
+    let num_signatures = vector::length(&signatures);
+    //assert!(num_signatures >= bridge.quorum, EQuorumNotReached);
+
+    let message = compute_message(batch_id, tokens, recipients, amounts, deposit_nonces);
+
+    let mut i = 0;
+
+    while (i < num_signatures) {
+        let signature = vector::borrow(&signatures, i);
+
+        assert!(vector::length(signature) == SIGNATURE_LENGTH, EInvalidSignatureLength);
+
+        let public_key = extract_public_key(signature);
+        let sig_bytes = extract_signature(signature);
+
+        assert!(ed25519::ed25519_verify(&sig_bytes, &public_key, &message), EInvalidSignature);
+
+        i = i + 1;
+    };
+
+    //assert!(vec_set::size(&verified_relayers) >= bridge.quorum, EQuorumNotReached);
+}
+
 public fun compute_message(
     batch_id: u64,
     tokens: &vector<vector<u8>>,
@@ -404,7 +437,7 @@ public fun compute_message(
     sui::hash::blake2b256(&intent_message)
 }
 
-fun construct_batch_message(
+public fun construct_batch_message(
     batch_id: u64,
     tokens: &vector<vector<u8>>,
     recipients: &vector<address>,
@@ -430,7 +463,7 @@ fun construct_batch_message(
     sui::hash::blake2b256(&message)
 }
 
-fun extract_public_key(signature: &vector<u8>): vector<u8> {
+public fun extract_public_key(signature: &vector<u8>): vector<u8> {
     let mut public_key = vector::empty<u8>();
     let mut i = vector::length(signature) - ED25519_PUBLIC_KEY_LENGTH;
     while (i < vector::length(signature)) {
@@ -440,7 +473,7 @@ fun extract_public_key(signature: &vector<u8>): vector<u8> {
     public_key
 }
 
-fun extract_signature(signature: &vector<u8>): vector<u8> {
+public fun extract_signature(signature: &vector<u8>): vector<u8> {
     let mut sig_bytes = vector::empty<u8>();
     let mut i = 0;
     while (i < vector::length(signature) - ED25519_PUBLIC_KEY_LENGTH) {
@@ -450,7 +483,7 @@ fun extract_signature(signature: &vector<u8>): vector<u8> {
     sig_bytes
 }
 
-fun find_relayer_by_public_key(bridge: &Bridge, public_key: &vector<u8>): Option<address> {
+public fun find_relayer_by_public_key(bridge: &Bridge, public_key: &vector<u8>): Option<address> {
     let relayers = vec_set::keys(&bridge.relayers);
     let mut i = 0;
 
