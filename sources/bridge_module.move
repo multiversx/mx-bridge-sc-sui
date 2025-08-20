@@ -218,9 +218,11 @@ public entry fun execute_transfer<T>(
     safe: &mut BridgeSafe,
     recipients: vector<address>,
     amounts: vector<u64>,
+    tokens: vector<vector<u8>>,
     deposit_nonces: vector<u64>,
     batch_nonce_mvx: u64,
     signatures: vector<vector<u8>>,
+    is_batch_completed: bool,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
@@ -229,15 +231,6 @@ public entry fun execute_transfer<T>(
     pausable::assert_not_paused(&bridge.pause);
 
     assert!(!was_batch_executed(bridge, batch_nonce_mvx), EBatchAlreadyExecuted);
-
-    let token_type = utils::type_name_bytes<T>();
-    let mut tokens = vector::empty<vector<u8>>();
-    let mut i = 0;
-    while (i < vector::length(&recipients)) {
-        let t = utils::type_name_bytes<T>();
-        vector::push_back(&mut tokens, t);
-        i = i + 1;
-    };
 
     validate_quorum(
         bridge,
@@ -249,13 +242,13 @@ public entry fun execute_transfer<T>(
         &deposit_nonces,
     );
 
-    table::add(&mut bridge.executed_batches, batch_nonce_mvx, true);
+    table::add(&mut bridge.executed_batches, batch_nonce_mvx, is_batch_completed);
     table::add(&mut bridge.execution_timestamps, batch_nonce_mvx, clock::timestamp_ms(clock));
 
     let mut successful_count = 0;
     let mut failed_count = 0;
     let mut transfer_statuses = vector::empty<DepositStatus>();
-    i = 0;
+    let mut i = 0;
     while (i < vector::length(&recipients)) {
         let recipient = *vector::borrow(&recipients, i);
         let amount = *vector::borrow(&amounts, i);
