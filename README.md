@@ -149,6 +149,23 @@ The safe module manages token storage, user deposits, and batch creation for out
   - Checks amount limits (min/max)
   - Automatically manages batch creation
   - Emits deposit events
+
+#### **Storage Mechanism - Bag of Coins**
+
+The safe module uses a sophisticated storage system to manage deposited tokens efficiently:
+
+- **Coin Storage**: Uses Sui's `Bag` data structure to store coins of different token types
+- **Type-based Organization**: Each token type has its own storage slot identified by the token's type name bytes
+- **Automatic Coin Joining**: When new deposits arrive, coins of the same type are automatically joined together
+- **Efficient Management**: The system maintains a single coin object per token type, reducing storage overhead
+
+**How It Works:**
+
+1. **Initial Deposit**: First deposit of a token type creates a new storage slot in the bag
+2. **Subsequent Deposits**: Additional deposits of the same token type are joined with existing coins
+3. **Balance Tracking**: Total balance is tracked separately in the token configuration for quick access
+4. **Transfer Optimization**: When transfers occur, coins are split from the stored amount without affecting other operations
+
 - **`transfer<T>`**: Bridge function to send tokens to recipients
   - Requires BridgeCap authentication
   - Updates token balances
