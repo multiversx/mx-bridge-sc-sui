@@ -28,8 +28,8 @@ const EBatchNotFound: u64 = 17;
 const EBatchSizeZero: u64 = 18;
 
 const MAX_U64: u64 = 18446744073709551615;
-const DEFAULT_BATCH_TIMEOUT_MS: u64 = 1 * 60 * 1000;
-const DEFAULT_BATCH_SETTLE_TIMEOUT_MS: u64 = 5 * 60 * 1000;
+const DEFAULT_BATCH_TIMEOUT_MS: u64 = 5 * 1000;
+const DEFAULT_BATCH_SETTLE_TIMEOUT_MS: u64 = 10 * 1000;
 
 public struct BridgeSafe has key {
     id: UID,

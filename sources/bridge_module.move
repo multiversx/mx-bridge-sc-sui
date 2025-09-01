@@ -25,11 +25,13 @@ const EInvalidSignatureLength: u64 = 10;
 const EQuorumNotReached: u64 = 11;
 const EQuorumExceedsRelayers: u64 = 12;
 const ECannotRemoveRelayerBelowQuorum: u64 = 13;
+const ERelayerNotFound: u64 = 14;
+const EInvalidPublicKeyLength: u64 = 15;
 
 const MINIMUM_QUORUM: u64 = 3;
 const ED25519_PUBLIC_KEY_LENGTH: u64 = 32;
 const SIGNATURE_LENGTH: u64 = 96;
-const DEFAULT_BATCH_SETTLE_TIMEOUT_MS: u64 = 5 * 60 * 1000;
+const DEFAULT_BATCH_SETTLE_TIMEOUT_MS: u64 = 10 * 1000;
 
 public struct QuorumChanged has copy, drop {
     new_quorum: u64,
@@ -52,6 +54,7 @@ public struct Bridge has key {
     executed_batches: Table<u64, bool>,
     execution_timestamps: Table<u64, u64>, // Maps batch nonce to execution timestamp
     cross_transfer_statuses: Table<u64, CrossTransferStatus>,
+    transfer_statuses: vector<DepositStatus>,
     safe: address,
     bridge_cap: BridgeCap,
 }
@@ -74,6 +77,7 @@ public entry fun initialize(
     while (i < vector::length(&board)) {
         let relayer = *vector::borrow(&board, i);
         let pk = *vector::borrow(&public_keys, i);
+        assert!(vector::length(&pk) == ED25519_PUBLIC_KEY_LENGTH, EInvalidPublicKeyLength);
 
         vec_set::insert(&mut relayers, relayer);
         table::add(&mut relayer_public_keys, relayer, pk);
@@ -91,6 +95,7 @@ public entry fun initialize(
         executed_batches: table::new(ctx),
         execution_timestamps: table::new(ctx),
         cross_transfer_statuses: table::new(ctx),
+        transfer_statuses: vector::empty<DepositStatus>(),
         safe: safe_address,
         bridge_cap,
     };
@@ -215,9 +220,11 @@ public entry fun execute_transfer<T>(
     safe: &mut BridgeSafe,
     recipients: vector<address>,
     amounts: vector<u64>,
-    _deposit_nonces: vector<u64>,
+    tokens: vector<vector<u8>>,
+    deposit_nonces: vector<u64>,
     batch_nonce_mvx: u64,
     signatures: vector<vector<u8>>,
+    is_batch_complete: bool,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
@@ -227,23 +234,33 @@ public entry fun execute_transfer<T>(
 
     assert!(!was_batch_executed(bridge, batch_nonce_mvx), EBatchAlreadyExecuted);
 
-    let token_type = utils::type_name_bytes<T>();
-    let mut tokens = vector::empty<vector<u8>>();
-    let mut i = 0;
-    while (i < vector::length(&recipients)) {
-        vector::push_back(&mut tokens, token_type);
-        i = i + 1;
+    validate_quorum(
+        bridge,
+        batch_nonce_mvx,
+        &tokens,
+        &recipients,
+        &amounts,
+        &signatures,
+        &deposit_nonces,
+    );
+
+    if (table::contains(&bridge.executed_batches, batch_nonce_mvx)) {
+        let v = table::borrow_mut(&mut bridge.executed_batches, batch_nonce_mvx);
+        *v = is_batch_complete;
+    } else {
+        table::add(&mut bridge.executed_batches, batch_nonce_mvx, is_batch_complete);
     };
-
-    validate_quorum(bridge, batch_nonce_mvx, &tokens, &recipients, &amounts, signatures);
-
-    table::add(&mut bridge.executed_batches, batch_nonce_mvx, true);
-    table::add(&mut bridge.execution_timestamps, batch_nonce_mvx, clock::timestamp_ms(clock));
+    let now = clock::timestamp_ms(clock);
+    if (table::contains(&bridge.execution_timestamps, batch_nonce_mvx)) {
+        let t = table::borrow_mut(&mut bridge.execution_timestamps, batch_nonce_mvx);
+        *t = now;
+    } else {
+        table::add(&mut bridge.execution_timestamps, batch_nonce_mvx, now);
+    };
 
     let mut successful_count = 0;
     let mut failed_count = 0;
-    let mut transfer_statuses = vector::empty<DepositStatus>();
-    i = 0;
+    let mut i = 0;
     while (i < vector::length(&recipients)) {
         let recipient = *vector::borrow(&recipients, i);
         let amount = *vector::borrow(&amounts, i);
@@ -251,27 +268,35 @@ public entry fun execute_transfer<T>(
         let success = safe::transfer<T>(safe, &bridge.bridge_cap, recipient, amount, ctx);
         if (success) {
             successful_count = successful_count + 1;
-            vector::push_back(&mut transfer_statuses, shared_structs::deposit_status_executed());
+            vector::push_back(
+                &mut bridge.transfer_statuses,
+                shared_structs::deposit_status_executed(),
+            );
         } else {
             failed_count = failed_count + 1;
-            vector::push_back(&mut transfer_statuses, shared_structs::deposit_status_rejected());
+            vector::push_back(
+                &mut bridge.transfer_statuses,
+                shared_structs::deposit_status_rejected(),
+            );
         };
         i = i + 1;
     };
 
-    let cross_status = shared_structs::create_cross_transfer_status(
-        transfer_statuses,
-        clock::timestamp_ms(clock),
-    );
-    table::add(&mut bridge.cross_transfer_statuses, batch_nonce_mvx, cross_status);
+    if (is_batch_complete) {
+        let cross_status = shared_structs::create_cross_transfer_status(
+            bridge.transfer_statuses,
+            clock::timestamp_ms(clock),
+        );
+        table::add(&mut bridge.cross_transfer_statuses, batch_nonce_mvx, cross_status);
 
-    let total_transfers = vector::length(&recipients);
-
-    event::emit(BatchExecuted {
-        batch_nonce_mvx,
-        transfers_count: total_transfers,
-        successful_transfers: successful_count,
-    });
+        let total_transfers = vector::length(&recipients);
+        bridge.transfer_statuses = vector::empty<DepositStatus>();
+        event::emit(BatchExecuted {
+            batch_nonce_mvx,
+            transfers_count: total_transfers,
+            successful_transfers: successful_count,
+        });
+    };
 }
 
 fun is_mvx_batch_final(bridge: &Bridge, created_timestamp_ms: u64, clock: &Clock): bool {
@@ -345,18 +370,19 @@ fun validate_quorum(
     tokens: &vector<vector<u8>>,
     recipients: &vector<address>,
     amounts: &vector<u64>,
-    signatures: vector<vector<u8>>,
+    signatures: &vector<vector<u8>>,
+    deposit_nonces: &vector<u64>,
 ) {
-    let num_signatures = vector::length(&signatures);
+    let num_signatures = vector::length(signatures);
     assert!(num_signatures >= bridge.quorum, EQuorumNotReached);
 
-    let message = construct_batch_message(bridge, batch_id, tokens, recipients, amounts);
+    let message = compute_message(batch_id, tokens, recipients, amounts, deposit_nonces);
 
     let mut verified_relayers = vec_set::empty<address>();
     let mut i = 0;
 
     while (i < num_signatures) {
-        let signature = vector::borrow(&signatures, i);
+        let signature = vector::borrow(signatures, i);
 
         assert!(vector::length(signature) == SIGNATURE_LENGTH, EInvalidSignatureLength);
 
@@ -364,7 +390,7 @@ fun validate_quorum(
         let sig_bytes = extract_signature(signature);
 
         let mut relayer_opt = find_relayer_by_public_key(bridge, &public_key);
-        assert!(option::is_some(&relayer_opt), EInvalidSignature);
+        assert!(option::is_some(&relayer_opt), ERelayerNotFound);
 
         let relayer = option::extract(&mut relayer_opt);
 
@@ -379,53 +405,67 @@ fun validate_quorum(
     assert!(vec_set::size(&verified_relayers) >= bridge.quorum, EQuorumNotReached);
 }
 
-fun construct_batch_message(
-    bridge: &Bridge,
+public fun compute_message(
     batch_id: u64,
     tokens: &vector<vector<u8>>,
     recipients: &vector<address>,
     amounts: &vector<u64>,
+    deposit_nonces: &vector<u64>,
+): vector<u8> {
+    let message = construct_batch_message(batch_id, tokens, recipients, amounts, deposit_nonces);
+    let encoded_msg = bcs::to_bytes(&message);
+    let mut intent_message = vector[3u8, 0u8, 0u8];
+    vector::append(&mut intent_message, encoded_msg);
+    sui::hash::blake2b256(&intent_message)
+}
+
+public fun construct_batch_message(
+    batch_id: u64,
+    tokens: &vector<vector<u8>>,
+    recipients: &vector<address>,
+    amounts: &vector<u64>,
+    deposit_nonces: &vector<u64>,
 ): vector<u8> {
     let mut message = bcs::to_bytes(&batch_id);
-
-    vector::append(&mut message, bcs::to_bytes(&object::id_address(bridge)));
 
     let mut i = 0;
     while (i < vector::length(tokens)) {
         let token = vector::borrow(tokens, i);
         let recipient = vector::borrow(recipients, i);
         let amount = vector::borrow(amounts, i);
+        let deposit_nonce = vector::borrow(deposit_nonces, i);
 
         vector::append(&mut message, bcs::to_bytes(token));
         vector::append(&mut message, bcs::to_bytes(recipient));
         vector::append(&mut message, bcs::to_bytes(amount));
+        vector::append(&mut message, bcs::to_bytes(deposit_nonce));
         i = i + 1;
     };
 
-    message
+    sui::hash::blake2b256(&message)
 }
 
-fun extract_public_key(signature: &vector<u8>): vector<u8> {
+public fun extract_public_key(signature: &vector<u8>): vector<u8> {
     let mut public_key = vector::empty<u8>();
-    let mut i = 0;
-    while (i < ED25519_PUBLIC_KEY_LENGTH) {
+    let mut i = vector::length(signature) - ED25519_PUBLIC_KEY_LENGTH;
+    while (i < vector::length(signature)) {
         vector::push_back(&mut public_key, *vector::borrow(signature, i));
         i = i + 1;
     };
     public_key
 }
 
-fun extract_signature(signature: &vector<u8>): vector<u8> {
+public fun extract_signature(signature: &vector<u8>): vector<u8> {
     let mut sig_bytes = vector::empty<u8>();
-    let mut i = ED25519_PUBLIC_KEY_LENGTH;
-    while (i < vector::length(signature)) {
+    let mut i = 0;
+    while (i < vector::length(signature) - ED25519_PUBLIC_KEY_LENGTH) {
         vector::push_back(&mut sig_bytes, *vector::borrow(signature, i));
         i = i + 1;
     };
     sig_bytes
 }
 
-fun find_relayer_by_public_key(bridge: &Bridge, public_key: &vector<u8>): Option<address> {
+public fun find_relayer_by_public_key(bridge: &Bridge, public_key: &vector<u8>): Option<address> {
     let relayers = vec_set::keys(&bridge.relayers);
     let mut i = 0;
 

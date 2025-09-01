@@ -4,7 +4,10 @@ module bridge_safe::bridge_comprehensive_tests;
 use bridge_safe::bridge::{Self, Bridge};
 use bridge_safe::roles::{AdminCap, BridgeCap};
 use bridge_safe::safe::{Self, BridgeSafe};
+use std::debug;
 use sui::clock;
+use sui::coin;
+use sui::ed25519;
 use sui::test_scenario as ts;
 
 public struct TEST_COIN has drop {}
@@ -1250,3 +1253,270 @@ fun test_unpause_contract_not_admin() {
 
     ts::end(scenario);
 }
+
+const USER1: address = @0x8a42f7e422c48a26e39dc424d883d6a4ed3e9d0dfa9932d752cc7441e75b994f;
+const USER2: address = @0xc0de;
+const USER3: address = @0xd00d;
+const PUBLIC_KEY: vector<u8> = x"a3c6a5bbfe23e5ca4a7c6ad220796f53b4563905472d7175220a534fdd7b3c90";
+
+const SIGNATURE: vector<u8> =
+    x"23ef807e663e0aba2f18636138569069f4964f0b37c7eab466491ddc6586caad4fccb0c28fd5d54b7f8c82905ec91438b0d42bd40aabd6ab04694f06d20403093e51a7be10f2c9e4b06419d6b6e0949bf8869d279c37133b142762325d1a4111";
+
+const MESSAGE: vector<u8> = x"2910dabe85881cb06855be204ba3f406382f7b6043ebc3c611befdd0e62cf30c";
+
+#[test]
+fun test_compute_message() {
+    let batch_id = 1;
+    let tokens = vector[
+        b"0x95346740b2dae5d41bde0b935a94780be322a019212a0d9cb8ffb26c8af29d25::test_coin::TEST_COIN",
+        b"0x95346740b2dae5d41bde0b935a94780be322a019212a0d9cb8ffb26c8af29d25::test_coin::TEST_COIN",
+    ];
+    let recipients = vector[USER1, USER1];
+    let amounts = vector[2450, 250];
+    let deposit_nonces = vector[1, 2];
+
+    let message = bridge::compute_message(
+        batch_id,
+        &tokens,
+        &recipients,
+        &amounts,
+        &deposit_nonces,
+    );
+
+    let public_key = bridge::extract_public_key(&SIGNATURE);
+    debug::print(&public_key);
+    let signature = bridge::extract_signature(&SIGNATURE);
+    debug::print(&signature);
+
+    let valid = ed25519::ed25519_verify(&signature, &public_key, &message);
+    debug::print(&valid);
+    debug::print(&message);
+}
+
+#[test]
+fun test_validate_quorum_test_only() {
+    let batch_id = 1;
+    let tokens = vector[
+        b"0x95346740b2dae5d41bde0b935a94780be322a019212a0d9cb8ffb26c8af29d25::test_coin::TEST_COIN",
+        b"0x95346740b2dae5d41bde0b935a94780be322a019212a0d9cb8ffb26c8af29d25::test_coin::TEST_COIN",
+    ];
+    let recipients = vector[USER1, USER1];
+    let amounts = vector[2450, 250];
+    let deposit_nonces = vector[1, 2];
+    let signatures = vector[SIGNATURE];
+
+    // let message = bridge::compute_message(
+    //     batch_id,
+    //     &tokens,
+    //     &recipients,
+    //     &amounts,
+    //     &deposit_nonces,
+    // );
+    // let mut i = 0;
+    // let num_signatures = vector::length(&signatures);
+    // debug::print(&message);
+
+    // while (i < num_signatures) {
+    //     debug::print(&i);
+    //     let signature = vector::borrow(&signatures, i);
+
+    //     debug::print(signature);
+    //     debug::print(&vector::length(signature));
+
+    //     let public_key = bridge::extract_public_key(signature);
+    //     let sig_bytes = bridge::extract_signature(signature);
+    //     debug::print(&public_key);
+    //     debug::print(&sig_bytes);
+
+    //     let valid = ed25519::ed25519_verify(&sig_bytes, &public_key, &message);
+    //     debug::print(&valid);
+    //     i = i + 1;
+    // };
+
+    bridge::validate_quorum_test_only(
+        batch_id,
+        &tokens,
+        &recipients,
+        &amounts,
+        signatures,
+        &deposit_nonces,
+    );
+}
+
+#[test]
+fun test_construct_batch_message() {
+    let batch_id = 1;
+    let tokens = vector[
+        b"0x2924b3de4b4f1eaaceef56af0ba2f88cbd9d5ae140acea8fd5012ca155ed584b::test_coin::TEST_COIN",
+        b"0x2924b3de4b4f1eaaceef56af0ba2f88cbd9d5ae140acea8fd5012ca155ed584b::test_coin::TEST_COIN",
+    ];
+    let recipients = vector[USER1, USER1];
+    let amounts = vector[2450, 250];
+    let deposit_nonces = vector[1, 2];
+    let message = bridge::construct_batch_message(
+        batch_id,
+        &tokens,
+        &recipients,
+        &amounts,
+        &deposit_nonces,
+    );
+    debug::print(&message);
+}
+
+#[test]
+fun test_execute_transfer_with_real_data() {
+    let mut scenario = ts::begin(ADMIN);
+
+    {
+        safe::init_for_testing(ts::ctx(&mut scenario));
+    };
+
+    ts::next_tx(&mut scenario, ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        let admin_cap = ts::take_from_sender<AdminCap>(&scenario);
+        let bridge_cap = ts::take_from_sender<BridgeCap>(&scenario);
+
+        safe::whitelist_token<TEST_COIN>(
+            &mut safe,
+            &admin_cap,
+            MIN_AMOUNT,
+            MAX_AMOUNT,
+            true,
+            ts::ctx(&mut scenario),
+        );
+
+        let supply_coin = coin::mint_for_testing<TEST_COIN>(10000000, ts::ctx(&mut scenario));
+        safe::init_supply<TEST_COIN>(&admin_cap, &mut safe, supply_coin, ts::ctx(&mut scenario));
+
+        let safe_addr = object::id_address(&safe);
+
+        let board = vector[RELAYER1, RELAYER2, RELAYER3];
+        let public_keys = vector[
+            x"3e51a7be10f2c9e4b06419d6b6e0949bf8869d279c37133b142762325d1a4111", // Real key that matches signature
+            PK2, // Using existing dummy key
+            PK3, // Using existing dummy key
+        ];
+
+        bridge::initialize(
+            board,
+            public_keys,
+            INITIAL_QUORUM,
+            safe_addr,
+            bridge_cap,
+            ts::ctx(&mut scenario),
+        );
+
+        ts::return_shared(safe);
+        ts::return_to_sender(&scenario, admin_cap);
+    };
+
+    ts::next_tx(&mut scenario, RELAYER1);
+    {
+        let mut bridge = ts::take_shared<Bridge>(&scenario);
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        let clock = clock::create_for_testing(ts::ctx(&mut scenario));
+
+        let recipients = vector[USER1, USER1];
+        let amounts = vector[2450, 250];
+        let deposit_nonces = vector[1, 2];
+        let batch_nonce_mvx = 1;
+
+        // Create mock signatures for testing
+        // Note: For this test, we'll use the test-only validation function to bypass real signature verification
+        // In a real scenario, these would be valid Ed25519 signatures from the relayers
+        let signatures = vector[SIGNATURE];
+
+        // Verify initial balances
+        assert!(safe::get_stored_coin_balance<TEST_COIN>(&safe) == 10000000, 0);
+        assert!(!bridge::was_batch_executed(&bridge, batch_nonce_mvx), 1);
+
+        // Execute the transfer
+        bridge::execute_transfer<TEST_COIN>(
+            &mut bridge,
+            &mut safe,
+            recipients,
+            amounts,
+            deposit_nonces,
+            batch_nonce_mvx,
+            signatures,
+            &clock,
+            ts::ctx(&mut scenario),
+        );
+
+        // Verify the batch was marked as executed
+        assert!(bridge::was_batch_executed(&bridge, batch_nonce_mvx), 2);
+
+        // Verify the safe balance decreased by the total transfer amount
+        let expected_remaining_balance = 10000000 - 2450 - 250;
+        assert!(safe::get_stored_coin_balance<TEST_COIN>(&safe) == expected_remaining_balance, 3);
+
+        // Verify transfer statuses were recorded
+        let (statuses, is_final) = bridge::get_statuses_after_execution(
+            &bridge,
+            batch_nonce_mvx,
+            &clock,
+        );
+        assert!(vector::length(&statuses) == 2, 4);
+        assert!(!is_final, 5); // Should not be final immediately after execution
+
+        ts::return_shared(bridge);
+        ts::return_shared(safe);
+        clock::destroy_for_testing(clock);
+    };
+
+    // Verify recipients received their tokens
+    ts::next_tx(&mut scenario, USER1);
+    {};
+
+    ts::end(scenario);
+}
+
+// #[test]
+// fun test_verify_signature() {
+//     let mut intent = vector[3u8, 0u8, 0u8];
+//     let encoded_message = bcs::to_bytes(&MESSAGE);
+//     vector::append(&mut intent, encoded_message);
+//     let message_hash = sui::hash::blake2b256(&intent);
+//     debug::print(&message_hash);
+//     let valid = ed25519::ed25519_verify(&SIGNATURE, &PUBLIC_KEY, &message_hash);
+//     debug::print(&valid);
+// }
+
+// const TOKENS: vector<vector<u8>> = vector[
+//     b"0x8ca6fd3d13d8de0f00492d2ddc750a0072217b2ab36d1ec85bb015390299fafe::test_coin::TEST_COIN",
+//     b"0x8ca6fd3d13d8de0f00492d2ddc750a0072217b2ab36d1ec85bb015390299fafe::test_coin::TEST_COIN",
+// ];
+
+// const RECIPIENTS: vector<address> = vector[USER1, USER1];
+// const AMOUNTS: vector<u64> = vector[2450, 250];
+// const DEPOSIT_NONCES: vector<u64> = vector[1, 2];
+
+// #[test]
+// fun test_compute_message() {
+//     let message = bridge::compute_message(
+//         1,
+//         &TOKENS,
+//         &RECIPIENTS,
+//         &AMOUNTS,
+//         &DEPOSIT_NONCES,
+//     );
+//     debug::print(&message);
+// }
+
+// #[test]
+// fun compute_extract_and_verify_signature() {
+//     let message = bridge::compute_message(
+//         1,
+//         &TOKENS,
+//         &RECIPIENTS,
+//         &AMOUNTS,
+//         &DEPOSIT_NONCES,
+//     );
+//     let signature =
+//         b"0x8ca6fd3d13d8de0f00492d2ddc750a0072217b2ab36d1ec85bb015390299fafe::test_coin::TEST_COIN";
+
+//     let valid = ed25519::ed25519_verify(&signature, &public_key, &message);
+//     debug::print(&valid);
+//     debug::print(&message);
+// }
