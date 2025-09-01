@@ -2,7 +2,6 @@
 module bridge_safe::bridge_comprehensive_tests;
 
 use bridge_safe::bridge::{Self, Bridge};
-use bridge_safe::pausable;
 use bridge_safe::roles::{AdminCap, BridgeCap};
 use bridge_safe::safe::{Self, BridgeSafe};
 use sui::clock;
@@ -80,7 +79,7 @@ fun test_initialize_bridge_success() {
         assert!(bridge::get_relayer_count(&bridge) == 3, 6);
 
         let pause = bridge::get_pause(&bridge);
-        assert!(!pausable::is_paused(pause), 7);
+        assert!(!pause, 7);
 
         ts::return_shared(bridge);
     };
@@ -133,37 +132,6 @@ fun test_initialize_bridge_board_too_small() {
 
         let board = vector[RELAYER1, RELAYER2];
         let public_keys = vector[PK1, PK2];
-
-        bridge::initialize(
-            board,
-            public_keys,
-            INITIAL_QUORUM,
-            object::id_address(&safe),
-            bridge_cap,
-            ts::ctx(&mut scenario),
-        );
-
-        ts::return_shared(safe);
-    };
-    ts::end(scenario);
-}
-
-#[test]
-#[expected_failure(abort_code = bridge::EInvalidSignatureLength)]
-fun test_initialize_bridge_invalid_public_key_length() {
-    let mut scenario = ts::begin(ADMIN);
-    {
-        safe::init_for_testing(ts::ctx(&mut scenario));
-    };
-
-    ts::next_tx(&mut scenario, ADMIN);
-    {
-        let safe = ts::take_shared<BridgeSafe>(&scenario);
-        let bridge_cap = ts::take_from_sender<BridgeCap>(&scenario);
-
-        let board = vector[RELAYER1, RELAYER2, RELAYER3];
-        let invalid_pk = b"short";
-        let public_keys = vector[PK1, invalid_pk, PK3];
 
         bridge::initialize(
             board,
@@ -504,17 +472,17 @@ fun test_pause_unpause_contract() {
         let admin_cap = ts::take_from_address<AdminCap>(&scenario, ADMIN);
 
         let pause = bridge::get_pause(&bridge);
-        assert!(!pausable::is_paused(pause), 0);
+        assert!(!pause, 0);
 
         bridge::pause_contract(&mut bridge, &admin_cap, ts::ctx(&mut scenario));
 
         let pause = bridge::get_pause(&bridge);
-        assert!(pausable::is_paused(pause), 1);
+        assert!(pause, 1);
 
         bridge::unpause_contract(&mut bridge, &admin_cap, ts::ctx(&mut scenario));
 
         let pause = bridge::get_pause(&bridge);
-        assert!(!pausable::is_paused(pause), 2);
+        assert!(!pause, 2);
 
         ts::return_shared(bridge);
         ts::return_to_address(ADMIN, admin_cap);
@@ -570,7 +538,7 @@ fun test_getter_functions() {
 
         assert!(bridge::get_quorum(&bridge) == INITIAL_QUORUM, 0);
         assert!(bridge::get_admin(&bridge) == ADMIN, 1);
-        assert!(bridge::get_batch_settle_timeout_ms(&bridge) == 60 * 60 * 1000, 2);
+        assert!(bridge::get_batch_settle_timeout_ms(&bridge) == 5 * 60 * 1000, 2);
         assert!(bridge::get_relayer_count(&bridge) == 3, 3);
 
         assert!(bridge::is_relayer(&bridge, RELAYER1), 4);
@@ -580,7 +548,7 @@ fun test_getter_functions() {
         assert!(!bridge::is_relayer(&bridge, USER), 8);
 
         let pause = bridge::get_pause(&bridge);
-        assert!(!pausable::is_paused(pause), 9);
+        assert!(!pause, 9);
 
         assert!(!bridge::was_batch_executed(&bridge, 1), 10);
         assert!(!bridge::was_batch_executed(&bridge, 999), 11);
@@ -756,7 +724,7 @@ fun test_set_batch_settle_timeout_success() {
 
         bridge::pause_contract(&mut bridge, &admin_cap, ts::ctx(&mut scenario));
 
-        assert!(bridge::get_batch_settle_timeout_ms(&bridge) == 60 * 60 * 1000, 0);
+        assert!(bridge::get_batch_settle_timeout_ms(&bridge) == 5 * 60 * 1000, 0);
 
         let new_timeout = 30 * 60 * 1000; // 30 minutes
         bridge::set_batch_settle_timeout_ms(

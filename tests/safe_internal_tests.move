@@ -37,8 +37,8 @@ fun test_init() {
         assert!(safe::get_admin(&safe) == ADMIN, 0);
         assert!(safe::get_bridge_addr(&safe) == ADMIN, 1);
         assert!(safe::get_batch_size(&safe) == DEFAULT_BATCH_SIZE, 2);
-        assert!(safe::get_batch_timeout_ms(&safe) == DEFAULT_BATCH_TIMEOUT_MS, 3);
-        assert!(safe::get_batch_settle_timeout_ms(&safe) == DEFAULT_BATCH_SETTLE_TIMEOUT_MS, 4);
+        assert!(safe::get_batch_timeout_ms(&safe) == 1 * 60 * 1000, 3);
+        assert!(safe::get_batch_settle_timeout_ms(&safe) == 5 * 60 * 1000, 4);
         assert!(safe::get_batches_count(&safe) == 0, 5);
         assert!(safe::get_deposits_count(&safe) == 0, 6);
 
@@ -326,7 +326,7 @@ fun test_set_batch_settle_timeout_ms_below_block() {
         safe::pause_contract(&mut safe, &admin_cap, ts::ctx(&mut scenario));
 
         // Try to set settle timeout lower than batch timeout - should fail
-        let new_settle_timeout = DEFAULT_BATCH_TIMEOUT_MS - 1;
+        let new_settle_timeout = 1 * 60 * 1000 - 1;
 
         safe::set_batch_settle_timeout_ms(
             &mut safe,
@@ -885,8 +885,8 @@ fun test_all_getters() {
         assert!(safe::get_admin(&safe) == ADMIN, 0);
         assert!(safe::get_bridge_addr(&safe) == ADMIN, 1);
         assert!(safe::get_batch_size(&safe) == DEFAULT_BATCH_SIZE, 2);
-        assert!(safe::get_batch_timeout_ms(&safe) == DEFAULT_BATCH_TIMEOUT_MS, 3);
-        assert!(safe::get_batch_settle_timeout_ms(&safe) == DEFAULT_BATCH_SETTLE_TIMEOUT_MS, 4);
+        assert!(safe::get_batch_timeout_ms(&safe) == 1 * 60 * 1000, 3);
+        assert!(safe::get_batch_settle_timeout_ms(&safe) == 5 * 60 * 1000, 4);
         assert!(safe::get_batches_count(&safe) == 0, 5);
         assert!(safe::get_deposits_count(&safe) == 0, 6);
 
