@@ -481,9 +481,6 @@ public fun transfer<T>(
     };
 
     let cfg_ref = table::borrow(&safe.token_cfg, key);
-    if (!shared_structs::token_config_whitelisted(cfg_ref)) {
-        return false
-    };
 
     let current_balance = shared_structs::token_config_total_balance(cfg_ref);
     if (current_balance < amount) {
