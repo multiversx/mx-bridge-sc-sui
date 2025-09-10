@@ -12,7 +12,7 @@ sui client publish --gas-budget 100000000
 ```bash
 # Initialize the bridge module with relayers and quorum
 sui client call \
-  --package <PACKAGE_ID> \
+  --package 0xb0fe0744f61c6ac28fd08f56112b9b7e42f359746c9fb31cf882ba656df52c76 \
   --module bridge \
   --function initialize \
   --args \

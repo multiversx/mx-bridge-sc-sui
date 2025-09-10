@@ -1,4 +1,3 @@
-#[allow(unused_use)]
 module bridge_safe::safe;
 
 use bridge_safe::events;
@@ -6,10 +5,13 @@ use bridge_safe::pausable::{Self, Pause};
 use bridge_safe::roles::{AdminCap, BridgeCap};
 use bridge_safe::utils;
 use shared_structs::shared_structs::{Self, TokenConfig, Batch, Deposit};
+use std::ascii;
+use std::type_name;
 use sui::bag::{Self, Bag};
 use sui::clock::{Self, Clock};
 use sui::coin::{Self, Coin, TreasuryCap};
 use sui::table::{Self, Table};
+use token::bridge_token::{Self, BRIDGE_TOKEN};
 
 const ENotAdmin: u64 = 0;
 const ETokenAlreadyExists: u64 = 2;
@@ -45,6 +47,7 @@ public struct BridgeSafe has key {
     batches: Table<u64, Batch>,
     batch_deposits: Table<u64, vector<Deposit>>,
     coin_storage: Bag,
+    treasury_cap: Option<TreasuryCap<BRIDGE_TOKEN>>,
 }
 
 fun init(ctx: &mut TxContext) {
@@ -65,6 +68,7 @@ fun init(ctx: &mut TxContext) {
         batches: table::new(ctx),
         batch_deposits: table::new(ctx),
         coin_storage: bag::new(ctx),
+        treasury_cap: option::none<TreasuryCap<BRIDGE_TOKEN>>(),
     };
 
     transfer::public_transfer(admin_cap, deployer);
@@ -81,7 +85,7 @@ fun borrow_token_cfg_mut(safe: &mut BridgeSafe, key: vector<u8>): &mut TokenConf
     table::borrow_mut(&mut safe.token_cfg, key)
 }
 
-public entry fun whitelist_token<T>(
+public fun whitelist_token<T>(
     safe: &mut BridgeSafe,
     _admin_cap: &AdminCap,
     minimum_amount: u64,
@@ -474,42 +478,59 @@ public fun transfer<T>(
     amount: u64,
     ctx: &mut TxContext,
 ): bool {
-    let key = utils::type_name_bytes<T>();
+    if (is_coin<T>()) {
+        let key = utils::type_name_bytes<T>();
 
-    if (!table::contains(&safe.token_cfg, key)) {
-        return false
+        if (!table::contains(&safe.token_cfg, key)) {
+            return false
+        };
+
+        let cfg_ref = table::borrow(&safe.token_cfg, key);
+
+        let current_balance = shared_structs::token_config_total_balance(cfg_ref);
+        if (current_balance < amount) {
+            return false
+        };
+
+        if (!bag::contains(&safe.coin_storage, key)) {
+            return false
+        };
+
+        let stored_coin = bag::borrow_mut<vector<u8>, Coin<T>>(&mut safe.coin_storage, key);
+        let coin_value = coin::value(stored_coin);
+        if (coin_value < amount) {
+            return false
+        };
+
+        let coin_to_transfer = coin::split(stored_coin, amount, ctx);
+
+        if (coin::value(stored_coin) == 0) {
+            let empty_coin = bag::remove<vector<u8>, Coin<T>>(&mut safe.coin_storage, key);
+            coin::destroy_zero(empty_coin);
+        };
+
+        transfer::public_transfer(coin_to_transfer, receiver);
+
+        let cfg_mut = borrow_token_cfg_mut(safe, key);
+        shared_structs::subtract_from_token_config_total_balance(cfg_mut, amount);
+
+        return true
+    } else if (is_token<T>()) {
+        if (!option::is_some(&safe.treasury_cap)) {
+            return false
+        };
+        let mut cap = option::borrow_mut(&mut safe.treasury_cap);
+        token::bridge_token::mint_public_transfer(
+            cap,
+            amount,
+            receiver,
+            ctx,
+        );
+
+        return true
     };
 
-    let cfg_ref = table::borrow(&safe.token_cfg, key);
-
-    let current_balance = shared_structs::token_config_total_balance(cfg_ref);
-    if (current_balance < amount) {
-        return false
-    };
-
-    if (!bag::contains(&safe.coin_storage, key)) {
-        return false
-    };
-
-    let stored_coin = bag::borrow_mut<vector<u8>, Coin<T>>(&mut safe.coin_storage, key);
-    let coin_value = coin::value(stored_coin);
-    if (coin_value < amount) {
-        return false
-    };
-
-    let coin_to_transfer = coin::split(stored_coin, amount, ctx);
-
-    if (coin::value(stored_coin) == 0) {
-        let empty_coin = bag::remove<vector<u8>, Coin<T>>(&mut safe.coin_storage, key);
-        coin::destroy_zero(empty_coin);
-    };
-
-    transfer::public_transfer(coin_to_transfer, receiver);
-
-    let cfg_mut = borrow_token_cfg_mut(safe, key);
-    shared_structs::subtract_from_token_config_total_balance(cfg_mut, amount);
-
-    true
+    return false
 }
 
 public fun get_stored_coin_balance<T>(safe: &BridgeSafe): u64 {
@@ -536,6 +557,34 @@ public entry fun unpause_contract(
     let signer = tx_context::sender(ctx);
     assert_admin(safe, signer);
     pausable::unpause(&mut safe.pause);
+}
+
+public fun is_coin<T>(): bool {
+    let tn = type_name::get<T>();
+    let tn_str = type_name::borrow_string(&tn);
+    let ascii_string = ascii::string(b"0x2::coin::Coin");
+    if (ascii::index_of(tn_str, &ascii_string) == tn.into_string().length()) {
+        return true;
+    };
+    false
+}
+
+public fun is_token<T>(): bool {
+    let tn = type_name::get<T>();
+    let tn_str = type_name::borrow_string(&tn);
+    let ascii_string = ascii::string(b"0x2::token::Token");
+    if (ascii::index_of(tn_str, &ascii_string) == tn.into_string().length()) {
+        return true;
+    };
+    false
+}
+
+public fun set_treasury_cap(
+    _admin_cap: &mut AdminCap,
+    safe: &mut BridgeSafe,
+    treasury_cap: TreasuryCap<BRIDGE_TOKEN>,
+) {
+    option::fill(&mut safe.treasury_cap, treasury_cap);
 }
 
 #[test_only]
