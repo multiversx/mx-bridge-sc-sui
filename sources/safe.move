@@ -91,6 +91,7 @@ public fun whitelist_token<T>(
     minimum_amount: u64,
     maximum_amount: u64,
     is_native: bool,
+    is_locked: bool,
     ctx: &mut TxContext,
 ) {
     let signer = tx_context::sender(ctx);
@@ -105,6 +106,7 @@ public fun whitelist_token<T>(
         is_native,
         minimum_amount,
         maximum_amount,
+        is_locked,
     );
     table::add(&mut safe.token_cfg, key, cfg);
 
@@ -114,6 +116,7 @@ public fun whitelist_token<T>(
         maximum_amount,
         is_native,
         false,
+        is_locked,
     );
 }
 
@@ -478,69 +481,63 @@ public fun transfer<T>(
     amount: u64,
     ctx: &mut TxContext,
 ): bool {
-    if (is_coin<T>()) {
-        let key = utils::type_name_bytes<T>();
+    let key = utils::type_name_bytes<T>();
 
-        if (!table::contains(&safe.token_cfg, key)) {
-            return false
-        };
+    if (!table::contains(&safe.token_cfg, key)) {
+        return false
+    };
 
-        let cfg_ref = table::borrow(&safe.token_cfg, key);
+    let cfg_ref = table::borrow(&safe.token_cfg, key);
 
-        let current_balance = shared_structs::token_config_total_balance(cfg_ref);
-        if (current_balance < amount) {
-            return false
-        };
+    let current_balance = shared_structs::token_config_total_balance(cfg_ref);
+    if (current_balance < amount) {
+        return false
+    };
 
-        if (!bag::contains(&safe.coin_storage, key)) {
-            return false
-        };
+    if (!bag::contains(&safe.coin_storage, key)) {
+        return false
+    };
 
-        let stored_coin = bag::borrow_mut<vector<u8>, Coin<T>>(&mut safe.coin_storage, key);
-        let coin_value = coin::value(stored_coin);
-        if (coin_value < amount) {
-            return false
-        };
+    let stored_coin = bag::borrow_mut<vector<u8>, Coin<T>>(&mut safe.coin_storage, key);
+    let coin_value = coin::value(stored_coin);
+    if (coin_value < amount) {
+        return false
+    };
 
-        let coin_to_transfer = coin::split(stored_coin, amount, ctx);
+    let coin_to_transfer = coin::split(stored_coin, amount, ctx);
 
-        if (coin::value(stored_coin) == 0) {
-            let empty_coin = bag::remove<vector<u8>, Coin<T>>(&mut safe.coin_storage, key);
-            coin::destroy_zero(empty_coin);
-        };
+    if (coin::value(stored_coin) == 0) {
+        let empty_coin = bag::remove<vector<u8>, Coin<T>>(&mut safe.coin_storage, key);
+        coin::destroy_zero(empty_coin);
+    };
 
+    if (!shared_structs::get_token_config_is_locked(cfg_ref)) {
         transfer::public_transfer(coin_to_transfer, receiver);
-
-        let cfg_mut = borrow_token_cfg_mut(safe, key);
-        shared_structs::subtract_from_token_config_total_balance(cfg_mut, amount);
-
-        return true
-    } else if (is_token<T>()) {
+    } else {
+        transfer::public_transfer(coin_to_transfer, @0x0);
         if (!option::is_some(&safe.treasury_cap)) {
             return false
         };
-        let mut cap = option::borrow_mut(&mut safe.treasury_cap);
+        let cap = option::borrow_mut(&mut safe.treasury_cap);
         token::bridge_token::mint_public_transfer(
             cap,
             amount,
             receiver,
             ctx,
         );
-
-        return true
     };
 
-    return false
+    let cfg_mut = borrow_token_cfg_mut(safe, key);
+    shared_structs::subtract_from_token_config_total_balance(cfg_mut, amount);
+
+    true
 }
 
-public fun get_stored_coin_balance<T>(safe: &BridgeSafe): u64 {
+public fun get_stored_coin_balance<T>(safe: &mut BridgeSafe): u64 {
     let key = utils::type_name_bytes<T>();
-    if (bag::contains(&safe.coin_storage, key)) {
-        let stored_coin = bag::borrow<vector<u8>, Coin<T>>(&safe.coin_storage, key);
-        coin::value(stored_coin)
-    } else {
-        0
-    }
+    let cfg_mut = borrow_token_cfg_mut(safe, key);
+
+    shared_structs::token_config_total_balance(cfg_mut)
 }
 
 public entry fun pause_contract(safe: &mut BridgeSafe, _admin_cap: &AdminCap, ctx: &mut TxContext) {

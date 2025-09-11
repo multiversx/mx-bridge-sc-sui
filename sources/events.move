@@ -41,6 +41,7 @@ public struct TokenWhitelisted has copy, drop {
     max_limit: u64,
     is_native: bool,
     is_mint_burn: bool,
+    is_locked: bool,
 }
 
 public struct TokenRemovedFromWhitelist has copy, drop {
@@ -115,6 +116,7 @@ public fun emit_token_whitelisted(
     max_limit: u64,
     is_native: bool,
     is_mint_burn: bool,
+    is_locked: bool,
 ) {
     event::emit(TokenWhitelisted {
         token_type,
@@ -122,6 +124,7 @@ public fun emit_token_whitelisted(
         max_limit,
         is_native,
         is_mint_burn,
+        is_locked,
     });
 }
 

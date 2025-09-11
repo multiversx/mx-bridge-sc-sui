@@ -35,6 +35,7 @@ public struct TokenConfig has copy, drop, store {
     min_limit: u64,
     max_limit: u64,
     total_balance: u64,
+    is_locked: bool,
 }
 
 public struct AdminRole has key {
@@ -140,6 +141,10 @@ public fun set_token_config_max_limit(config: &mut TokenConfig, max_limit: u64) 
     config.max_limit = max_limit;
 }
 
+public fun get_token_config_is_locked(config: &TokenConfig): bool {
+    config.is_locked
+}
+
 const EUnderflow: u64 = 0;
 const EOverflow: u64 = 1;
 
@@ -192,6 +197,7 @@ public fun create_token_config(
     is_native: bool,
     min_limit: u64,
     max_limit: u64,
+    is_locked: bool,
 ): TokenConfig {
     TokenConfig {
         whitelisted,
@@ -200,5 +206,6 @@ public fun create_token_config(
         min_limit,
         max_limit,
         total_balance: 0,
+        is_locked,
     }
 }

@@ -3,7 +3,6 @@ name = "mx-bridge-sc-sui"
 edition = "2024.beta"
 
 [dependencies]
-# token = { git= "https://github.com/evelinemolnar/token.git", rev = "master"}
 
 [addresses]
 mx_bridge_sc_sui = "0x0"
@@ -22,13 +21,11 @@ token = "0x0"
 # The dev-dependencies section allows overriding dependencies for `--test` and
 # `--dev` modes. You can introduce test-only dependencies here.
 # Local = { local = "../path/to/dev-build" }
-# token = { git= "https://github.com/evelinemolnar/token.git", rev = "master"}
 
 [dev-addresses]
 # The dev-addresses section allows overwriting named addresses for the `--test`
 # and `--dev` modes.
 # alice = "0xB0B"
-# token = "0x9458b56179fe3a76b9df815eaa4631ab135f9df07c08d2a5b1c8924989f20210"
 
 [build]
 language_version = "1.0.0"
