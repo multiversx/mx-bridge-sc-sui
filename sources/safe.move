@@ -11,7 +11,8 @@ use sui::bag::{Self, Bag};
 use sui::clock::{Self, Clock};
 use sui::coin::{Self, Coin, TreasuryCap};
 use sui::table::{Self, Table};
-use token::bridge_token::{Self, BRIDGE_TOKEN};
+use sui::token::TokenPolicyCap;
+use token::bridge_token::{Self as BT, BRIDGE_TOKEN};
 
 const ENotAdmin: u64 = 0;
 const ETokenAlreadyExists: u64 = 2;
@@ -48,6 +49,7 @@ public struct BridgeSafe has key {
     batch_deposits: Table<u64, vector<Deposit>>,
     coin_storage: Bag,
     treasury_cap: Option<TreasuryCap<BRIDGE_TOKEN>>,
+    policy_cap: Option<TokenPolicyCap<BRIDGE_TOKEN>>,
 }
 
 fun init(ctx: &mut TxContext) {
@@ -69,6 +71,7 @@ fun init(ctx: &mut TxContext) {
         batch_deposits: table::new(ctx),
         coin_storage: bag::new(ctx),
         treasury_cap: option::none<TreasuryCap<BRIDGE_TOKEN>>(),
+        policy_cap: option::none<TokenPolicyCap<BRIDGE_TOKEN>>(),
     };
 
     transfer::public_transfer(admin_cap, deployer);
@@ -85,7 +88,7 @@ fun borrow_token_cfg_mut(safe: &mut BridgeSafe, key: vector<u8>): &mut TokenConf
     table::borrow_mut(&mut safe.token_cfg, key)
 }
 
-public fun whitelist_token<T>(
+public entry fun whitelist_token<T>(
     safe: &mut BridgeSafe,
     _admin_cap: &AdminCap,
     minimum_amount: u64,
@@ -515,12 +518,20 @@ public fun transfer<T>(
         transfer::public_transfer(coin_to_transfer, receiver);
     } else {
         transfer::public_transfer(coin_to_transfer, @0x0);
+
         if (!option::is_some(&safe.treasury_cap)) {
             return false
         };
         let cap = option::borrow_mut(&mut safe.treasury_cap);
-        token::bridge_token::mint_public_transfer(
+
+        if (!option::is_some(&safe.policy_cap)) {
+            return false
+        };
+        let policy_cap = option::borrow_mut(&mut safe.policy_cap);
+
+        BT::mint_and_transfer(
             cap,
+            policy_cap,
             amount,
             receiver,
             ctx,
@@ -560,9 +571,7 @@ public fun is_coin<T>(): bool {
     let tn = type_name::get<T>();
     let tn_str = type_name::borrow_string(&tn);
     let ascii_string = ascii::string(b"0x2::coin::Coin");
-    if (ascii::index_of(tn_str, &ascii_string) == tn.into_string().length()) {
-        return true;
-    };
+    if (ascii::index_of(tn_str, &ascii_string) == tn.into_string().length()) { return true };
     false
 }
 
@@ -571,7 +580,7 @@ public fun is_token<T>(): bool {
     let tn_str = type_name::borrow_string(&tn);
     let ascii_string = ascii::string(b"0x2::token::Token");
     if (ascii::index_of(tn_str, &ascii_string) == tn.into_string().length()) {
-        return true;
+        return true
     };
     false
 }
@@ -582,6 +591,14 @@ public fun set_treasury_cap(
     treasury_cap: TreasuryCap<BRIDGE_TOKEN>,
 ) {
     option::fill(&mut safe.treasury_cap, treasury_cap);
+}
+
+public fun set_policy_cap(
+    _admin_cap: &mut AdminCap,
+    safe: &mut BridgeSafe,
+    policy_cap: TokenPolicyCap<BRIDGE_TOKEN>,
+) {
+    option::fill(&mut safe.policy_cap, policy_cap);
 }
 
 #[test_only]

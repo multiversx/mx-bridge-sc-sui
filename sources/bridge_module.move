@@ -4,7 +4,6 @@ use bridge_safe::events;
 use bridge_safe::pausable::{Self, Pause};
 use bridge_safe::roles::{BridgeCap, AdminCap};
 use bridge_safe::safe::{Self, BridgeSafe};
-use bridge_safe::utils;
 use shared_structs::shared_structs::{Self, Deposit, Batch, CrossTransferStatus, DepositStatus};
 use sui::bcs;
 use sui::clock::{Self, Clock};
