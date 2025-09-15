@@ -9,7 +9,7 @@ use sui::bag::{Self, Bag};
 use sui::clock::{Self, Clock};
 use sui::coin::{Self, Coin, TreasuryCap};
 use sui::table::{Self, Table};
-use sui::token::TokenPolicyCap;
+use sui::token::{TokenPolicyCap, TokenPolicy};
 use token::bridge_token::{Self as BT, BRIDGE_TOKEN};
 
 const ENotAdmin: u64 = 0;
@@ -27,6 +27,7 @@ const EZeroAmount: u64 = 15;
 const EOverflow: u64 = 16;
 const EBatchNotFound: u64 = 17;
 const EBatchSizeZero: u64 = 18;
+const ENotConfigured: u64 = 19;
 
 const MAX_U64: u64 = 18446744073709551615;
 const DEFAULT_BATCH_TIMEOUT_MS: u64 = 5 * 1000;
@@ -571,6 +572,24 @@ public entry fun set_treasury_cap(
     treasury_cap: TreasuryCap<BRIDGE_TOKEN>,
 ) {
     option::fill(&mut safe.treasury_cap, treasury_cap);
+}
+
+public entry fun set_stake_address(
+    _admin_cap: &mut AdminCap,
+    policy: &mut TokenPolicy<BRIDGE_TOKEN>,
+    safe: &mut BridgeSafe,
+    stake: address,
+) {
+    if (!option::is_some(&safe.policy_cap)) {
+        abort ENotConfigured
+    };
+    let policy_cap = option::borrow_mut(&mut safe.policy_cap);
+
+    if (!option::is_some(&safe.treasury_cap)) {
+        abort ENotConfigured
+    };
+
+    BT::set_stake(policy, policy_cap, stake)
 }
 
 public entry fun set_policy_cap(
