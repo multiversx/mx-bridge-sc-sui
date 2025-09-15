@@ -9,7 +9,7 @@ public struct BRIDGE_TOKEN has drop {}
 fun init(witness: BRIDGE_TOKEN, ctx: &mut TxContext) {
     let (treasury_cap, metadata) = coin::create_currency<BRIDGE_TOKEN>(
         witness,
-        2,
+        6,
         b"TKN",
         b"TKN",
         b"Our bridge token",

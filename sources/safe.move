@@ -5,8 +5,6 @@ use bridge_safe::pausable::{Self, Pause};
 use bridge_safe::roles::{AdminCap, BridgeCap};
 use bridge_safe::utils;
 use shared_structs::shared_structs::{Self, TokenConfig, Batch, Deposit};
-use std::ascii;
-use std::type_name;
 use sui::bag::{Self, Bag};
 use sui::clock::{Self, Clock};
 use sui::coin::{Self, Coin, TreasuryCap};
@@ -567,25 +565,7 @@ public entry fun unpause_contract(
     pausable::unpause(&mut safe.pause);
 }
 
-public fun is_coin<T>(): bool {
-    let tn = type_name::get<T>();
-    let tn_str = type_name::borrow_string(&tn);
-    let ascii_string = ascii::string(b"0x2::coin::Coin");
-    if (ascii::index_of(tn_str, &ascii_string) == tn.into_string().length()) { return true };
-    false
-}
-
-public fun is_token<T>(): bool {
-    let tn = type_name::get<T>();
-    let tn_str = type_name::borrow_string(&tn);
-    let ascii_string = ascii::string(b"0x2::token::Token");
-    if (ascii::index_of(tn_str, &ascii_string) == tn.into_string().length()) {
-        return true
-    };
-    false
-}
-
-public fun set_treasury_cap(
+public entry fun set_treasury_cap(
     _admin_cap: &mut AdminCap,
     safe: &mut BridgeSafe,
     treasury_cap: TreasuryCap<BRIDGE_TOKEN>,
@@ -593,15 +573,10 @@ public fun set_treasury_cap(
     option::fill(&mut safe.treasury_cap, treasury_cap);
 }
 
-public fun set_policy_cap(
+public entry fun set_policy_cap(
     _admin_cap: &mut AdminCap,
     safe: &mut BridgeSafe,
     policy_cap: TokenPolicyCap<BRIDGE_TOKEN>,
 ) {
     option::fill(&mut safe.policy_cap, policy_cap);
-}
-
-#[test_only]
-public fun init_for_testing(ctx: &mut TxContext) {
-    init(ctx);
 }
