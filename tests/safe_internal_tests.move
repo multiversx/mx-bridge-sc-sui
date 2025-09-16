@@ -15,8 +15,7 @@ const USER: address = @0xb0b;
 const BRIDGE: address = @0xc0de;
 
 const DEFAULT_BATCH_SIZE: u16 = 10;
-const DEFAULT_BATCH_TIMEOUT_MS: u64 = 600000;
-const DEFAULT_BATCH_SETTLE_TIMEOUT_MS: u64 = 3600000;
+const DEFAULT_BATCH_SETTLE_TIMEOUT_MS: u64 = 10000;
 const MIN_AMOUNT: u64 = 100;
 const MAX_AMOUNT: u64 = 1000000;
 
@@ -37,8 +36,8 @@ fun test_init() {
         assert!(safe::get_admin(&safe) == ADMIN, 0);
         assert!(safe::get_bridge_addr(&safe) == ADMIN, 1);
         assert!(safe::get_batch_size(&safe) == DEFAULT_BATCH_SIZE, 2);
-        assert!(safe::get_batch_timeout_ms(&safe) == 1 * 60 * 1000, 3);
-        assert!(safe::get_batch_settle_timeout_ms(&safe) == 5 * 60 * 1000, 4);
+        assert!(safe::get_batch_timeout_ms(&safe) == 5 * 1000, 3);
+        assert!(safe::get_batch_settle_timeout_ms(&safe) == 10 * 1000, 4);
         assert!(safe::get_batches_count(&safe) == 0, 5);
         assert!(safe::get_deposits_count(&safe) == 0, 6);
 
@@ -72,6 +71,7 @@ fun test_whitelist_token() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true, // is_native
+            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -106,6 +106,7 @@ fun test_whitelist_token_already_exists() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true,
+            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -116,6 +117,7 @@ fun test_whitelist_token_already_exists() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true,
+            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -147,6 +149,7 @@ fun test_whitelist_token_not_admin() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true,
+            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -175,6 +178,7 @@ fun test_remove_token_from_whitelist() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true,
+            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -227,7 +231,7 @@ fun test_set_batch_timeout_ms() {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
         let admin_cap = ts::take_from_sender<AdminCap>(&scenario);
 
-        let new_timeout = 300000; // 5 minutes
+        let new_timeout = 6000; // 5 minutes
 
         safe::set_batch_timeout_ms(
             &mut safe,
@@ -326,7 +330,7 @@ fun test_set_batch_settle_timeout_ms_below_block() {
         safe::pause_contract(&mut safe, &admin_cap, ts::ctx(&mut scenario));
 
         // Try to set settle timeout lower than batch timeout - should fail
-        let new_settle_timeout = 1 * 60 * 1000 - 1;
+        let new_settle_timeout = 1000 - 1;
 
         safe::set_batch_settle_timeout_ms(
             &mut safe,
@@ -420,6 +424,7 @@ fun test_set_token_min_limit() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true,
+            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -459,6 +464,7 @@ fun test_set_token_max_limit() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true,
+            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -525,6 +531,7 @@ fun test_init_supply() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true, // is_native = true
+            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -539,7 +546,7 @@ fun test_init_supply() {
         );
 
         // Check that stored balance is correct
-        assert!(safe::get_stored_coin_balance<TEST_COIN>(&safe) == 1000, 0);
+        assert!(safe::get_stored_coin_balance<TEST_COIN>(&mut safe) == 1000, 0);
 
         ts::return_shared(safe);
         ts::return_to_sender(&scenario, admin_cap);
@@ -566,6 +573,7 @@ fun test_init_supply_multiple_times() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true, // is_native = true
+            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -588,7 +596,7 @@ fun test_init_supply_multiple_times() {
         );
 
         // Check that stored balance is combined
-        assert!(safe::get_stored_coin_balance<TEST_COIN>(&safe) == 1500, 0);
+        assert!(safe::get_stored_coin_balance<TEST_COIN>(&mut safe) == 1500, 0);
 
         ts::return_shared(safe);
         ts::return_to_sender(&scenario, admin_cap);
@@ -731,10 +739,10 @@ fun test_get_stored_coin_balance_empty() {
 
     ts::next_tx(&mut scenario, ADMIN);
     {
-        let safe = ts::take_shared<BridgeSafe>(&scenario);
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
 
         // No coins stored, should return 0
-        assert!(safe::get_stored_coin_balance<TEST_COIN>(&safe) == 0, 0);
+        assert!(safe::get_stored_coin_balance<TEST_COIN>(&mut safe) == 0, 0);
 
         ts::return_shared(safe);
     };
@@ -885,8 +893,8 @@ fun test_all_getters() {
         assert!(safe::get_admin(&safe) == ADMIN, 0);
         assert!(safe::get_bridge_addr(&safe) == ADMIN, 1);
         assert!(safe::get_batch_size(&safe) == DEFAULT_BATCH_SIZE, 2);
-        assert!(safe::get_batch_timeout_ms(&safe) == 1 * 60 * 1000, 3);
-        assert!(safe::get_batch_settle_timeout_ms(&safe) == 5 * 60 * 1000, 4);
+        assert!(safe::get_batch_timeout_ms(&safe) == 5 * 1000, 3);
+        assert!(safe::get_batch_settle_timeout_ms(&safe) == 10 * 1000, 4);
         assert!(safe::get_batches_count(&safe) == 0, 5);
         assert!(safe::get_deposits_count(&safe) == 0, 6);
 

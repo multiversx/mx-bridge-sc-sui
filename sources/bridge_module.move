@@ -58,7 +58,7 @@ public struct Bridge has key {
     bridge_cap: BridgeCap,
 }
 
-public entry fun initialize(
+public fun initialize(
     board: vector<address>,
     public_keys: vector<vector<u8>>,
     initial_quorum: u64,
@@ -110,7 +110,7 @@ fun assert_relayer(bridge: &Bridge, signer: address) {
     assert!(vec_set::contains(&bridge.relayers, &signer), ENotRelayer);
 }
 
-public entry fun set_quorum(
+public fun set_quorum(
     bridge: &mut Bridge,
     _admin_cap: &AdminCap,
     new_quorum: u64,
@@ -125,7 +125,7 @@ public entry fun set_quorum(
     event::emit(QuorumChanged { new_quorum });
 }
 
-public entry fun set_batch_settle_timeout_ms(
+public fun set_batch_settle_timeout_ms(
     bridge: &mut Bridge,
     _admin_cap: &AdminCap,
     safe: &BridgeSafe,
@@ -141,7 +141,7 @@ public entry fun set_batch_settle_timeout_ms(
     bridge.batch_settle_timeout_ms = new_timeout_ms;
 }
 
-public entry fun add_relayer(
+public fun add_relayer(
     bridge: &mut Bridge,
     _admin_cap: &AdminCap,
     relayer: address,
@@ -157,7 +157,7 @@ public entry fun add_relayer(
     events::emit_relayer_added(relayer, signer);
 }
 
-public entry fun remove_relayer(
+public fun remove_relayer(
     bridge: &mut Bridge,
     _admin_cap: &AdminCap,
     relayer: address,
@@ -214,7 +214,7 @@ public fun get_statuses_after_execution(
     }
 }
 
-public entry fun execute_transfer<T>(
+public fun execute_transfer<T>(
     bridge: &mut Bridge,
     safe: &mut BridgeSafe,
     recipients: vector<address>,
@@ -326,10 +326,6 @@ public fun get_pause(bridge: &Bridge): bool {
     bridge.pause.is_paused()
 }
 
-public fun get_pause_mut(bridge: &mut Bridge): &mut Pause {
-    &mut bridge.pause
-}
-
 public fun get_relayers(bridge: &Bridge): vector<address> {
     *vec_set::keys(&bridge.relayers)
 }
@@ -338,7 +334,7 @@ public fun get_relayer_count(bridge: &Bridge): u64 {
     vec_set::size(&bridge.relayers)
 }
 
-public entry fun set_admin(
+public fun set_admin(
     bridge: &mut Bridge,
     _admin_cap: &AdminCap,
     new_admin: address,
@@ -351,13 +347,13 @@ public entry fun set_admin(
     events::emit_admin_role_transferred(previous_admin, new_admin);
 }
 
-public entry fun pause_contract(bridge: &mut Bridge, _admin_cap: &AdminCap, ctx: &mut TxContext) {
+public fun pause_contract(bridge: &mut Bridge, _admin_cap: &AdminCap, ctx: &mut TxContext) {
     let signer = tx_context::sender(ctx);
     assert_admin(bridge, signer);
     pausable::pause(&mut bridge.pause);
 }
 
-public entry fun unpause_contract(bridge: &mut Bridge, _admin_cap: &AdminCap, ctx: &mut TxContext) {
+public fun unpause_contract(bridge: &mut Bridge, _admin_cap: &AdminCap, ctx: &mut TxContext) {
     let signer = tx_context::sender(ctx);
     assert_admin(bridge, signer);
     pausable::unpause(&mut bridge.pause);
@@ -418,7 +414,7 @@ public fun compute_message(
     sui::hash::blake2b256(&intent_message)
 }
 
-public fun construct_batch_message(
+fun construct_batch_message(
     batch_id: u64,
     tokens: &vector<vector<u8>>,
     recipients: &vector<address>,
@@ -444,7 +440,7 @@ public fun construct_batch_message(
     sui::hash::blake2b256(&message)
 }
 
-public fun extract_public_key(signature: &vector<u8>): vector<u8> {
+fun extract_public_key(signature: &vector<u8>): vector<u8> {
     let mut public_key = vector::empty<u8>();
     let mut i = vector::length(signature) - ED25519_PUBLIC_KEY_LENGTH;
     while (i < vector::length(signature)) {
@@ -454,7 +450,7 @@ public fun extract_public_key(signature: &vector<u8>): vector<u8> {
     public_key
 }
 
-public fun extract_signature(signature: &vector<u8>): vector<u8> {
+fun extract_signature(signature: &vector<u8>): vector<u8> {
     let mut sig_bytes = vector::empty<u8>();
     let mut i = 0;
     while (i < vector::length(signature) - ED25519_PUBLIC_KEY_LENGTH) {
@@ -464,7 +460,7 @@ public fun extract_signature(signature: &vector<u8>): vector<u8> {
     sig_bytes
 }
 
-public fun find_relayer_by_public_key(bridge: &Bridge, public_key: &vector<u8>): Option<address> {
+fun find_relayer_by_public_key(bridge: &Bridge, public_key: &vector<u8>): Option<address> {
     let relayers = vec_set::keys(&bridge.relayers);
     let mut i = 0;
 

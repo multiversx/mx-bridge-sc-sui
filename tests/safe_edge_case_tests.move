@@ -90,6 +90,7 @@ fun test_multiple_token_whitelist() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true,
+            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -100,6 +101,7 @@ fun test_multiple_token_whitelist() {
             MIN_AMOUNT * 2,
             MAX_AMOUNT * 2,
             false, // not native
+            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -138,6 +140,7 @@ fun test_token_limit_updates() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true,
+            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -206,6 +209,7 @@ fun test_init_supply_zero_amount() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true,
+            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -218,7 +222,7 @@ fun test_init_supply_zero_amount() {
             ts::ctx(&mut scenario),
         );
 
-        assert!(safe::get_stored_coin_balance<TEST_COIN>(&safe) == 0, 0);
+        assert!(safe::get_stored_coin_balance<TEST_COIN>(&mut safe) == 0, 0);
 
         ts::return_shared(safe);
         ts::return_to_sender(&scenario, admin_cap);
@@ -247,6 +251,7 @@ fun test_init_supply_non_native_token() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             false,
+            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -285,6 +290,7 @@ fun test_init_supply_removed_token() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true,
+            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -427,10 +433,10 @@ fun test_get_stored_coin_balance_non_initialized() {
 
     ts::next_tx(&mut scenario, ADMIN);
     {
-        let safe = ts::take_shared<BridgeSafe>(&scenario);
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
 
         // Token not initialized, should return 0
-        assert!(safe::get_stored_coin_balance<TEST_COIN>(&safe) == 0, 0);
+        assert!(safe::get_stored_coin_balance<TEST_COIN>(&mut safe) == 0, 0);
 
         ts::return_shared(safe);
     };

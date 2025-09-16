@@ -12,7 +12,7 @@ public fun publish_caps(ctx: &mut TxContext): (AdminCap, BridgeCap) {
     (AdminCap { id: object::new(ctx) }, BridgeCap { id: object::new(ctx) })
 }
 
-public entry fun transfer_admin_capability(
+public fun transfer_admin_capability(
     _current_admin_cap: &AdminCap,
     admin_cap: AdminCap,
     new_admin: address,
@@ -21,7 +21,7 @@ public entry fun transfer_admin_capability(
     transfer::public_transfer(admin_cap, new_admin);
 }
 
-public entry fun transfer_bridge_capability(
+public fun transfer_bridge_capability(
     _admin_cap: &AdminCap,
     bridge_cap: BridgeCap,
     new_bridge: address,

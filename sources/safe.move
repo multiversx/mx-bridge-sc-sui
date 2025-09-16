@@ -87,7 +87,7 @@ fun borrow_token_cfg_mut(safe: &mut BridgeSafe, key: vector<u8>): &mut TokenConf
     table::borrow_mut(&mut safe.token_cfg, key)
 }
 
-public entry fun whitelist_token<T>(
+public fun whitelist_token<T>(
     safe: &mut BridgeSafe,
     _admin_cap: &AdminCap,
     minimum_amount: u64,
@@ -122,7 +122,7 @@ public entry fun whitelist_token<T>(
     );
 }
 
-public entry fun remove_token_from_whitelist<T>(
+public fun remove_token_from_whitelist<T>(
     safe: &mut BridgeSafe,
     _admin_cap: &AdminCap,
     ctx: &mut TxContext,
@@ -145,7 +145,7 @@ public fun is_token_whitelisted<T>(safe: &BridgeSafe): bool {
     shared_structs::token_config_whitelisted(cfg)
 }
 
-public entry fun set_batch_timeout_ms(
+public fun set_batch_timeout_ms(
     safe: &mut BridgeSafe,
     _admin_cap: &AdminCap,
     new_timeout_ms: u64,
@@ -157,7 +157,7 @@ public entry fun set_batch_timeout_ms(
     safe.batch_timeout_ms = new_timeout_ms;
 }
 
-public entry fun set_batch_settle_timeout_ms(
+public fun set_batch_settle_timeout_ms(
     safe: &mut BridgeSafe,
     _admin_cap: &AdminCap,
     new_timeout_ms: u64,
@@ -172,7 +172,7 @@ public entry fun set_batch_settle_timeout_ms(
     safe.batch_settle_timeout_ms = new_timeout_ms;
 }
 
-public entry fun set_batch_size(
+public fun set_batch_size(
     safe: &mut BridgeSafe,
     _admin_cap: &AdminCap,
     new_size: u16,
@@ -185,7 +185,7 @@ public entry fun set_batch_size(
     safe.batch_size = new_size;
 }
 
-public entry fun set_token_min_limit<T>(
+public fun set_token_min_limit<T>(
     safe: &mut BridgeSafe,
     _admin_cap: &AdminCap,
     amount: u64,
@@ -207,7 +207,7 @@ public fun get_token_min_limit<T>(safe: &BridgeSafe): u64 {
     shared_structs::token_config_min_limit(cfg)
 }
 
-public entry fun set_token_max_limit<T>(
+public fun set_token_max_limit<T>(
     safe: &mut BridgeSafe,
     _admin_cap: &AdminCap,
     amount: u64,
@@ -241,7 +241,7 @@ public fun get_token_is_native<T>(safe: &BridgeSafe): bool {
     shared_structs::token_config_is_native(cfg)
 }
 
-public entry fun set_bridge_addr(
+public fun set_bridge_addr(
     safe: &mut BridgeSafe,
     _admin_cap: &AdminCap,
     new_bridge_addr: address,
@@ -254,7 +254,7 @@ public entry fun set_bridge_addr(
     events::emit_bridge_transferred(previous_bridge, new_bridge_addr);
 }
 
-public entry fun init_supply<T>(
+public fun init_supply<T>(
     _admin_cap: &AdminCap,
     safe: &mut BridgeSafe,
     coin_in: Coin<T>,
@@ -286,7 +286,7 @@ public entry fun init_supply<T>(
 
 /// Deposit function: Users send coins FROM their wallet TO the bridge safe contract
 /// The coins are stored in the contract's coin_storage for later transfer
-public entry fun deposit<T>(
+public fun deposit<T>(
     safe: &mut BridgeSafe,
     coin_in: Coin<T>,
     recipient: vector<u8>,
@@ -491,6 +491,10 @@ public fun transfer<T>(
 
     let cfg_ref = table::borrow(&safe.token_cfg, key);
 
+    if (!shared_structs::token_config_whitelisted(cfg_ref)) {
+        return false
+    };
+
     let current_balance = shared_structs::token_config_total_balance(cfg_ref);
     if (current_balance < amount) {
         return false
@@ -545,28 +549,26 @@ public fun transfer<T>(
 
 public fun get_stored_coin_balance<T>(safe: &mut BridgeSafe): u64 {
     let key = utils::type_name_bytes<T>();
-    let cfg_mut = borrow_token_cfg_mut(safe, key);
-
-    shared_structs::token_config_total_balance(cfg_mut)
+    if (!table::contains(&safe.token_cfg, key)) {
+        return 0
+    };
+    let cfg_ref = table::borrow(&safe.token_cfg, key);
+    shared_structs::token_config_total_balance(cfg_ref)
 }
 
-public entry fun pause_contract(safe: &mut BridgeSafe, _admin_cap: &AdminCap, ctx: &mut TxContext) {
+public fun pause_contract(safe: &mut BridgeSafe, _admin_cap: &AdminCap, ctx: &mut TxContext) {
     let signer = tx_context::sender(ctx);
     assert_admin(safe, signer);
     pausable::pause(&mut safe.pause);
 }
 
-public entry fun unpause_contract(
-    safe: &mut BridgeSafe,
-    _admin_cap: &AdminCap,
-    ctx: &mut TxContext,
-) {
+public fun unpause_contract(safe: &mut BridgeSafe, _admin_cap: &AdminCap, ctx: &mut TxContext) {
     let signer = tx_context::sender(ctx);
     assert_admin(safe, signer);
     pausable::unpause(&mut safe.pause);
 }
 
-public entry fun set_treasury_cap(
+public fun set_treasury_cap(
     _admin_cap: &mut AdminCap,
     safe: &mut BridgeSafe,
     treasury_cap: TreasuryCap<BRIDGE_TOKEN>,
@@ -574,7 +576,7 @@ public entry fun set_treasury_cap(
     option::fill(&mut safe.treasury_cap, treasury_cap);
 }
 
-public entry fun set_stake_address(
+public fun set_stake_address(
     _admin_cap: &mut AdminCap,
     policy: &mut TokenPolicy<BRIDGE_TOKEN>,
     safe: &mut BridgeSafe,
@@ -592,10 +594,15 @@ public entry fun set_stake_address(
     BT::set_stake(policy, policy_cap, stake)
 }
 
-public entry fun set_policy_cap(
+public fun set_policy_cap(
     _admin_cap: &mut AdminCap,
     safe: &mut BridgeSafe,
     policy_cap: TokenPolicyCap<BRIDGE_TOKEN>,
 ) {
     option::fill(&mut safe.policy_cap, policy_cap);
+}
+
+#[test_only]
+public fun init_for_testing(ctx: &mut TxContext) {
+    init(ctx);
 }

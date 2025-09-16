@@ -40,6 +40,7 @@ fun test_deposit_basic() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true,
+            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -71,7 +72,7 @@ fun test_deposit_basic() {
         // Verify state changes
         assert!(safe::get_deposits_count(&safe) == 1, 2);
         assert!(safe::get_batches_count(&safe) == 1, 3);
-        assert!(safe::get_stored_coin_balance<TEST_COIN>(&safe) == DEPOSIT_AMOUNT, 4);
+        assert!(safe::get_stored_coin_balance<TEST_COIN>(&mut safe) == DEPOSIT_AMOUNT, 4);
 
         // Verify batch was created and has deposit
         let (batch, _is_final) = safe::get_batch(&safe, 1, &clock);
@@ -108,6 +109,7 @@ fun test_deposit_multiple_same_batch() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true,
+            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -150,7 +152,7 @@ fun test_deposit_multiple_same_batch() {
         // Should have 3 deposits, 1 batch
         assert!(safe::get_deposits_count(&safe) == 3, 0);
         assert!(safe::get_batches_count(&safe) == 1, 1);
-        assert!(safe::get_stored_coin_balance<TEST_COIN>(&safe) == 6000, 2);
+        assert!(safe::get_stored_coin_balance<TEST_COIN>(&mut safe) == 6000, 2);
 
         // Verify batch has 3 deposits
         let (batch, _) = safe::get_batch(&safe, 1, &clock);
@@ -186,6 +188,7 @@ fun test_deposit_triggers_new_batch() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true,
+            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -263,6 +266,7 @@ fun test_deposit_invalid_recipient() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true,
+            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -325,6 +329,7 @@ fun test_deposit_zero_amount() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true,
+            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -365,6 +370,7 @@ fun test_deposit_amount_below_minimum() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true,
+            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -405,6 +411,7 @@ fun test_deposit_amount_above_maximum() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true,
+            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -445,6 +452,7 @@ fun test_deposit_when_paused() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true,
+            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -487,6 +495,7 @@ fun test_transfer_basic() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true,
+            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -503,7 +512,7 @@ fun test_transfer_basic() {
         let bridge_cap = ts::take_from_address<BridgeCap>(&scenario, ADMIN);
 
         // Verify initial balance
-        assert!(safe::get_stored_coin_balance<TEST_COIN>(&safe) == 100000, 0);
+        assert!(safe::get_stored_coin_balance<TEST_COIN>(&mut safe) == 100000, 0);
 
         // Perform transfer
         let success = safe::transfer<TEST_COIN>(
@@ -515,7 +524,7 @@ fun test_transfer_basic() {
         );
 
         assert!(success, 1);
-        assert!(safe::get_stored_coin_balance<TEST_COIN>(&safe) == 100000 - DEPOSIT_AMOUNT, 2);
+        assert!(safe::get_stored_coin_balance<TEST_COIN>(&mut safe) == 100000 - DEPOSIT_AMOUNT, 2);
 
         ts::return_shared(safe);
         ts::return_to_address(ADMIN, bridge_cap);
@@ -550,6 +559,7 @@ fun test_transfer_exact_balance() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true,
+            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -576,7 +586,7 @@ fun test_transfer_exact_balance() {
         );
 
         assert!(success, 0);
-        assert!(safe::get_stored_coin_balance<TEST_COIN>(&safe) == 0, 1);
+        assert!(safe::get_stored_coin_balance<TEST_COIN>(&mut safe) == 0, 1);
 
         ts::return_shared(safe);
         ts::return_to_address(ADMIN, bridge_cap);
@@ -634,6 +644,7 @@ fun test_transfer_token_removed_from_whitelist() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true,
+            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -687,6 +698,7 @@ fun test_transfer_insufficient_balance() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true,
+            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -713,7 +725,7 @@ fun test_transfer_insufficient_balance() {
         );
 
         assert!(!success, 0);
-        assert!(safe::get_stored_coin_balance<TEST_COIN>(&safe) == 1000, 1); // Balance unchanged
+        assert!(safe::get_stored_coin_balance<TEST_COIN>(&mut safe) == 1000, 1); // Balance unchanged
 
         ts::return_shared(safe);
         ts::return_to_address(ADMIN, bridge_cap);
@@ -741,6 +753,7 @@ fun test_transfer_no_coin_storage() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true,
+            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -789,6 +802,7 @@ fun test_transfer_multiple_partial() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true,
+            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -830,7 +844,7 @@ fun test_transfer_multiple_partial() {
         assert!(success1, 0);
         assert!(success2, 1);
         assert!(success3, 2);
-        assert!(safe::get_stored_coin_balance<TEST_COIN>(&safe) == 40000, 3);
+        assert!(safe::get_stored_coin_balance<TEST_COIN>(&mut safe) == 40000, 3);
 
         ts::return_shared(safe);
         ts::return_to_address(ADMIN, bridge_cap);
@@ -857,6 +871,7 @@ fun test_deposit_then_transfer_integration() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             false,
+            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -872,7 +887,7 @@ fun test_deposit_then_transfer_integration() {
 
         safe::deposit<TEST_COIN>(&mut safe, coin, RECIPIENT_VECTOR, &clock, ts::ctx(&mut scenario));
 
-        assert!(safe::get_stored_coin_balance<TEST_COIN>(&safe) == DEPOSIT_AMOUNT, 0);
+        assert!(safe::get_stored_coin_balance<TEST_COIN>(&mut safe) == DEPOSIT_AMOUNT, 0);
 
         clock::destroy_for_testing(clock);
         ts::return_shared(safe);
@@ -892,7 +907,7 @@ fun test_deposit_then_transfer_integration() {
         );
 
         assert!(success, 1);
-        assert!(safe::get_stored_coin_balance<TEST_COIN>(&safe) == 0, 2);
+        assert!(safe::get_stored_coin_balance<TEST_COIN>(&mut safe) == 0, 2);
 
         ts::return_shared(safe);
         ts::return_to_address(ADMIN, bridge_cap);
