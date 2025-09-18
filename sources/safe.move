@@ -26,6 +26,7 @@ const EZeroAmount: u64 = 15;
 const EOverflow: u64 = 16;
 const EBatchNotFound: u64 = 17;
 const EBatchSizeZero: u64 = 18;
+const EInvalidTokenLimits: u64 = 19;
 
 const MAX_U64: u64 = 18446744073709551615;
 const DEFAULT_BATCH_TIMEOUT_MS: u64 = 5 * 1000;
@@ -97,6 +98,8 @@ public fun whitelist_token<T>(
     let key = utils::type_name_bytes<T>();
     let exists = table::contains(&safe.token_cfg, key);
     assert!(!exists, ETokenAlreadyExists);
+
+    assert!(minimum_amount < maximum_amount, EInvalidTokenLimits);
 
     let cfg = shared_structs::create_token_config(
         true,
@@ -188,9 +191,13 @@ public fun set_token_min_limit<T>(
 ) {
     let signer = tx_context::sender(ctx);
     assert_admin(safe, signer);
+
     let key = utils::type_name_bytes<T>();
     let cfg = borrow_token_cfg_mut(safe, key);
     let old_max = shared_structs::token_config_max_limit(cfg);
+
+    assert!(amount < old_max, EInvalidTokenLimits);
+
     shared_structs::set_token_config_min_limit(cfg, amount);
 
     events::emit_token_limits_updated(key, amount, old_max);
@@ -210,9 +217,12 @@ public fun set_token_max_limit<T>(
 ) {
     let signer = tx_context::sender(ctx);
     assert_admin(safe, signer);
+
     let key = utils::type_name_bytes<T>();
     let cfg = borrow_token_cfg_mut(safe, key);
     let old_min = shared_structs::token_config_min_limit(cfg);
+
+    assert!(amount > old_min, EInvalidTokenLimits);
     shared_structs::set_token_config_max_limit(cfg, amount);
 
     events::emit_token_limits_updated(key, old_min, amount);

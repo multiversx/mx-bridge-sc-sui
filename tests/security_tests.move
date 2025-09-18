@@ -3,7 +3,7 @@ module bridge_safe::security_tests;
 
 use bridge_safe::bridge::{Self, Bridge};
 use bridge_safe::roles::{AdminCap, BridgeCap};
-use bridge_safe::safe::{Self, BridgeSafe};
+use bridge_safe::safe::{Self, BridgeSafe, EAmountAboveMaximum, EAmountBelowMinimum};
 use sui::clock;
 use sui::coin;
 use sui::test_scenario as ts;
@@ -220,6 +220,46 @@ fun test_replay_allows_double_spend_with_same_deposit_nonce() {
         ts::return_shared(bridge);
         ts::return_shared(safe);
         clock::destroy_for_testing(clock);
+    };
+
+    ts::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = safe::EInvalidTokenLimits)]
+fun test_set_min_above_max_is_allowed_vulnerable() {
+    let mut scenario = ts::begin(ADMIN);
+    {
+        safe::init_for_testing(ts::ctx(&mut scenario));
+    };
+
+    ts::next_tx(&mut scenario, ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        let admin_cap = ts::take_from_sender<AdminCap>(&scenario);
+
+        safe::whitelist_token<TEST_COIN>(
+            &mut safe,
+            &admin_cap,
+            MIN_AMOUNT,
+            MAX_AMOUNT,
+            true,
+            false, // is_locked
+            ts::ctx(&mut scenario),
+        );
+
+        let invalid_min = MAX_AMOUNT + 1;
+        safe::set_token_min_limit<TEST_COIN>(
+            &mut safe,
+            &admin_cap,
+            invalid_min,
+            ts::ctx(&mut scenario),
+        );
+
+        assert!(safe::get_token_min_limit<TEST_COIN>(&safe) == invalid_min, 0);
+
+        ts::return_shared(safe);
+        ts::return_to_sender(&scenario, admin_cap);
     };
 
     ts::end(scenario);
