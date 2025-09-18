@@ -119,7 +119,7 @@ public fun set_quorum(
     let signer = tx_context::sender(ctx);
     assert_admin(bridge, signer);
     assert!(new_quorum >= MINIMUM_QUORUM, EQuorumTooLow);
-    assert!(new_quorum <= vec_set::size(&bridge.relayers), EQuorumExceedsRelayers);
+    assert!(new_quorum <= vec_set::length(&bridge.relayers), EQuorumExceedsRelayers);
 
     bridge.quorum = new_quorum;
     event::emit(QuorumChanged { new_quorum });
@@ -166,7 +166,7 @@ public fun remove_relayer(
     let signer = tx_context::sender(ctx);
     assert_admin(bridge, signer);
 
-    let current_count = vec_set::size(&bridge.relayers);
+    let current_count = vec_set::length(&bridge.relayers);
     assert!(current_count > bridge.quorum, ECannotRemoveRelayerBelowQuorum);
 
     vec_set::remove(&mut bridge.relayers, &relayer);
@@ -331,7 +331,7 @@ public fun get_relayers(bridge: &Bridge): vector<address> {
 }
 
 public fun get_relayer_count(bridge: &Bridge): u64 {
-    vec_set::size(&bridge.relayers)
+    vec_set::length(&bridge.relayers)
 }
 
 public fun set_admin(
@@ -397,7 +397,7 @@ fun validate_quorum(
         i = i + 1;
     };
 
-    assert!(vec_set::size(&verified_relayers) >= bridge.quorum, EQuorumNotReached);
+    assert!(vec_set::length(&verified_relayers) >= bridge.quorum, EQuorumNotReached);
 }
 
 public fun compute_message(

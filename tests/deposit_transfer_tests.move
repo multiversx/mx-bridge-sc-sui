@@ -662,7 +662,7 @@ fun test_transfer_token_removed_from_whitelist() {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
         let bridge_cap = ts::take_from_address<BridgeCap>(&scenario, ADMIN);
 
-        // Try to transfer removed token - should return false
+        // Try to transfer removed token - should be okay - we will use whitelisted check only for deposits
         let success = safe::transfer<TEST_COIN>(
             &mut safe,
             &bridge_cap,
@@ -671,7 +671,7 @@ fun test_transfer_token_removed_from_whitelist() {
             ts::ctx(&mut scenario),
         );
 
-        assert!(!success, 0);
+        assert!(success, 0);
 
         ts::return_shared(safe);
         ts::return_to_address(ADMIN, bridge_cap);
