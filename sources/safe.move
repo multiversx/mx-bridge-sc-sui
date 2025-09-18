@@ -7,9 +7,8 @@ use bridge_safe::utils;
 use shared_structs::shared_structs::{Self, TokenConfig, Batch, Deposit};
 use sui::bag::{Self, Bag};
 use sui::clock::{Self, Clock};
-use sui::coin::{Self, Coin, TreasuryCap};
+use sui::coin::{Self, Coin};
 use sui::table::{Self, Table};
-use sui::token::TokenPolicyCap;
 use token::bridge_token::{Self as BT, BRIDGE_TOKEN};
 
 const ENotAdmin: u64 = 0;
@@ -46,8 +45,6 @@ public struct BridgeSafe has key {
     batches: Table<u64, Batch>,
     batch_deposits: Table<u64, vector<Deposit>>,
     coin_storage: Bag,
-    treasury_cap: Option<TreasuryCap<BRIDGE_TOKEN>>,
-    policy_cap: Option<TokenPolicyCap<BRIDGE_TOKEN>>,
 }
 
 fun init(ctx: &mut TxContext) {
@@ -69,8 +66,6 @@ fun init(ctx: &mut TxContext) {
         batches: table::new(ctx),
         batch_deposits: table::new(ctx),
         coin_storage: bag::new(ctx),
-        treasury_cap: option::none<TreasuryCap<BRIDGE_TOKEN>>(),
-        policy_cap: option::none<TokenPolicyCap<BRIDGE_TOKEN>>(),
     };
 
     transfer::public_transfer(admin_cap, deployer);
@@ -522,15 +517,15 @@ public fun transfer<T>(
     } else {
         transfer::public_transfer(coin_to_transfer, @0x0);
 
-        if (!option::is_some(&safe.treasury_cap)) {
-            return false
-        };
-        let _cap = option::borrow_mut(&mut safe.treasury_cap);
+        // if (!option::is_some(&safe.treasury_cap)) {
+        //     return false
+        // };
+        // let _cap = option::borrow_mut(&mut safe.treasury_cap);
 
-        if (!option::is_some(&safe.policy_cap)) {
-            return false
-        };
-        let _policy_cap = option::borrow_mut(&mut safe.policy_cap);
+        // if (!option::is_some(&safe.policy_cap)) {
+        //     return false
+        // };
+        // let _policy_cap = option::borrow_mut(&mut safe.policy_cap);
 
         // BT::mint_and_transfer(
         //     cap,
@@ -566,22 +561,6 @@ public fun unpause_contract(safe: &mut BridgeSafe, _admin_cap: &AdminCap, ctx: &
     let signer = tx_context::sender(ctx);
     assert_admin(safe, signer);
     pausable::unpause(&mut safe.pause);
-}
-
-public fun set_treasury_cap(
-    _admin_cap: &mut AdminCap,
-    safe: &mut BridgeSafe,
-    treasury_cap: TreasuryCap<BRIDGE_TOKEN>,
-) {
-    option::fill(&mut safe.treasury_cap, treasury_cap);
-}
-
-public fun set_policy_cap(
-    _admin_cap: &mut AdminCap,
-    safe: &mut BridgeSafe,
-    policy_cap: TokenPolicyCap<BRIDGE_TOKEN>,
-) {
-    option::fill(&mut safe.policy_cap, policy_cap);
 }
 
 #[test_only]
