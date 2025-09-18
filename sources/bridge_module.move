@@ -27,6 +27,7 @@ const ECannotRemoveRelayerBelowQuorum: u64 = 13;
 const ERelayerNotFound: u64 = 14;
 const EInvalidPublicKeyLength: u64 = 15;
 const EDepositAlreadyExecuted: u64 = 16;
+const ESettleTimeoutBelowSafeBatch: u64 = 17;
 
 const MINIMUM_QUORUM: u64 = 3;
 const ED25519_PUBLIC_KEY_LENGTH: u64 = 32;
@@ -139,6 +140,7 @@ public fun set_batch_settle_timeout_ms(
     let signer = tx_context::sender(ctx);
     assert_admin(bridge, signer);
     pausable::assert_paused(&bridge.pause);
+    assert!(new_timeout_ms >= safe::get_batch_timeout_ms(safe), ESettleTimeoutBelowSafeBatch);
     assert!(!safe::is_any_batch_in_progress(safe, clock), EPendingBatches);
 
     bridge.batch_settle_timeout_ms = new_timeout_ms;

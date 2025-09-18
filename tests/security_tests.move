@@ -30,6 +30,82 @@ const PK1: vector<u8> = b"12345678901234567890123456789012";
 const PK2: vector<u8> = b"abcdefghijklmnopqrstuvwxyz123456";
 const PK3: vector<u8> = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ123456";
 
+#[test]
+#[expected_failure(abort_code = bridge::ESettleTimeoutBelowSafeBatch)]
+fun test_bridge_settle_timeout_can_be_set_below_safe_batch_timeout() {
+    let mut scenario = ts::begin(ADMIN);
+
+    ts::next_tx(&mut scenario, ADMIN);
+    {
+        safe::init_for_testing(ts::ctx(&mut scenario));
+    };
+
+    ts::next_tx(&mut scenario, ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        let admin_cap = ts::take_from_sender<AdminCap>(&scenario);
+        let bridge_cap = ts::take_from_sender<BridgeCap>(&scenario);
+
+        safe::whitelist_token<TEST_COIN>(
+            &mut safe,
+            &admin_cap,
+            MIN_AMOUNT,
+            MAX_AMOUNT,
+            true,
+            false, // is_locked
+            ts::ctx(&mut scenario),
+        );
+
+        let safe_addr = object::id_address(&safe);
+        let board = vector[RELAYER1, RELAYER2, RELAYER3];
+        let public_keys = vector[PK1, PK2, PK3];
+
+        bridge::initialize(
+            board,
+            public_keys,
+            INITIAL_QUORUM,
+            safe_addr,
+            bridge_cap,
+            ts::ctx(&mut scenario),
+        );
+
+        ts::return_shared(safe);
+        ts::return_to_sender(&scenario, admin_cap);
+    };
+
+    ts::next_tx(&mut scenario, ADMIN);
+    {
+        let mut bridge = ts::take_shared<Bridge>(&scenario);
+        let safe = ts::take_shared<BridgeSafe>(&scenario);
+        let admin_cap = ts::take_from_sender<AdminCap>(&scenario);
+        let clock = clock::create_for_testing(ts::ctx(&mut scenario));
+
+        let safe_batch_timeout = safe::get_batch_timeout_ms(&safe);
+        assert!(safe_batch_timeout == 5000, 0);
+
+        bridge::pause_contract(&mut bridge, &admin_cap, ts::ctx(&mut scenario));
+
+        let new_settle = 1000;
+        bridge::set_batch_settle_timeout_ms(
+            &mut bridge,
+            &admin_cap,
+            &safe,
+            new_settle,
+            &clock,
+            ts::ctx(&mut scenario),
+        );
+
+        assert!(bridge::get_batch_settle_timeout_ms(&bridge) == new_settle, 1);
+
+        ts::return_shared(bridge);
+        ts::return_shared(safe);
+        ts::return_to_sender(&scenario, admin_cap);
+        clock::destroy_for_testing(clock);
+    };
+
+    ts::end(scenario);
+}
+
 // This test demonstrates the vulnerability: any user can mint a fake BridgeCap
 // via roles::publish_caps and then call safe::transfer to drain the BridgeSafe.
 //
