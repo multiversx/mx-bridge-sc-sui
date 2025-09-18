@@ -52,7 +52,8 @@ public struct BridgeSafe has key {
 
 fun init(ctx: &mut TxContext) {
     let deployer = tx_context::sender(ctx);
-    let (admin_cap, bridge_cap) = bridge_safe::roles::publish_caps(ctx);
+    let w = bridge_safe::roles::grant_witness();
+    let (admin_cap, bridge_cap) = bridge_safe::roles::publish_caps(w, ctx);
 
     let safe = BridgeSafe {
         id: object::new(ctx),

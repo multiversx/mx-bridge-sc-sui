@@ -8,7 +8,11 @@ public struct BridgeCap has key, store {
     id: UID,
 }
 
-public fun publish_caps(ctx: &mut TxContext): (AdminCap, BridgeCap) {
+public struct BridgeWitness has drop {}
+
+public(package) fun grant_witness(): BridgeWitness { BridgeWitness {} }
+
+public(package) fun publish_caps(_w: BridgeWitness, ctx: &mut TxContext): (AdminCap, BridgeCap) {
     (AdminCap { id: object::new(ctx) }, BridgeCap { id: object::new(ctx) })
 }
 
