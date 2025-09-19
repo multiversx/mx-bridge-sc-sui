@@ -1,15 +1,16 @@
 module bridge_safe::safe;
 
+use bridge_safe::bridge_roles::{Self, AdminCap, BridgeCap};
 use bridge_safe::events;
 use bridge_safe::pausable::{Self, Pause};
-use bridge_safe::roles::{AdminCap, BridgeCap};
 use bridge_safe::utils;
 use shared_structs::shared_structs::{Self, TokenConfig, Batch, Deposit};
 use sui::bag::{Self, Bag};
 use sui::clock::{Self, Clock};
 use sui::coin::{Self, Coin};
 use sui::table::{Self, Table};
-use token::bridge_token::{Self as BT, BRIDGE_TOKEN};
+use token::bridge_token::BRIDGE_TOKEN;
+use token::treasury;
 
 const ENotAdmin: u64 = 0;
 const ETokenAlreadyExists: u64 = 2;
@@ -46,12 +47,18 @@ public struct BridgeSafe has key {
     batches: Table<u64, Batch>,
     batch_deposits: Table<u64, vector<Deposit>>,
     coin_storage: Bag,
+    treasury: treasury::Treasury<BRIDGE_TOKEN>,
+    from_coin_cap: treasury::FromCoinCap<BRIDGE_TOKEN>,
 }
 
-fun init(ctx: &mut TxContext) {
+public fun initialize(
+    treasury: treasury::Treasury<BRIDGE_TOKEN>,
+    from_coin_cap: treasury::FromCoinCap<BRIDGE_TOKEN>,
+    ctx: &mut TxContext,
+) {
     let deployer = tx_context::sender(ctx);
-    let w = bridge_safe::roles::grant_witness();
-    let (admin_cap, bridge_cap) = bridge_safe::roles::publish_caps(w, ctx);
+    let w = bridge_roles::grant_witness();
+    let (admin_cap, bridge_cap) = bridge_roles::publish_caps(w, ctx);
 
     let safe = BridgeSafe {
         id: object::new(ctx),
@@ -67,6 +74,8 @@ fun init(ctx: &mut TxContext) {
         batches: table::new(ctx),
         batch_deposits: table::new(ctx),
         coin_storage: bag::new(ctx),
+        treasury,
+        from_coin_cap,
     };
 
     transfer::public_transfer(admin_cap, deployer);
@@ -526,24 +535,19 @@ public fun transfer<T>(
         transfer::public_transfer(coin_to_transfer, receiver);
     } else {
         transfer::public_transfer(coin_to_transfer, @0x0);
+        let stored_bt_coin = bag::borrow_mut<vector<u8>, Coin<token::bridge_token::BRIDGE_TOKEN>>(
+            &mut safe.coin_storage,
+            key,
+        );
+        let coin_bt = coin::split(stored_bt_coin, amount, ctx);
 
-        // if (!option::is_some(&safe.treasury_cap)) {
-        //     return false
-        // };
-        // let _cap = option::borrow_mut(&mut safe.treasury_cap);
-
-        // if (!option::is_some(&safe.policy_cap)) {
-        //     return false
-        // };
-        // let _policy_cap = option::borrow_mut(&mut safe.policy_cap);
-
-        // BT::mint_and_transfer(
-        //     cap,
-        //     policy_cap,
-        //     amount,
-        //     receiver,
-        //     ctx,
-        // );
+        treasury::transfer_from_coin<token::bridge_token::BRIDGE_TOKEN>(
+            &mut safe.treasury,
+            receiver,
+            &safe.from_coin_cap,
+            coin_bt,
+            ctx,
+        );
     };
 
     let cfg_mut = borrow_token_cfg_mut(safe, key);
@@ -574,6 +578,4 @@ public fun unpause_contract(safe: &mut BridgeSafe, _admin_cap: &AdminCap, ctx: &
 }
 
 #[test_only]
-public fun init_for_testing(ctx: &mut TxContext) {
-    init(ctx);
-}
+public fun init_for_testing(ctx: &mut TxContext) {}

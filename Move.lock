@@ -2,7 +2,7 @@
 
 [move]
 version = 3
-manifest_digest = "6514D386FC2D40D720668CA1DD348A24E1BB2CE658C488CAC9BA9007B53386E1"
+manifest_digest = "82606FF447D1D36586A7DC613F113879DCF4484F5DA3B0A95AF3108B3B4FDF93"
 deps_digest = "397E6A9F7A624706DBDFEE056CE88391A15876868FD18A88504DA74EB458D697"
 dependencies = [
   { id = "Bridge", name = "Bridge" },
@@ -44,18 +44,27 @@ dependencies = [
 ]
 
 [[move.package]]
+id = "sui_extensions"
+source = { git = "https://github.com/circlefin/stablecoin-sui.git", rev = "master", subdir = "packages/sui_extensions" }
+
+dependencies = [
+  { id = "Sui", name = "Sui" },
+]
+
+[[move.package]]
 id = "token"
-source = { git = "https://github.com/evelinemolnar/token.git", rev = "to_coin_rule", subdir = "" }
+source = { git = "https://github.com/multiversx/mx-locked-token-sc-sui", rev = "refactor-locked-token", subdir = "" }
 
 dependencies = [
   { id = "Bridge", name = "Bridge" },
   { id = "MoveStdlib", name = "MoveStdlib" },
   { id = "Sui", name = "Sui" },
   { id = "SuiSystem", name = "SuiSystem" },
+  { id = "sui_extensions", name = "sui_extensions" },
 ]
 
 [move.toolchain-version]
-compiler-version = "1.57.0"
+compiler-version = "1.56.2"
 edition = "2024.beta"
 flavor = "sui"
 

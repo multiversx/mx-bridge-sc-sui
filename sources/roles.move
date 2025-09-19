@@ -1,4 +1,4 @@
-module bridge_safe::roles;
+module bridge_safe::bridge_roles;
 
 public struct AdminCap has key, store {
     id: UID,

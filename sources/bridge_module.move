@@ -2,7 +2,7 @@ module bridge_safe::bridge;
 
 use bridge_safe::events;
 use bridge_safe::pausable::{Self, Pause};
-use bridge_safe::roles::{BridgeCap, AdminCap};
+use bridge_safe::bridge_roles::{BridgeCap, AdminCap};
 use bridge_safe::safe::{Self, BridgeSafe};
 use shared_structs::shared_structs::{Self, Deposit, Batch, CrossTransferStatus, DepositStatus};
 use sui::bcs;
