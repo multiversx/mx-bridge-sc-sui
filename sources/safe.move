@@ -9,8 +9,8 @@ use sui::bag::{Self, Bag};
 use sui::clock::{Self, Clock};
 use sui::coin::{Self, Coin};
 use sui::table::{Self, Table};
-use token::bridge_token::BRIDGE_TOKEN;
-use token::treasury;
+use locked_token::bridge_token::BRIDGE_TOKEN;
+use locked_token::treasury;
 
 const ENotAdmin: u64 = 0;
 const ETokenAlreadyExists: u64 = 2;
@@ -47,12 +47,10 @@ public struct BridgeSafe has key {
     batches: Table<u64, Batch>,
     batch_deposits: Table<u64, vector<Deposit>>,
     coin_storage: Bag,
-    treasury: treasury::Treasury<BRIDGE_TOKEN>,
     from_coin_cap: treasury::FromCoinCap<BRIDGE_TOKEN>,
 }
 
 public fun initialize(
-    treasury: treasury::Treasury<BRIDGE_TOKEN>,
     from_coin_cap: treasury::FromCoinCap<BRIDGE_TOKEN>,
     ctx: &mut TxContext,
 ) {
@@ -74,7 +72,6 @@ public fun initialize(
         batches: table::new(ctx),
         batch_deposits: table::new(ctx),
         coin_storage: bag::new(ctx),
-        treasury,
         from_coin_cap,
     };
 
@@ -495,6 +492,7 @@ public fun transfer<T>(
     _bridge_cap: &BridgeCap,
     receiver: address,
     amount: u64,
+    treasury: &mut treasury::Treasury<BRIDGE_TOKEN>,
     ctx: &mut TxContext,
 ): bool {
     let key = utils::type_name_bytes<T>();
@@ -535,14 +533,14 @@ public fun transfer<T>(
         transfer::public_transfer(coin_to_transfer, receiver);
     } else {
         transfer::public_transfer(coin_to_transfer, @0x0);
-        let stored_bt_coin = bag::borrow_mut<vector<u8>, Coin<token::bridge_token::BRIDGE_TOKEN>>(
+        let stored_bt_coin = bag::borrow_mut<vector<u8>, Coin<locked_token::bridge_token::BRIDGE_TOKEN>>(
             &mut safe.coin_storage,
             key,
         );
         let coin_bt = coin::split(stored_bt_coin, amount, ctx);
 
-        treasury::transfer_from_coin<token::bridge_token::BRIDGE_TOKEN>(
-            &mut safe.treasury,
+        treasury::transfer_from_coin<locked_token::bridge_token::BRIDGE_TOKEN>(
+            treasury,
             receiver,
             &safe.from_coin_cap,
             coin_bt,
@@ -578,4 +576,4 @@ public fun unpause_contract(safe: &mut BridgeSafe, _admin_cap: &AdminCap, ctx: &
 }
 
 #[test_only]
-public fun init_for_testing(ctx: &mut TxContext) {}
+public fun init_for_testing(_ctx: &mut TxContext) {}

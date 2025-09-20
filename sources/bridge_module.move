@@ -1,9 +1,11 @@
 module bridge_safe::bridge;
 
+use bridge_safe::bridge_roles::{BridgeCap, AdminCap};
 use bridge_safe::events;
 use bridge_safe::pausable::{Self, Pause};
-use bridge_safe::bridge_roles::{BridgeCap, AdminCap};
 use bridge_safe::safe::{Self, BridgeSafe};
+use locked_token::bridge_token::BRIDGE_TOKEN;
+use locked_token::treasury;
 use shared_structs::shared_structs::{Self, Deposit, Batch, CrossTransferStatus, DepositStatus};
 use sui::bcs;
 use sui::clock::{Self, Clock};
@@ -229,6 +231,7 @@ public fun execute_transfer<T>(
     batch_nonce_mvx: u64,
     signatures: vector<vector<u8>>,
     is_batch_complete: bool,
+    treasury: &mut treasury::Treasury<BRIDGE_TOKEN>,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
@@ -271,7 +274,7 @@ public fun execute_transfer<T>(
         let recipient = *vector::borrow(&recipients, i);
         let amount = *vector::borrow(&amounts, i);
 
-        let success = safe::transfer<T>(safe, &bridge.bridge_cap, recipient, amount, ctx);
+        let success = safe::transfer<T>(safe, &bridge.bridge_cap, recipient, amount, treasury, ctx);
         if (success) {
             successful_count = successful_count + 1;
             vector::push_back(
@@ -521,6 +524,7 @@ public fun execute_transfer_for_testing<T>(
     deposit_nonces: vector<u64>,
     batch_nonce_mvx: u64,
     is_batch_complete: bool,
+    treasury: &mut treasury::Treasury<BRIDGE_TOKEN>,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
@@ -549,7 +553,7 @@ public fun execute_transfer_for_testing<T>(
         let recipient = *vector::borrow(&recipients, i);
         let amount = *vector::borrow(&amounts, i);
 
-        let success = safe::transfer<T>(safe, &bridge.bridge_cap, recipient, amount, ctx);
+        let success = safe::transfer<T>(safe, &bridge.bridge_cap, recipient, amount, treasury, ctx);
         if (success) {
             successful_count = successful_count + 1;
             vector::push_back(

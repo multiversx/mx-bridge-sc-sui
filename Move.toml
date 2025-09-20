@@ -3,7 +3,7 @@ name = "mx-bridge-sc-sui"
 edition = "2024.beta"
 
 [dependencies]
-token = { git = "https://github.com/multiversx/mx-locked-token-sc-sui", subdir = "", rev = "refactor-locked-token" }
+locked_token = { git = "https://github.com/multiversx/mx-locked-token-sc-sui.git", rev = "compile-err", subdir = "" }
 
 [addresses]
 shared_structs = "0x0"
