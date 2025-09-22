@@ -54,6 +54,21 @@ public struct TokenLimitsUpdated has copy, drop {
     new_max_limit: u64,
 }
 
+public struct TokenIsNativeUpdated has copy, drop {
+    token_type: vector<u8>,
+    is_native: bool,
+}
+
+public struct TokenIsLockedUpdated has copy, drop {
+    token_type: vector<u8>,
+    is_locked: bool,
+}
+
+public struct TokenIsMintBurnUpdated has copy, drop {
+    token_type: vector<u8>,
+    is_mint_burn: bool,
+}
+
 public struct BatchCreated has copy, drop {
     batch_nonce: u64,
     block_number: u64,
@@ -137,11 +152,19 @@ public(package) fun emit_token_limits_updated(
     new_min_limit: u64,
     new_max_limit: u64,
 ) {
-    event::emit(TokenLimitsUpdated {
-        token_type,
-        new_min_limit,
-        new_max_limit,
-    });
+    event::emit(TokenLimitsUpdated { token_type, new_min_limit, new_max_limit });
+}
+
+public(package) fun emit_token_is_native_updated(token_type: vector<u8>, is_native: bool) {
+    event::emit(TokenIsNativeUpdated { token_type, is_native });
+}
+
+public(package) fun emit_token_is_locked_updated(token_type: vector<u8>, is_locked: bool) {
+    event::emit(TokenIsLockedUpdated { token_type, is_locked });
+}
+
+public(package) fun emit_token_is_mint_burn_updated(token_type: vector<u8>, is_mint_burn: bool) {
+    event::emit(TokenIsMintBurnUpdated { token_type, is_mint_burn });
 }
 
 public(package) fun emit_batch_created(batch_nonce: u64, block_number: u64) {

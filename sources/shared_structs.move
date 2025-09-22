@@ -85,18 +85,6 @@ public fun cross_transfer_status_created_timestamp_ms(status: &CrossTransferStat
     status.created_timestamp_ms
 }
 
-public fun deposit_status_none(): DepositStatus {
-    DepositStatus::None
-}
-
-public fun deposit_status_pending(): DepositStatus {
-    DepositStatus::Pending
-}
-
-public fun deposit_status_in_progress(): DepositStatus {
-    DepositStatus::InProgress
-}
-
 public fun deposit_status_executed(): DepositStatus {
     DepositStatus::Executed
 }
@@ -139,6 +127,18 @@ public fun set_token_config_min_limit(config: &mut TokenConfig, min_limit: u64) 
 
 public fun set_token_config_max_limit(config: &mut TokenConfig, max_limit: u64) {
     config.max_limit = max_limit;
+}
+
+public fun set_token_config_is_native(config: &mut TokenConfig, is_native: bool) {
+    config.is_native = is_native;
+}
+
+public fun set_token_config_is_locked(config: &mut TokenConfig, is_locked: bool) {
+    config.is_locked = is_locked;
+}
+
+public fun set_token_config_is_mint_burn(config: &mut TokenConfig, is_mint_burn: bool) {
+    config.is_mint_burn = is_mint_burn;
 }
 
 public fun get_token_config_is_locked(config: &TokenConfig): bool {
