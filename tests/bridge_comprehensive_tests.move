@@ -1030,8 +1030,8 @@ fun test_unpause_contract_not_admin() {
 
 #[test]
 fun test_getAddressFromPublicKey() {
-    let public_key = x"00dd7573d5a4b186828d40b187a804d952feb384f5b6b0f3c7472855a2cbdba506";
-    let expected_address = @0xeb298a01aef58dce189dbb7d5aa53ea934a14067568ade05b152ab5a8be7df4e;
+    let public_key = x"dd7573d5a4b186828d40b187a804d952feb384f5b6b0f3c7472855a2cbdba506";
+    let expected_address = @0xd5468a8e8d62b71214cdddb2ad421eefa462a672e2d5d0f89e99d8bf78e55769;
     
     let computed_address = bridge::getAddressFromPublicKeyTest(&public_key);
     

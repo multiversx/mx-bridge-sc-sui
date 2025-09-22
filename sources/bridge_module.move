@@ -654,6 +654,5 @@ public fun execute_transfer_for_testing<T>(
 
 #[test_only]
 public fun getAddressFromPublicKeyTest(public_key: &vector<u8>): address {
-    let relayer_bytes = sui::hash::blake2b256(public_key);
-    address::from_bytes(relayer_bytes)
+    getAddressFromPublicKey(public_key)
 }
