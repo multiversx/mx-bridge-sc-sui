@@ -13,7 +13,6 @@ use sui_extensions::two_step_role::{ESenderNotActiveRole};
 public struct TEST_COIN has drop {}
 
 const ADMIN: address = @0xa11ce;
-const RELAYER1: address = @0xb0b;
 const RELAYER3: address = @0xd00d;
 const RELAYER4: address = @0xe11e;
 const USER: address = @0xf00d;
@@ -235,7 +234,6 @@ fun test_add_relayer_success() {
     scenario.next_tx(ADMIN);
     {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
-        //let admin_cap = ts::take_from_sender<AdminCap>(&scenario);
         let bridge_cap = ts::take_from_sender<BridgeCap>(&scenario);
 
         safe::whitelist_token<TEST_COIN>(
@@ -247,7 +245,6 @@ fun test_add_relayer_success() {
             ts::ctx(&mut scenario),
         );
 
-        //let board = vector[RELAYER1, RELAYER2, RELAYER3];
         let public_keys = vector[PK1, PK2, PK3];
 
         bridge::initialize(
@@ -286,7 +283,6 @@ fun test_remove_relayer_success() {
     scenario.next_tx(ADMIN);
     {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
-        //let admin_cap = ts::take_from_sender<AdminCap>(&scenario);
         let bridge_cap = ts::take_from_sender<BridgeCap>(&scenario);
 
         safe::whitelist_token<TEST_COIN>(
@@ -298,7 +294,6 @@ fun test_remove_relayer_success() {
             ts::ctx(&mut scenario),
         );
 
-        //let board = vector[RELAYER1, RELAYER2, RELAYER3, RELAYER4];
         let public_keys = vector[PK1, PK2, PK3, PK4];
 
         bridge::initialize(
@@ -317,7 +312,6 @@ fun test_remove_relayer_success() {
         let mut bridge = ts::take_shared<Bridge>(&scenario);
         let safe = ts::take_shared<BridgeSafe>(&scenario);
 
-        // Compute actual relayer address from the fourth public key
         let pk4 = PK4;
         let relayer4_bytes = sui::hash::blake2b256(&pk4);
         let relayer4 = sui::address::from_bytes(relayer4_bytes);
@@ -345,7 +339,6 @@ fun test_remove_relayer_below_quorum() {
     scenario.next_tx(ADMIN);
     {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
-        //let admin_cap = ts::take_from_sender<AdminCap>(&scenario);
         let bridge_cap = ts::take_from_sender<BridgeCap>(&scenario);
 
         safe::whitelist_token<TEST_COIN>(
@@ -357,7 +350,6 @@ fun test_remove_relayer_below_quorum() {
             ts::ctx(&mut scenario),
         );
 
-       // let board = vector[RELAYER1, RELAYER2, RELAYER3];
         let public_keys = vector[PK1, PK2, PK3];
 
         bridge::initialize(
@@ -369,14 +361,12 @@ fun test_remove_relayer_below_quorum() {
         );
 
         ts::return_shared(safe);
-        //ts::return_to_sender(&scenario, admin_cap);
     };
 
         scenario.next_tx(ADMIN);
     {
         let mut bridge = ts::take_shared<Bridge>(&scenario);
         let safe = ts::take_shared<BridgeSafe>(&scenario);
-        //let admin_cap = ts::take_from_address<AdminCap>(&scenario, ADMIN);
 
         bridge::remove_relayer(&mut bridge, &safe , RELAYER3, ts::ctx(&mut scenario));
 
@@ -394,7 +384,6 @@ fun test_pause_unpause_contract() {
     scenario.next_tx(ADMIN);
     {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
-        //let admin_cap = ts::take_from_sender<AdminCap>(&scenario);
         let bridge_cap = ts::take_from_sender<BridgeCap>(&scenario);
 
         safe::whitelist_token<TEST_COIN>(
@@ -417,14 +406,12 @@ fun test_pause_unpause_contract() {
         );
 
         ts::return_shared(safe);
-        //ts::return_to_sender(&scenario, admin_cap);
     };
 
     scenario.next_tx(ADMIN);
     {
         let mut bridge = ts::take_shared<Bridge>(&scenario);
         let safe = ts::take_shared<BridgeSafe>(&scenario);
-        //let admin_cap = ts::take_from_address<AdminCap>(&scenario, ADMIN);
 
         let pause = bridge::get_pause(&bridge);
         assert!(!pause, 0);
@@ -453,7 +440,6 @@ fun test_getter_functions() {
     scenario.next_tx(ADMIN);
     {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
-        //let admin_cap = ts::take_from_sender<AdminCap>(&scenario);
         let bridge_cap = ts::take_from_sender<BridgeCap>(&scenario);
 
         safe::whitelist_token<TEST_COIN>(
@@ -529,7 +515,6 @@ fun test_set_batch_settle_timeout_success() {
     scenario.next_tx(ADMIN);
     {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
-        //let admin_cap = ts::take_from_sender<AdminCap>(&scenario);
         let bridge_cap = ts::take_from_sender<BridgeCap>(&scenario);
 
         safe::whitelist_token<TEST_COIN>(
@@ -552,14 +537,12 @@ fun test_set_batch_settle_timeout_success() {
         );
 
         ts::return_shared(safe);
-        //ts::return_to_sender(&scenario, admin_cap);
     };
 
     scenario.next_tx(ADMIN);
     {
         let mut bridge = ts::take_shared<Bridge>(&scenario);
         let safe = ts::take_shared<BridgeSafe>(&scenario);
-        //let admin_cap = ts::take_from_address<AdminCap>(&scenario, ADMIN);
         let clock = clock::create_for_testing(ts::ctx(&mut scenario));
 
         bridge::pause_contract(&mut bridge, &safe, ts::ctx(&mut scenario));
@@ -621,7 +604,6 @@ fun test_set_batch_settle_timeout_not_admin() {
     {
         let mut bridge = ts::take_shared<Bridge>(&scenario);
         let safe = ts::take_shared<BridgeSafe>(&scenario);
-        //let admin_cap = ts::take_from_address<AdminCap>(&scenario, ADMIN);
         let clock = clock::create_for_testing(ts::ctx(&mut scenario));
 
         bridge::set_batch_settle_timeout_ms(
@@ -648,7 +630,6 @@ fun test_execute_transfer_invalid_signature_length() {
     scenario.next_tx(ADMIN);
     {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
-        //let admin_cap = ts::take_from_sender<AdminCap>(&scenario);
         let bridge_cap = ts::take_from_sender<BridgeCap>(&scenario);
 
         safe::whitelist_token<TEST_COIN>(
@@ -688,9 +669,8 @@ fun test_execute_transfer_invalid_signature_length() {
         let recipients = vector[USER];
         let amounts = vector[1000];
         let deposit_nonces = vector[1];
-        let tokens = vector[
-            b"0x2::coin::CoinType<bridge_safe::bridge_comprehensive_tests::TEST_COIN>",
-        ];
+        let tokens = 
+            b"0x2::coin::CoinType<bridge_safe::bridge_comprehensive_tests::TEST_COIN>";
         let batch_nonce_mvx = 1;
 
         let invalid_signatures = vector[b"short", b"too_short", b"also_short"];
@@ -749,7 +729,6 @@ fun test_execute_transfer_insufficient_signatures() {
         );
 
         ts::return_shared(safe);
-        //ts::return_to_sender(&scenario, admin_cap);
     };
 
     // Compute actual relayer address from the first public key
@@ -768,9 +747,8 @@ fun test_execute_transfer_insufficient_signatures() {
         let amounts = vector[1000];
         let deposit_nonces = vector[1];
         let batch_nonce_mvx = 1;
-        let tokens = vector[
-            b"0x2::coin::CoinType<bridge_safe::bridge_comprehensive_tests::TEST_COIN>",
-        ];
+        let token = 
+            b"0x2::coin::CoinType<bridge_safe::bridge_comprehensive_tests::TEST_COIN>";
 
         let mut mock_sig1 = PK1;
         vector::append(
@@ -790,7 +768,7 @@ fun test_execute_transfer_insufficient_signatures() {
             &mut safe,
             recipients,
             amounts,
-            tokens,
+            token,
             deposit_nonces,
             batch_nonce_mvx,
             signatures,
@@ -817,7 +795,6 @@ fun test_add_relayer_invalid_public_key_length() {
     scenario.next_tx(ADMIN);
     {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
-        //let admin_cap = ts::take_from_sender<AdminCap>(&scenario);
         let bridge_cap = ts::take_from_sender<BridgeCap>(&scenario);
 
         safe::whitelist_token<TEST_COIN>(
@@ -911,7 +888,6 @@ fun test_remove_relayer_not_admin() {
     scenario.next_tx(ADMIN);
     {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
-        //let admin_cap = ts::take_from_sender<AdminCap>(&scenario);
         let bridge_cap = ts::take_from_sender<BridgeCap>(&scenario);
 
         safe::whitelist_token<TEST_COIN>(
@@ -934,14 +910,12 @@ fun test_remove_relayer_not_admin() {
         );
 
         ts::return_shared(safe);
-        //ts::return_to_sender(&scenario, admin_cap);
     };
 
     scenario.next_tx( USER); // Switch to non-admin
     {
         let mut bridge = ts::take_shared<Bridge>(&scenario);
         let safe = ts::take_shared<BridgeSafe>(&scenario);
-        //let admin_cap = ts::take_from_address<AdminCap>(&scenario, ADMIN);
 
         bridge::remove_relayer(&mut bridge, &safe, RELAYER4, ts::ctx(&mut scenario));
 
@@ -1005,7 +979,6 @@ fun test_unpause_contract_not_admin() {
     scenario.next_tx(ADMIN);
     {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
-        //let admin_cap = ts::take_from_sender<AdminCap>(&scenario);
         let bridge_cap = ts::take_from_sender<BridgeCap>(&scenario);
 
         safe::whitelist_token<TEST_COIN>(
@@ -1053,4 +1026,25 @@ fun test_unpause_contract_not_admin() {
     };
 
     ts::end(scenario);
+}
+
+#[test]
+fun test_getAddressFromPublicKey() {
+    let public_key = x"00dd7573d5a4b186828d40b187a804d952feb384f5b6b0f3c7472855a2cbdba506";
+    let expected_address = @0xeb298a01aef58dce189dbb7d5aa53ea934a14067568ade05b152ab5a8be7df4e;
+    
+    let computed_address = bridge::getAddressFromPublicKeyTest(&public_key);
+    
+    let computed_bytes = sui::address::to_bytes(computed_address);
+    let expected_bytes = sui::address::to_bytes(expected_address);
+    
+    std::debug::print(&b"Computed address bytes:");
+    std::debug::print(&computed_bytes);
+    
+    std::debug::print(&b"Expected address bytes:");
+    std::debug::print(&expected_bytes);
+    
+    assert!(vector::length(&computed_bytes) == vector::length(&expected_bytes), 1);
+    
+    assert!(computed_address == expected_address, 0);
 }

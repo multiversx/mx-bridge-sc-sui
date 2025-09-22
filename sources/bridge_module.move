@@ -108,7 +108,9 @@ public fun initialize(
 }
 
 fun getAddressFromPublicKey(public_key: &vector<u8>): address {
-    let relayer_bytes = sui::hash::blake2b256(public_key);
+    let mut long_public_key = vector[0u8]; 
+    vector::append(&mut long_public_key, *public_key); 
+    let relayer_bytes = sui::hash::blake2b256(&long_public_key);
     address::from_bytes(relayer_bytes)
 }
 
@@ -648,4 +650,10 @@ public fun execute_transfer_for_testing<T>(
             successful_transfers: successful_count,
         });
     }
+}
+
+#[test_only]
+public fun getAddressFromPublicKeyTest(public_key: &vector<u8>): address {
+    let relayer_bytes = sui::hash::blake2b256(public_key);
+    address::from_bytes(relayer_bytes)
 }
