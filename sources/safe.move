@@ -93,19 +93,31 @@ public fun whitelist_token<T>(
 
     let key = utils::type_name_bytes<T>();
     let exists = table::contains(&safe.token_cfg, key);
-    assert!(!exists, ETokenAlreadyExists);
 
     assert!(minimum_amount > 0, EZeroAmount);
     assert!(minimum_amount <= maximum_amount, EInvalidTokenLimits);
 
-    let cfg = shared_structs::create_token_config(
-        true,
-        is_native,
-        minimum_amount,
-        maximum_amount,
-        is_locked,
-    );
-    table::add(&mut safe.token_cfg, key, cfg);
+    if (exists) {
+        let cfg = table::borrow(&safe.token_cfg, key);
+        let is_currently_whitelisted = shared_structs::token_config_whitelisted(cfg);
+        assert!(!is_currently_whitelisted, ETokenAlreadyExists);
+
+        let cfg_mut = borrow_token_cfg_mut(safe, key);
+        shared_structs::set_token_config_whitelisted(cfg_mut, true);
+        shared_structs::set_token_config_is_native(cfg_mut, is_native);
+        shared_structs::set_token_config_min_limit(cfg_mut, minimum_amount);
+        shared_structs::set_token_config_max_limit(cfg_mut, maximum_amount);
+        shared_structs::set_token_config_is_locked(cfg_mut, is_locked);
+    } else {
+        let cfg = shared_structs::create_token_config(
+            true,
+            is_native,
+            minimum_amount,
+            maximum_amount,
+            is_locked,
+        );
+        table::add(&mut safe.token_cfg, key, cfg);
+    };
 
     events::emit_token_whitelisted(
         key,
@@ -219,7 +231,7 @@ public fun get_token_is_native<T>(safe: &BridgeSafe): bool {
 
 public fun set_token_is_native<T>(safe: &mut BridgeSafe, is_native: bool, ctx: &mut TxContext) {
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
-    
+
     let key = utils::type_name_bytes<T>();
     let cfg = borrow_token_cfg_mut(safe, key);
     shared_structs::set_token_config_is_native(cfg, is_native);
@@ -229,7 +241,7 @@ public fun set_token_is_native<T>(safe: &mut BridgeSafe, is_native: bool, ctx: &
 
 public fun set_token_is_locked<T>(safe: &mut BridgeSafe, is_locked: bool, ctx: &mut TxContext) {
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
-    
+
     let key = utils::type_name_bytes<T>();
     let cfg = borrow_token_cfg_mut(safe, key);
     shared_structs::set_token_config_is_locked(cfg, is_locked);
@@ -237,9 +249,13 @@ public fun set_token_is_locked<T>(safe: &mut BridgeSafe, is_locked: bool, ctx: &
     events::emit_token_is_locked_updated(key, is_locked);
 }
 
-public fun set_token_is_mint_burn<T>(safe: &mut BridgeSafe, is_mint_burn: bool, ctx: &mut TxContext) {
+public fun set_token_is_mint_burn<T>(
+    safe: &mut BridgeSafe,
+    is_mint_burn: bool,
+    ctx: &mut TxContext,
+) {
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
-    
+
     let key = utils::type_name_bytes<T>();
     let cfg = borrow_token_cfg_mut(safe, key);
     shared_structs::set_token_config_is_mint_burn(cfg, is_mint_burn);
