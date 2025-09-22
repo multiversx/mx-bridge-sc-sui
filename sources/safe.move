@@ -263,7 +263,7 @@ public fun set_token_is_mint_burn<T>(
     events::emit_token_is_mint_burn_updated(key, is_mint_burn);
 }
 
-public(package) fun set_bridge_addr(
+public fun set_bridge_addr(
     safe: &mut BridgeSafe,
     new_bridge_addr: address,
     ctx: &TxContext,
@@ -601,4 +601,9 @@ public fun accept_ownership(safe: &mut BridgeSafe, ctx: &TxContext) {
 #[test_only]
 public fun init_for_testing(from_cap: treasury::FromCoinCap<BRIDGE_TOKEN>, ctx: &mut TxContext) {
     initialize(from_cap, ctx);
+}
+
+#[test_only]
+public fun create_batch_for_testing(safe: &mut BridgeSafe, clock: &Clock, ctx: &mut TxContext) {
+    create_new_batch_internal(safe, clock, ctx);
 }
