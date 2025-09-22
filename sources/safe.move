@@ -95,7 +95,8 @@ public fun whitelist_token<T>(
     let exists = table::contains(&safe.token_cfg, key);
     assert!(!exists, ETokenAlreadyExists);
 
-    assert!(minimum_amount < maximum_amount, EInvalidTokenLimits);
+    assert!(minimum_amount > 0, EZeroAmount);
+    assert!(minimum_amount <= maximum_amount, EInvalidTokenLimits);
 
     let cfg = shared_structs::create_token_config(
         true,
@@ -167,7 +168,8 @@ public fun set_token_min_limit<T>(safe: &mut BridgeSafe, amount: u64, ctx: &mut 
     let cfg = borrow_token_cfg_mut(safe, key);
     let old_max = shared_structs::token_config_max_limit(cfg);
 
-    assert!(amount < old_max, EInvalidTokenLimits);
+    assert!(amount > 0, EZeroAmount);
+    assert!(amount <= old_max, EInvalidTokenLimits);
 
     shared_structs::set_token_config_min_limit(cfg, amount);
 
@@ -191,7 +193,7 @@ public fun set_token_max_limit<T>(safe: &mut BridgeSafe, amount: u64, ctx: &mut 
     let cfg = borrow_token_cfg_mut(safe, key);
     let old_min = shared_structs::token_config_min_limit(cfg);
 
-    assert!(amount > old_min, EInvalidTokenLimits);
+    assert!(amount >= old_min, EInvalidTokenLimits);
     shared_structs::set_token_config_max_limit(cfg, amount);
 
     events::emit_token_limits_updated(key, old_min, amount);
@@ -213,6 +215,36 @@ public fun get_token_is_native<T>(safe: &BridgeSafe): bool {
     let key = utils::type_name_bytes<T>();
     let cfg = table::borrow(&safe.token_cfg, key);
     shared_structs::token_config_is_native(cfg)
+}
+
+public fun set_token_is_native<T>(safe: &mut BridgeSafe, is_native: bool, ctx: &mut TxContext) {
+    safe.roles.owner_role().assert_sender_is_active_role(ctx);
+    
+    let key = utils::type_name_bytes<T>();
+    let cfg = borrow_token_cfg_mut(safe, key);
+    shared_structs::set_token_config_is_native(cfg, is_native);
+
+    events::emit_token_is_native_updated(key, is_native);
+}
+
+public fun set_token_is_locked<T>(safe: &mut BridgeSafe, is_locked: bool, ctx: &mut TxContext) {
+    safe.roles.owner_role().assert_sender_is_active_role(ctx);
+    
+    let key = utils::type_name_bytes<T>();
+    let cfg = borrow_token_cfg_mut(safe, key);
+    shared_structs::set_token_config_is_locked(cfg, is_locked);
+
+    events::emit_token_is_locked_updated(key, is_locked);
+}
+
+public fun set_token_is_mint_burn<T>(safe: &mut BridgeSafe, is_mint_burn: bool, ctx: &mut TxContext) {
+    safe.roles.owner_role().assert_sender_is_active_role(ctx);
+    
+    let key = utils::type_name_bytes<T>();
+    let cfg = borrow_token_cfg_mut(safe, key);
+    shared_structs::set_token_config_is_mint_burn(cfg, is_mint_burn);
+
+    events::emit_token_is_mint_burn_updated(key, is_mint_burn);
 }
 
 public(package) fun set_bridge_addr(
@@ -320,7 +352,7 @@ public fun deposit<T>(
     );
 }
 
-public(package) fun checkOwnerRole(safe: &BridgeSafe, ctx: & TxContext) {
+public(package) fun checkOwnerRole(safe: &BridgeSafe, ctx: &TxContext) {
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
 }
 
@@ -363,7 +395,7 @@ public fun is_any_batch_in_progress(safe: &BridgeSafe, clock: &Clock): bool {
     is_any_batch_in_progress_internal(safe, clock)
 }
 
-public fun create_new_batch_internal(safe: &mut BridgeSafe, clock: &Clock, _ctx: &mut TxContext) {
+fun create_new_batch_internal(safe: &mut BridgeSafe, clock: &Clock, _ctx: &mut TxContext) {
     assert!(safe.batches_count < MAX_U64, EOverflow);
     let nonce = safe.batches_count + 1;
     let batch = shared_structs::create_batch(nonce, clock::timestamp_ms(clock));
@@ -552,6 +584,5 @@ public fun accept_ownership(safe: &mut BridgeSafe, ctx: &TxContext) {
 
 #[test_only]
 public fun init_for_testing(from_cap: treasury::FromCoinCap<BRIDGE_TOKEN>, ctx: &mut TxContext) {
-
     initialize(from_cap, ctx);
 }
