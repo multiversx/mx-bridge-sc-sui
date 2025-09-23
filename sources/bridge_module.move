@@ -4,6 +4,7 @@ use bridge_safe::bridge_roles::BridgeCap;
 use bridge_safe::events;
 use bridge_safe::pausable::{Self, Pause};
 use bridge_safe::safe::{Self, BridgeSafe};
+use bridge_safe::utils;
 use locked_token::bridge_token::BRIDGE_TOKEN;
 use locked_token::treasury;
 use shared_structs::shared_structs::{Self, Deposit, Batch, CrossTransferStatus, DepositStatus};
@@ -16,6 +17,7 @@ use sui::table::{Self, Table};
 use sui::vec_set::{Self, VecSet};
 
 const EQuorumTooLow: u64 = 0;
+const EInvalidTypeArgument: u64 = 1;
 const EBatchAlreadyExecuted: u64 = 3;
 const ENotRelayer: u64 = 5;
 const EPendingBatches: u64 = 7;
@@ -226,7 +228,7 @@ public fun execute_transfer<T>(
     safe: &mut BridgeSafe,
     recipients: vector<address>,
     amounts: vector<u64>,
-    tokens: vector<vector<u8>>,
+    token: vector<u8>,
     deposit_nonces: vector<u64>,
     batch_nonce_mvx: u64,
     signatures: vector<vector<u8>>,
@@ -235,11 +237,12 @@ public fun execute_transfer<T>(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
-    // Validate parameter vectors have equal lengths
-    let len = vector::length(&tokens);
-    assert!(vector::length(&recipients) == len, EInvalidParameterLength);
+    let len = vector::length(&recipients);
     assert!(vector::length(&amounts) == len, EInvalidParameterLength);
     assert!(vector::length(&deposit_nonces) == len, EInvalidParameterLength);
+
+    let type_name= utils::type_name_bytes<T>();
+    assert!(token == type_name, EInvalidTypeArgument);
 
     let signer = tx_context::sender(ctx);
     assert_relayer(bridge, signer);
@@ -250,7 +253,7 @@ public fun execute_transfer<T>(
     validate_quorum(
         bridge,
         batch_nonce_mvx,
-        &tokens,
+        &token,
         &recipients,
         &amounts,
         &signatures,
@@ -428,7 +431,7 @@ public fun unpause_contract(bridge: &mut Bridge, safe: &BridgeSafe, ctx: &mut Tx
 fun validate_quorum(
     bridge: &Bridge,
     batch_id: u64,
-    tokens: &vector<vector<u8>>,
+    token: &vector<u8>,
     recipients: &vector<address>,
     amounts: &vector<u64>,
     signatures: &vector<vector<u8>>,
@@ -437,7 +440,7 @@ fun validate_quorum(
     let num_signatures = vector::length(signatures);
     assert!(num_signatures >= bridge.quorum, EQuorumNotReached);
 
-    let message = compute_message(batch_id, tokens, recipients, amounts, deposit_nonces);
+    let message = compute_message(batch_id, token, recipients, amounts, deposit_nonces);
 
     let mut verified_relayers = vec_set::empty<address>();
     let mut i = 0;
@@ -468,12 +471,12 @@ fun validate_quorum(
 
 public fun compute_message(
     batch_id: u64,
-    tokens: &vector<vector<u8>>,
+    token: &vector<u8>,
     recipients: &vector<address>,
     amounts: &vector<u64>,
     deposit_nonces: &vector<u64>,
 ): vector<u8> {
-    let message = construct_batch_message(batch_id, tokens, recipients, amounts, deposit_nonces);
+    let message = construct_batch_message(batch_id, token, recipients, amounts, deposit_nonces);
     let encoded_msg = bcs::to_bytes(&message);
     let mut intent_message = vector[3u8, 0u8, 0u8];
     vector::append(&mut intent_message, encoded_msg);
@@ -482,7 +485,7 @@ public fun compute_message(
 
 fun construct_batch_message(
     batch_id: u64,
-    tokens: &vector<vector<u8>>,
+    token: &vector<u8>,
     recipients: &vector<address>,
     amounts: &vector<u64>,
     deposit_nonces: &vector<u64>,
@@ -490,8 +493,7 @@ fun construct_batch_message(
     let mut message = bcs::to_bytes(&batch_id);
 
     let mut i = 0;
-    while (i < vector::length(tokens)) {
-        let token = vector::borrow(tokens, i);
+    while (i < vector::length(recipients)) {
         let recipient = vector::borrow(recipients, i);
         let amount = vector::borrow(amounts, i);
         let deposit_nonce = vector::borrow(deposit_nonces, i);
