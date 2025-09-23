@@ -4,11 +4,12 @@ module bridge_safe::bridge_comprehensive_tests;
 use bridge_safe::bridge::{Self, Bridge};
 use bridge_safe::bridge_roles::BridgeCap;
 use bridge_safe::safe::{Self, BridgeSafe};
+use bridge_safe::utils;
 use locked_token::bridge_token::{Self as br, BRIDGE_TOKEN};
 use locked_token::treasury::{Self as lkt, Treasury, FromCoinCap};
 use sui::clock;
 use sui::test_scenario::{Self as ts, Scenario};
-use sui_extensions::two_step_role::{ESenderNotActiveRole};
+use sui_extensions::two_step_role::ESenderNotActiveRole;
 
 public struct TEST_COIN has drop {}
 
@@ -87,12 +88,9 @@ fun test_initialize_bridge_success() {
         let pk1 = PK1;
         let pk2 = PK2;
         let pk3 = PK3;
-        let relayer1_bytes = sui::hash::blake2b256(&pk1);
-        let relayer1 = sui::address::from_bytes(relayer1_bytes);
-        let relayer2_bytes = sui::hash::blake2b256(&pk2);
-        let relayer2 = sui::address::from_bytes(relayer2_bytes);
-        let relayer3_bytes = sui::hash::blake2b256(&pk3);
-        let relayer3 = sui::address::from_bytes(relayer3_bytes);
+        let relayer1 = bridge::getAddressFromPublicKeyTest(&pk1);
+        let relayer2 = bridge::getAddressFromPublicKeyTest(&pk2);
+        let relayer3 = bridge::getAddressFromPublicKeyTest(&pk3);
 
         assert!(bridge::get_quorum(&bridge) == INITIAL_QUORUM, 0);
         assert!(bridge::is_relayer(&bridge, relayer1), 2);
@@ -265,7 +263,7 @@ fun test_add_relayer_success() {
 
         assert!(bridge::get_relayer_count(&bridge) == 3, 1);
 
-        bridge::add_relayer(&mut bridge, &safe,  PK4, ts::ctx(&mut scenario));
+        bridge::add_relayer(&mut bridge, &safe, PK4, ts::ctx(&mut scenario));
 
         assert!(bridge::get_relayer_count(&bridge) == 4, 3);
 
@@ -313,13 +311,12 @@ fun test_remove_relayer_success() {
         let safe = ts::take_shared<BridgeSafe>(&scenario);
 
         let pk4 = PK4;
-        let relayer4_bytes = sui::hash::blake2b256(&pk4);
-        let relayer4 = sui::address::from_bytes(relayer4_bytes);
+        let relayer4 = bridge::getAddressFromPublicKeyTest(&pk4);
 
         assert!(bridge::is_relayer(&bridge, relayer4), 0);
         assert!(bridge::get_relayer_count(&bridge) == 4, 1);
 
-        bridge::remove_relayer(&mut bridge,&safe,  relayer4, ts::ctx(&mut scenario));
+        bridge::remove_relayer(&mut bridge, &safe, relayer4, ts::ctx(&mut scenario));
 
         assert!(!bridge::is_relayer(&bridge, relayer4), 2);
         assert!(bridge::get_relayer_count(&bridge) == 3, 3);
@@ -363,12 +360,12 @@ fun test_remove_relayer_below_quorum() {
         ts::return_shared(safe);
     };
 
-        scenario.next_tx(ADMIN);
+    scenario.next_tx(ADMIN);
     {
         let mut bridge = ts::take_shared<Bridge>(&scenario);
         let safe = ts::take_shared<BridgeSafe>(&scenario);
 
-        bridge::remove_relayer(&mut bridge, &safe , RELAYER3, ts::ctx(&mut scenario));
+        bridge::remove_relayer(&mut bridge, &safe, RELAYER3, ts::ctx(&mut scenario));
 
         ts::return_shared(bridge);
         ts::return_shared(safe);
@@ -379,7 +376,7 @@ fun test_remove_relayer_below_quorum() {
 
 #[test]
 fun test_pause_unpause_contract() {
-   let mut scenario = setup();
+    let mut scenario = setup();
 
     scenario.next_tx(ADMIN);
     {
@@ -474,12 +471,9 @@ fun test_getter_functions() {
         let pk1 = PK1;
         let pk2 = PK2;
         let pk3 = PK3;
-        let relayer1_bytes = sui::hash::blake2b256(&pk1);
-        let relayer1 = sui::address::from_bytes(relayer1_bytes);
-        let relayer2_bytes = sui::hash::blake2b256(&pk2);
-        let relayer2 = sui::address::from_bytes(relayer2_bytes);
-        let relayer3_bytes = sui::hash::blake2b256(&pk3);
-        let relayer3 = sui::address::from_bytes(relayer3_bytes);
+        let relayer1 = bridge::getAddressFromPublicKeyTest(&pk1);
+        let relayer2 = bridge::getAddressFromPublicKeyTest(&pk2);
+        let relayer3 = bridge::getAddressFromPublicKeyTest(&pk3);
 
         assert!(bridge::get_quorum(&bridge) == INITIAL_QUORUM, 0);
         assert!(bridge::get_batch_settle_timeout_ms(&bridge) == 10 * 1000, 2);
@@ -600,7 +594,7 @@ fun test_set_batch_settle_timeout_not_admin() {
         ts::return_shared(safe);
     };
 
-    scenario.next_tx( USER); // Switch to non-admin
+    scenario.next_tx(USER); // Switch to non-admin
     {
         let mut bridge = ts::take_shared<Bridge>(&scenario);
         let safe = ts::take_shared<BridgeSafe>(&scenario);
@@ -656,10 +650,9 @@ fun test_execute_transfer_invalid_signature_length() {
 
     // Compute actual relayer address from the first public key
     let pk1 = PK1;
-    let relayer1_bytes = sui::hash::blake2b256(&pk1);
-    let relayer1 = sui::address::from_bytes(relayer1_bytes);
+    let relayer1 = bridge::getAddressFromPublicKeyTest(&pk1);
 
-    scenario.next_tx( relayer1);
+    scenario.next_tx(relayer1);
     {
         let mut bridge = ts::take_shared<Bridge>(&scenario);
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
@@ -669,8 +662,7 @@ fun test_execute_transfer_invalid_signature_length() {
         let recipients = vector[USER];
         let amounts = vector[1000];
         let deposit_nonces = vector[1];
-        let tokens = 
-            b"0x2::coin::CoinType<bridge_safe::bridge_comprehensive_tests::TEST_COIN>";
+        let tokens = vector[utils::type_name_bytes<TEST_COIN>()];
         let batch_nonce_mvx = 1;
 
         let invalid_signatures = vector[b"short", b"too_short", b"also_short"];
@@ -733,10 +725,9 @@ fun test_execute_transfer_insufficient_signatures() {
 
     // Compute actual relayer address from the first public key
     let pk1 = PK1;
-    let relayer1_bytes = sui::hash::blake2b256(&pk1);
-    let relayer1 = sui::address::from_bytes(relayer1_bytes);
+    let relayer1 = bridge::getAddressFromPublicKeyTest(&pk1);
 
-    scenario.next_tx( relayer1);
+    scenario.next_tx(relayer1);
     {
         let mut bridge = ts::take_shared<Bridge>(&scenario);
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
@@ -747,8 +738,7 @@ fun test_execute_transfer_insufficient_signatures() {
         let amounts = vector[1000];
         let deposit_nonces = vector[1];
         let batch_nonce_mvx = 1;
-        let token = 
-            b"0x2::coin::CoinType<bridge_safe::bridge_comprehensive_tests::TEST_COIN>";
+        let token = vector[utils::type_name_bytes<TEST_COIN>()];
 
         let mut mock_sig1 = PK1;
         vector::append(
@@ -825,7 +815,7 @@ fun test_add_relayer_invalid_public_key_length() {
         let safe = ts::take_shared<BridgeSafe>(&scenario);
 
         let invalid_pk = b"too_short_key";
-        bridge::add_relayer(&mut bridge,&safe, invalid_pk, ts::ctx(&mut scenario));
+        bridge::add_relayer(&mut bridge, &safe, invalid_pk, ts::ctx(&mut scenario));
 
         ts::return_shared(bridge);
         ts::return_shared(safe);
@@ -835,7 +825,7 @@ fun test_add_relayer_invalid_public_key_length() {
 }
 
 #[test]
-#[expected_failure(abort_code = 0 )]
+#[expected_failure(abort_code = 0)]
 fun test_add_relayer_not_admin() {
     let mut scenario = setup();
 
@@ -866,7 +856,7 @@ fun test_add_relayer_not_admin() {
         ts::return_shared(safe);
     };
 
-    scenario.next_tx( USER); // Switch to non-admin
+    scenario.next_tx(USER); // Switch to non-admin
     {
         let mut bridge = ts::take_shared<Bridge>(&scenario);
         let safe = ts::take_shared<BridgeSafe>(&scenario);
@@ -912,7 +902,7 @@ fun test_remove_relayer_not_admin() {
         ts::return_shared(safe);
     };
 
-    scenario.next_tx( USER); // Switch to non-admin
+    scenario.next_tx(USER); // Switch to non-admin
     {
         let mut bridge = ts::take_shared<Bridge>(&scenario);
         let safe = ts::take_shared<BridgeSafe>(&scenario);
@@ -920,7 +910,8 @@ fun test_remove_relayer_not_admin() {
         bridge::remove_relayer(&mut bridge, &safe, RELAYER4, ts::ctx(&mut scenario));
 
         ts::return_shared(bridge);
-        ts::return_shared(safe);};
+        ts::return_shared(safe);
+    };
 
     ts::end(scenario);
 }
@@ -957,7 +948,7 @@ fun test_pause_contract_not_admin() {
         ts::return_shared(safe);
     };
 
-    scenario.next_tx( USER); // Switch to non-admin
+    scenario.next_tx(USER); // Switch to non-admin
     {
         let mut bridge = ts::take_shared<Bridge>(&scenario);
         let safe = ts::take_shared<BridgeSafe>(&scenario);
@@ -1014,7 +1005,7 @@ fun test_unpause_contract_not_admin() {
         ts::return_shared(safe);
     };
 
-    scenario.next_tx( USER); // Switch to non-admin
+    scenario.next_tx(USER); // Switch to non-admin
     {
         let mut bridge = ts::take_shared<Bridge>(&scenario);
         let safe = ts::take_shared<BridgeSafe>(&scenario);
@@ -1032,19 +1023,19 @@ fun test_unpause_contract_not_admin() {
 fun test_getAddressFromPublicKey() {
     let public_key = x"dd7573d5a4b186828d40b187a804d952feb384f5b6b0f3c7472855a2cbdba506";
     let expected_address = @0xd5468a8e8d62b71214cdddb2ad421eefa462a672e2d5d0f89e99d8bf78e55769;
-    
+
     let computed_address = bridge::getAddressFromPublicKeyTest(&public_key);
-    
+
     let computed_bytes = sui::address::to_bytes(computed_address);
     let expected_bytes = sui::address::to_bytes(expected_address);
-    
+
     std::debug::print(&b"Computed address bytes:");
     std::debug::print(&computed_bytes);
-    
+
     std::debug::print(&b"Expected address bytes:");
     std::debug::print(&expected_bytes);
-    
+
     assert!(vector::length(&computed_bytes) == vector::length(&expected_bytes), 1);
-    
+
     assert!(computed_address == expected_address, 0);
 }
