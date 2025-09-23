@@ -563,7 +563,7 @@ fun test_set_batch_settle_timeout_success() {
 }
 
 #[test]
-#[expected_failure(abort_code = 0)]
+#[expected_failure(abort_code = ESenderNotActiveRole)]
 fun test_set_batch_settle_timeout_not_admin() {
     let mut scenario = setup();
 
@@ -825,7 +825,7 @@ fun test_add_relayer_invalid_public_key_length() {
 }
 
 #[test]
-#[expected_failure(abort_code = 0)]
+#[expected_failure(abort_code = ESenderNotActiveRole)]
 fun test_add_relayer_not_admin() {
     let mut scenario = setup();
 
@@ -871,7 +871,7 @@ fun test_add_relayer_not_admin() {
 }
 
 #[test]
-#[expected_failure(abort_code = 0)]
+#[expected_failure(abort_code = ESenderNotActiveRole)]
 fun test_remove_relayer_not_admin() {
     let mut scenario = setup();
 
@@ -917,7 +917,7 @@ fun test_remove_relayer_not_admin() {
 }
 
 #[test]
-#[expected_failure(abort_code = 0)]
+#[expected_failure(abort_code = ESenderNotActiveRole)]
 fun test_pause_contract_not_admin() {
     let mut scenario = setup();
 
@@ -963,7 +963,7 @@ fun test_pause_contract_not_admin() {
 }
 
 #[test]
-#[expected_failure(abort_code = 0)]
+#[expected_failure(abort_code = ESenderNotActiveRole)]
 fun test_unpause_contract_not_admin() {
     let mut scenario = setup();
 

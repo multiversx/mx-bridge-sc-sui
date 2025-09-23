@@ -1,13 +1,14 @@
 #[test_only]
 module bridge_safe::safe_edge_case_tests;
 
-use bridge_safe::pausable;
+use bridge_safe::pausable::{Self, EContractNotPaused};
 use bridge_safe::safe::{Self, BridgeSafe};
 use locked_token::bridge_token::{Self as br, BRIDGE_TOKEN};
 use locked_token::treasury::{Self as lkt, Treasury, FromCoinCap};
 use sui::clock;
 use sui::coin;
 use sui::test_scenario::{Self as ts, Scenario};
+use sui_extensions::two_step_role::ESenderNotActiveRole;
 
 public struct TEST_COIN has drop {}
 public struct ANOTHER_COIN has drop {}
@@ -355,7 +356,7 @@ fun test_complex_batch_timeout_scenarios() {
 
 // Test that admin functions fail with wrong admin
 #[test]
-#[expected_failure(abort_code = 0)]
+#[expected_failure(abort_code = ESenderNotActiveRole)]
 fun test_set_batch_size_wrong_admin() {
     let mut scenario = setup();
 
@@ -364,7 +365,7 @@ fun test_set_batch_size_wrong_admin() {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
 
         // USER tries to set batch size but is not admin
-        safe::set_batch_size(&mut safe,  50, ts::ctx(&mut scenario));
+        safe::set_batch_size(&mut safe, 50, ts::ctx(&mut scenario));
 
         ts::return_shared(safe);
     };
@@ -389,7 +390,7 @@ fun test_get_stored_coin_balance_non_initialized() {
 
 // Test batch settle timeout validation when contract is not paused
 #[test]
-#[expected_failure(abort_code = 1)]
+#[expected_failure(abort_code = EContractNotPaused)]
 fun test_set_batch_settle_timeout_not_paused() {
     let mut scenario = setup();
     scenario.next_tx(ADMIN);

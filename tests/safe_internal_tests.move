@@ -9,6 +9,7 @@ use sui::coin;
 use sui::test_scenario::{Self as ts, Scenario};
 use locked_token::bridge_token::{Self as br, BRIDGE_TOKEN};
 use locked_token::treasury::{Self as lkt, Treasury, FromCoinCap};
+use sui_extensions::two_step_role::ESenderNotActiveRole;
 
 public struct TEST_COIN has drop {}
 
@@ -131,7 +132,7 @@ fun test_whitelist_token_already_exists() {
 }
 
 #[test]
-#[expected_failure(abort_code = 0)]
+#[expected_failure(abort_code = ESenderNotActiveRole)]
 fun test_whitelist_token_not_admin() {
     let mut scenario = setup();
     scenario.next_tx(USER);
