@@ -117,27 +117,27 @@ public fun token_config_total_balance(config: &TokenConfig): u64 {
     config.total_balance
 }
 
-public fun set_token_config_whitelisted(config: &mut TokenConfig, whitelisted: bool) {
+public(package) fun set_token_config_whitelisted(config: &mut TokenConfig, whitelisted: bool) {
     config.whitelisted = whitelisted;
 }
 
-public fun set_token_config_min_limit(config: &mut TokenConfig, min_limit: u64) {
+public(package) fun set_token_config_min_limit(config: &mut TokenConfig, min_limit: u64) {
     config.min_limit = min_limit;
 }
 
-public fun set_token_config_max_limit(config: &mut TokenConfig, max_limit: u64) {
+public(package) fun set_token_config_max_limit(config: &mut TokenConfig, max_limit: u64) {
     config.max_limit = max_limit;
 }
 
-public fun set_token_config_is_native(config: &mut TokenConfig, is_native: bool) {
+public(package) fun set_token_config_is_native(config: &mut TokenConfig, is_native: bool) {
     config.is_native = is_native;
 }
 
-public fun set_token_config_is_locked(config: &mut TokenConfig, is_locked: bool) {
+public(package) fun set_token_config_is_locked(config: &mut TokenConfig, is_locked: bool) {
     config.is_locked = is_locked;
 }
 
-public fun set_token_config_is_mint_burn(config: &mut TokenConfig, is_mint_burn: bool) {
+public(package) fun set_token_config_is_mint_burn(config: &mut TokenConfig, is_mint_burn: bool) {
     config.is_mint_burn = is_mint_burn;
 }
 
@@ -188,7 +188,7 @@ public fun set_batch_deposits_count(batch: &mut Batch, count: u16) {
     batch.deposits_count = count;
 }
 
-public fun set_batch_last_updated_timestamp_ms(batch: &mut Batch, timestamp_ms: u64) {
+public(package) fun set_batch_last_updated_timestamp_ms(batch: &mut Batch, timestamp_ms: u64) {
     batch.last_updated_timestamp_ms = timestamp_ms;
 }
 
