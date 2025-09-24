@@ -17,7 +17,7 @@ use sui::table::{Self, Table};
 use sui::vec_set::{Self, VecSet};
 
 const EQuorumTooLow: u64 = 0;
-const EInvalidTypeArgument: u64 = 1;
+const EInvalidPublicKeyLength: u64 = 1;
 const EInvalidParameterLength: u64 = 2;
 const EBatchAlreadyExecuted: u64 = 3;
 const ESettleTimeoutBelowSafeBatch: u64 = 4;
@@ -31,7 +31,6 @@ const EQuorumNotReached: u64 = 11;
 const EQuorumExceedsRelayers: u64 = 12;
 const ECannotRemoveRelayerBelowQuorum: u64 = 13;
 const ERelayerNotFound: u64 = 14;
-const EInvalidPublicKeyLength: u64 = 15;
 
 const MINIMUM_QUORUM: u64 = 3;
 const ED25519_PUBLIC_KEY_LENGTH: u64 = 32;
@@ -240,7 +239,7 @@ public fun execute_transfer<T>(
     assert!(vector::length(&amounts) == len, EInvalidParameterLength);
     assert!(vector::length(&deposit_nonces) == len, EInvalidParameterLength);
 
-    let token= utils::type_name_bytes<T>();
+    let token_bytes= utils::type_name_bytes<T>();
 
     let signer = tx_context::sender(ctx);
     assert_relayer(bridge, signer);
@@ -251,7 +250,7 @@ public fun execute_transfer<T>(
     validate_quorum(
         bridge,
         batch_nonce_mvx,
-        &token,
+        &token_bytes,
         &recipients,
         &amounts,
         &signatures,
