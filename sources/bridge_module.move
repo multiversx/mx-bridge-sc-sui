@@ -18,8 +18,11 @@ use sui::vec_set::{Self, VecSet};
 
 const EQuorumTooLow: u64 = 0;
 const EInvalidTypeArgument: u64 = 1;
+const EInvalidParameterLength: u64 = 2;
 const EBatchAlreadyExecuted: u64 = 3;
+const ESettleTimeoutBelowSafeBatch: u64 = 4;
 const ENotRelayer: u64 = 5;
+const EDepositAlreadyExecuted: u64 = 6;
 const EPendingBatches: u64 = 7;
 const EInvalidSignature: u64 = 8;
 const EDuplicateSignature: u64 = 9;
@@ -29,9 +32,6 @@ const EQuorumExceedsRelayers: u64 = 12;
 const ECannotRemoveRelayerBelowQuorum: u64 = 13;
 const ERelayerNotFound: u64 = 14;
 const EInvalidPublicKeyLength: u64 = 15;
-const EDepositAlreadyExecuted: u64 = 16;
-const ESettleTimeoutBelowSafeBatch: u64 = 17;
-const EInvalidParameterLength: u64 = 18;
 
 const MINIMUM_QUORUM: u64 = 3;
 const ED25519_PUBLIC_KEY_LENGTH: u64 = 32;
@@ -228,7 +228,6 @@ public fun execute_transfer<T>(
     safe: &mut BridgeSafe,
     recipients: vector<address>,
     amounts: vector<u64>,
-    token: vector<u8>,
     deposit_nonces: vector<u64>,
     batch_nonce_mvx: u64,
     signatures: vector<vector<u8>>,
@@ -241,8 +240,7 @@ public fun execute_transfer<T>(
     assert!(vector::length(&amounts) == len, EInvalidParameterLength);
     assert!(vector::length(&deposit_nonces) == len, EInvalidParameterLength);
 
-    let type_name= utils::type_name_bytes<T>();
-    assert!(token == type_name, EInvalidTypeArgument);
+    let token= utils::type_name_bytes<T>();
 
     let signer = tx_context::sender(ctx);
     assert_relayer(bridge, signer);

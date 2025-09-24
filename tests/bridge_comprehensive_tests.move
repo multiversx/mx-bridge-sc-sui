@@ -4,7 +4,6 @@ module bridge_safe::bridge_comprehensive_tests;
 use bridge_safe::bridge::{Self, Bridge};
 use bridge_safe::bridge_roles::BridgeCap;
 use bridge_safe::safe::{Self, BridgeSafe};
-use bridge_safe::utils;
 use locked_token::bridge_token::{Self as br, BRIDGE_TOKEN};
 use locked_token::treasury::{Self as lkt, Treasury, FromCoinCap};
 use sui::clock;
@@ -662,7 +661,6 @@ fun test_execute_transfer_invalid_signature_length() {
         let recipients = vector[USER];
         let amounts = vector[1000];
         let deposit_nonces = vector[1];
-        let tokens = utils::type_name_bytes<TEST_COIN>();
         let batch_nonce_mvx = 1;
 
         let invalid_signatures = vector[b"short", b"too_short", b"also_short"];
@@ -672,7 +670,6 @@ fun test_execute_transfer_invalid_signature_length() {
             &mut safe,
             recipients,
             amounts,
-            tokens,
             deposit_nonces,
             batch_nonce_mvx,
             invalid_signatures,
@@ -738,7 +735,6 @@ fun test_execute_transfer_insufficient_signatures() {
         let amounts = vector[1000];
         let deposit_nonces = vector[1];
         let batch_nonce_mvx = 1;
-        let token = utils::type_name_bytes<TEST_COIN>();
 
         let mut mock_sig1 = PK1;
         vector::append(
@@ -758,7 +754,6 @@ fun test_execute_transfer_insufficient_signatures() {
             &mut safe,
             recipients,
             amounts,
-            token,
             deposit_nonces,
             batch_nonce_mvx,
             signatures,
@@ -1038,99 +1033,4 @@ fun test_getAddressFromPublicKey() {
     assert!(vector::length(&computed_bytes) == vector::length(&expected_bytes), 1);
 
     assert!(computed_address == expected_address, 0);
-}
-
-#[test]
-#[expected_failure(abort_code = bridge::EInvalidTypeArgument)]
-fun test_execute_transfer_invalid_type_argument() {
-    let mut scenario = setup();
-
-    scenario.next_tx(ADMIN);
-    {
-        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
-        let bridge_cap = ts::take_from_sender<BridgeCap>(&scenario);
-
-        safe::whitelist_token<TEST_COIN>(
-            &mut safe,
-            MIN_AMOUNT,
-            MAX_AMOUNT,
-            true,
-            false, // is_locked
-            ts::ctx(&mut scenario),
-        );
-
-        let public_keys = vector[PK1, PK2, PK3];
-
-        bridge::initialize(
-            public_keys,
-            INITIAL_QUORUM,
-            object::id_address(&safe),
-            bridge_cap,
-            ts::ctx(&mut scenario),
-        );
-
-        ts::return_shared(safe);
-    };
-
-    // Compute actual relayer address from the first public key
-    let pk1 = PK1;
-    let relayer1_bytes = sui::hash::blake2b256(&pk1);
-    let relayer1 = sui::address::from_bytes(relayer1_bytes);
-
-    scenario.next_tx(relayer1);
-    {
-        let mut bridge = ts::take_shared<Bridge>(&scenario);
-        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
-        let mut treasury = scenario.take_shared<lkt::Treasury<BRIDGE_TOKEN>>();
-        let clock = clock::create_for_testing(ts::ctx(&mut scenario));
-
-        let recipients = vector[USER];
-        let amounts = vector[1000];
-        let deposit_nonces = vector[1];
-        let batch_nonce_mvx = 1;
-
-        // Create a wrong token type name that doesn't match TEST_COIN type
-        let wrong_token = b"0x2::coin::Coin<some_other_type>";
-
-        let mut mock_sig1 = PK1;
-        vector::append(
-            &mut mock_sig1,
-            b"0123456789012345678901234567890123456789012345678901234567890123",
-        );
-        let mut mock_sig2 = PK2;
-        vector::append(
-            &mut mock_sig2,
-            b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789AB",
-        );
-        let mut mock_sig3 = PK3;
-        vector::append(
-            &mut mock_sig3,
-            b"ZYXWVUTSRQPONMLKJIHGFEDCBA9876543210987654321098765432109876543",
-        );
-
-        let signatures = vector[mock_sig1, mock_sig2, mock_sig3];
-
-        // This should fail with EInvalidTypeArgument because wrong_token != TEST_COIN type name
-        bridge::execute_transfer<TEST_COIN>(
-            &mut bridge,
-            &mut safe,
-            recipients,
-            amounts,
-            wrong_token,
-            deposit_nonces,
-            batch_nonce_mvx,
-            signatures,
-            false,
-            &mut treasury,
-            &clock,
-            ts::ctx(&mut scenario),
-        );
-
-        ts::return_shared(bridge);
-        ts::return_shared(safe);
-        ts::return_shared(treasury);
-        clock::destroy_for_testing(clock);
-    };
-
-    ts::end(scenario);
 }
