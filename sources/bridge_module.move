@@ -109,8 +109,8 @@ public fun initialize(
 }
 
 fun getAddressFromPublicKey(public_key: &vector<u8>): address {
-    let mut long_public_key = vector[0u8]; 
-    vector::append(&mut long_public_key, *public_key); 
+    let mut long_public_key = vector[0u8];
+    vector::append(&mut long_public_key, *public_key);
     let relayer_bytes = sui::hash::blake2b256(&long_public_key);
     address::from_bytes(relayer_bytes)
 }
@@ -239,7 +239,7 @@ public fun execute_transfer<T>(
     assert!(vector::length(&amounts) == len, EInvalidParameterLength);
     assert!(vector::length(&deposit_nonces) == len, EInvalidParameterLength);
 
-    let token_bytes= utils::type_name_bytes<T>();
+    let token_bytes = utils::type_name_bytes<T>();
 
     let signer = tx_context::sender(ctx);
     assert_relayer(bridge, signer);
@@ -654,4 +654,17 @@ public fun execute_transfer_for_testing<T>(
 #[test_only]
 public fun getAddressFromPublicKeyTest(public_key: &vector<u8>): address {
     getAddressFromPublicKey(public_key)
+}
+
+#[test_only]
+public fun validate_quorum_for_testing(
+    bridge: &Bridge,
+    batch_id: u64,
+    token: &vector<u8>,
+    recipients: &vector<address>,
+    amounts: &vector<u64>,
+    signatures: &vector<vector<u8>>,
+    deposit_nonces: &vector<u64>,
+) {
+    validate_quorum(bridge, batch_id, token, recipients, amounts, signatures, deposit_nonces)
 }
