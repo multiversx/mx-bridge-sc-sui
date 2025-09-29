@@ -153,7 +153,6 @@ fun test_replay_allows_double_spend_with_same_deposit_nonce() {
             &mut safe,
             vector[USER],
             vector[DRAIN_AMOUNT],
-            vector[1], // deposit nonce 1
             1, // batch nonce
             false,
             &mut treasury,
@@ -167,7 +166,6 @@ fun test_replay_allows_double_spend_with_same_deposit_nonce() {
             &mut safe,
             vector[USER],
             vector[DRAIN_AMOUNT],
-            vector[1], // same deposit nonce - should abort here
             1, // same batch nonce
             false,
             &mut treasury,

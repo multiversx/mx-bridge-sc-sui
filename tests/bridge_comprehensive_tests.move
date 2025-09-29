@@ -1112,7 +1112,6 @@ fun test_validate_quorum_reaches_signature_verification() {
         
         // Create test data
         let batch_id = 1u64;
-        let token = b"TEST_TOKEN";
         let recipients = vector[@0x123, @0x456, @0x789];
         let amounts = vector[100u64, 200u64, 300u64];
         let deposit_nonces = vector[1u64, 2u64, 3u64];
@@ -1125,10 +1124,9 @@ fun test_validate_quorum_reaches_signature_verification() {
         vector::push_back(&mut signatures, create_test_signature_for_quorum(vector::borrow(&public_keys, 2)));
         
         // This should fail at signature verification (proving we got through initial checks)
-        bridge::validate_quorum_for_testing(
+        bridge::validate_quorum_for_testing<TEST_COIN>(
             &bridge,
             batch_id,
-            &token,
             &recipients,
             &amounts,
             &signatures,
@@ -1152,7 +1150,6 @@ fun test_validate_quorum_insufficient_signatures() {
         
         // Create test data
         let batch_id = 1u64;
-        let token = b"TEST_TOKEN";
         let recipients = vector[@0x123, @0x456];
         let amounts = vector[100u64, 200u64];
         let deposit_nonces = vector[1u64, 2u64];
@@ -1163,10 +1160,9 @@ fun test_validate_quorum_insufficient_signatures() {
         vector::push_back(&mut signatures, create_test_signature_for_quorum(vector::borrow(&public_keys, 1)));
         
         // This should fail as we have fewer signatures than quorum
-        bridge::validate_quorum_for_testing(
+        bridge::validate_quorum_for_testing<TEST_COIN>(
             &bridge,
             batch_id,
-            &token,
             &recipients,
             &amounts,
             &signatures,
@@ -1190,7 +1186,6 @@ fun test_validate_quorum_invalid_signature_length() {
         
         // Create test data
         let batch_id = 1u64;
-        let token = b"TEST_TOKEN";
         let recipients = vector[@0x123];
         let amounts = vector[100u64];
         let deposit_nonces = vector[1u64];
@@ -1203,10 +1198,9 @@ fun test_validate_quorum_invalid_signature_length() {
         vector::push_back(&mut signatures, invalid_signature);
         
         // This should fail due to invalid signature length
-        bridge::validate_quorum_for_testing(
+        bridge::validate_quorum_for_testing<TEST_COIN>(
             &bridge,
             batch_id,
-            &token,
             &recipients,
             &amounts,
             &signatures,
@@ -1230,7 +1224,6 @@ fun test_validate_quorum_unknown_relayer() {
         
         // Create test data
         let batch_id = 1u64;
-        let token = b"TEST_TOKEN";
         let recipients = vector[@0x123];
         let amounts = vector[100u64];
         let deposit_nonces = vector[1u64];
@@ -1243,10 +1236,9 @@ fun test_validate_quorum_unknown_relayer() {
         vector::push_back(&mut signatures, create_test_signature_for_quorum(&unknown_pk));
         
         // This should fail because the public key is not from a known relayer
-        bridge::validate_quorum_for_testing(
+        bridge::validate_quorum_for_testing<TEST_COIN>(
             &bridge,
             batch_id,
-            &token,
             &recipients,
             &amounts,
             &signatures,
