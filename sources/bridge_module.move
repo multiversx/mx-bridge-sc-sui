@@ -351,7 +351,7 @@ fun mark_deposits_executed_in_batch_or_abort<T>(
     batch_nonce_mvx: u64,
 ) {
     let key = derive_key<T>(batch_nonce_mvx);
-    assert!(vec_set::contains(&bridge.executed_transfer_by_batch_type_arg, &key), EDepositAlreadyExecuted);
+    assert!(!vec_set::contains(&bridge.executed_transfer_by_batch_type_arg, &key), EDepositAlreadyExecuted);
     vec_set::insert(&mut bridge.executed_transfer_by_batch_type_arg, key);
 }
 
