@@ -501,7 +501,7 @@ public fun get_batch_deposits_count(batch: &Batch): u16 {
 /// Transfer function: Bridge sends coins FROM the bridge safe contract TO recipient
 /// Only the bridge role can call this function
 /// The coins are taken from the contract's storage and sent to recipient
-public fun transfer<T>(
+public(package) fun transfer<T>(
     safe: &mut BridgeSafe,
     _bridge_cap: &bridge_roles::BridgeCap,
     receiver: address,
@@ -516,10 +516,6 @@ public fun transfer<T>(
     };
 
     let cfg_ref = table::borrow(&safe.token_cfg, key);
-
-    // if (!shared_structs::token_config_whitelisted(cfg_ref)) {
-    //     return false
-    // };
 
     let current_balance = shared_structs::token_config_total_balance(cfg_ref);
     if (current_balance < amount) {

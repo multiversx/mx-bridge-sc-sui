@@ -16,6 +16,8 @@ public struct TEST_COIN has drop {}
 const ADMIN: address = @0xa11ce;
 const USER: address = @0xb0b;
 const BRIDGE: address = @0xc0de;
+const NEW_OWNER: address = @0xb0b;
+const THIRD_PARTY: address = @0xc0de;
 
 const DEFAULT_BATCH_SIZE: u16 = 10;
 const DEFAULT_BATCH_SETTLE_TIMEOUT_MS: u64 = 10000;
@@ -819,5 +821,259 @@ fun test_multiple_batch_creation() {
         clock::destroy_for_testing(clock);
         ts::return_shared(safe);
     };
+    ts::end(scenario);
+}
+
+#[test]
+fun test_initial_ownership() {
+    let mut scenario = setup();
+
+    scenario.next_tx(ADMIN);
+    {
+        let safe = ts::take_shared<BridgeSafe>(&scenario);
+        
+        assert!(safe::get_owner(&safe) == ADMIN, 0);
+        
+        let pending = safe::get_pending_owner(&safe);
+        assert!(pending.is_none(), 1);
+        
+        ts::return_shared(safe);
+    };
+
+    ts::end(scenario);
+}
+
+#[test]
+fun test_transfer_ownership_initiate() {
+    let mut scenario = setup();
+
+    scenario.next_tx(ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        
+        safe::transfer_ownership(&mut safe, NEW_OWNER, scenario.ctx());
+        
+        assert!(safe::get_owner(&safe) == ADMIN, 0);
+        
+        let pending = safe::get_pending_owner(&safe);
+        assert!(pending.is_some(), 1);
+        assert!(*pending.borrow() == NEW_OWNER, 2);
+        
+        ts::return_shared(safe);
+    };
+
+    ts::end(scenario);
+}
+
+#[test]
+fun test_complete_ownership_transfer() {
+    let mut scenario = setup();
+
+    scenario.next_tx(ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        safe::transfer_ownership(&mut safe, NEW_OWNER, scenario.ctx());
+        ts::return_shared(safe);
+    };
+
+    scenario.next_tx(NEW_OWNER);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        safe::accept_ownership(&mut safe, scenario.ctx());
+        
+        assert!(safe::get_owner(&safe) == NEW_OWNER, 0);
+        
+        let pending = safe::get_pending_owner(&safe);
+        assert!(pending.is_none(), 1);
+        
+        ts::return_shared(safe);
+    };
+
+    ts::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = ESenderNotActiveRole)]
+fun test_transfer_ownership_not_owner() {
+    let mut scenario = setup();
+
+    scenario.next_tx(THIRD_PARTY);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        
+        safe::transfer_ownership(&mut safe, NEW_OWNER, scenario.ctx());
+        
+        ts::return_shared(safe);
+    };
+
+    ts::end(scenario);
+}
+
+#[test]
+fun test_transfer_ownership_to_same_address() {
+    let mut scenario = setup();
+
+    scenario.next_tx(ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        
+        safe::transfer_ownership(&mut safe, ADMIN, scenario.ctx());
+        
+        assert!(safe::get_owner(&safe) == ADMIN, 0);
+        
+        let pending = safe::get_pending_owner(&safe);
+        assert!(pending.is_some(), 1);
+        assert!(*pending.borrow() == ADMIN, 2);
+        
+        ts::return_shared(safe);
+    };
+
+    scenario.next_tx(ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        safe::accept_ownership(&mut safe, scenario.ctx());
+        
+        assert!(safe::get_owner(&safe) == ADMIN, 3);
+        let pending = safe::get_pending_owner(&safe);
+        assert!(pending.is_none(), 4);
+        
+        ts::return_shared(safe);
+    };
+
+    ts::end(scenario);
+}
+
+#[test]
+fun test_multiple_ownership_transfers() {
+    let mut scenario = setup();
+
+    scenario.next_tx(ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        safe::transfer_ownership(&mut safe, NEW_OWNER, scenario.ctx());
+        ts::return_shared(safe);
+    };
+
+    scenario.next_tx(NEW_OWNER);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        safe::accept_ownership(&mut safe, scenario.ctx());
+        assert!(safe::get_owner(&safe) == NEW_OWNER, 0);
+        ts::return_shared(safe);
+    };
+
+    scenario.next_tx(NEW_OWNER);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        safe::transfer_ownership(&mut safe, THIRD_PARTY, scenario.ctx());
+        ts::return_shared(safe);
+    };
+
+    scenario.next_tx(THIRD_PARTY);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        safe::accept_ownership(&mut safe, scenario.ctx());
+        assert!(safe::get_owner(&safe) == THIRD_PARTY, 1);
+        ts::return_shared(safe);
+    };
+
+    scenario.next_tx(THIRD_PARTY);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        safe::transfer_ownership(&mut safe, ADMIN, scenario.ctx());
+        ts::return_shared(safe);
+    };
+
+    scenario.next_tx(ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        safe::accept_ownership(&mut safe, scenario.ctx());
+        assert!(safe::get_owner(&safe) == ADMIN, 2);
+        ts::return_shared(safe);
+    };
+
+    ts::end(scenario);
+}
+
+#[test]
+fun test_overwrite_pending_ownership_transfer() {
+    let mut scenario = setup();
+
+    scenario.next_tx(ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        safe::transfer_ownership(&mut safe, NEW_OWNER, scenario.ctx());
+        
+        let pending = safe::get_pending_owner(&safe);
+        assert!(pending.is_some(), 0);
+        assert!(*pending.borrow() == NEW_OWNER, 1);
+        
+        ts::return_shared(safe);
+    };
+
+    scenario.next_tx(ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        safe::transfer_ownership(&mut safe, THIRD_PARTY, scenario.ctx());
+        
+        let pending = safe::get_pending_owner(&safe);
+        assert!(pending.is_some(), 2);
+        assert!(*pending.borrow() == THIRD_PARTY, 3);
+        
+        ts::return_shared(safe);
+    };
+
+    scenario.next_tx(NEW_OWNER);
+    {
+        let safe = ts::take_shared<BridgeSafe>(&scenario);
+        
+        let pending = safe::get_pending_owner(&safe);
+        assert!(pending.is_some(), 5);
+        assert!(*pending.borrow() == THIRD_PARTY, 6);
+        
+        ts::return_shared(safe);
+    };
+
+    scenario.next_tx(THIRD_PARTY);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        safe::accept_ownership(&mut safe, scenario.ctx());
+        
+        assert!(safe::get_owner(&safe) == THIRD_PARTY, 4);
+        
+        ts::return_shared(safe);
+    };
+
+    ts::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = ESenderNotActiveRole)]
+fun test_old_owner_cannot_use_owner_functions_after_transfer() {
+    let mut scenario = setup();
+
+    scenario.next_tx(ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        safe::transfer_ownership(&mut safe, NEW_OWNER, scenario.ctx());
+        ts::return_shared(safe);
+    };
+
+    scenario.next_tx(NEW_OWNER);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        safe::accept_ownership(&mut safe, scenario.ctx());
+        ts::return_shared(safe);
+    };
+
+    scenario.next_tx(ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        
+        safe::pause_contract(&mut safe, scenario.ctx());
+        
+        ts::return_shared(safe);
+    };
+
     ts::end(scenario);
 }
