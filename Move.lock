@@ -2,7 +2,7 @@
 
 [move]
 version = 3
-manifest_digest = "9B17A24E0A6FC4DECE57BD5E61A38D5843FC483C5EA0B6BE215344C101F02FD8"
+manifest_digest = "AA6F4BDAC37E07840722D18DB4BA517DCAF5451A1E2508600168C04DFFC72077"
 deps_digest = "397E6A9F7A624706DBDFEE056CE88391A15876868FD18A88504DA74EB458D697"
 dependencies = [
   { id = "Bridge", name = "Bridge" },
@@ -45,7 +45,7 @@ dependencies = [
 
 [[move.package]]
 id = "locked_token"
-source = { git = "https://github.com/multiversx/mx-locked-token-sc-sui.git", rev = "compile-err", subdir = "" }
+source = { git = "https://github.com/multiversx/mx-locked-token-sc-sui.git", rev = "eve-test-deploy", subdir = "" }
 
 dependencies = [
   { id = "Bridge", name = "Bridge" },
@@ -72,6 +72,6 @@ flavor = "sui"
 
 [env.testnet]
 chain-id = "4c78adac"
-original-published-id = "0x9e23e505f4af2879b1e38e5215fa131fab650c8462f3f189e945eeaf3b1c8e92"
-latest-published-id = "0x9e23e505f4af2879b1e38e5215fa131fab650c8462f3f189e945eeaf3b1c8e92"
+original-published-id = "0x9346cf63fce38ad5de40f5b9d8a20cd421826275f42191c9226d6486fd980fa9"
+latest-published-id = "0x9346cf63fce38ad5de40f5b9d8a20cd421826275f42191c9226d6486fd980fa9"
 published-version = "1"

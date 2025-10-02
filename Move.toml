@@ -3,12 +3,13 @@ name = "mx-bridge-sc-sui"
 edition = "2024.beta"
 
 [dependencies]
-locked_token = { git = "https://github.com/multiversx/mx-locked-token-sc-sui.git", rev = "compile-err", subdir = "" }
+locked_token = { git = "https://github.com/multiversx/mx-locked-token-sc-sui.git", rev = "eve-test-deploy", subdir = "" }
 
 [addresses]
 shared_structs = "0x0"
 safe_module = "0x0"
 bridge_safe = "0x0"
+utils = "0x0"
 
 [dev-dependencies]
 # The dev-dependencies section allows overriding dependencies for `--test` and
