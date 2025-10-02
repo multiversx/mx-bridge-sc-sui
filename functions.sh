@@ -113,7 +113,7 @@ function deploy() {
     --module bridge \
     --function initialize \
     --args \
-      "[\"$PK_1\", \"$PK_2\", \"$PK_3\"]" \
+      $PUBKEYS \
       "$QUORUM" \
       "$SAFE_ID" \
       "$BRIDGE_CAP_ID" \
