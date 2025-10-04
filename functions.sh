@@ -91,6 +91,7 @@ function deploy() {
     --json > ./config/safe_initialize_output.json
     
   # Extract safe ID and bridge cap
+  SAFE_INIT_OUTPUT=$(cat ./config/safe_initialize_output.json)
   SAFE_ID=$(extract_object_id "$SAFE_INIT_OUTPUT" "safe::BridgeSafe")
   BRIDGE_CAP_ID=$(extract_object_id "$SAFE_INIT_OUTPUT" "roles::BridgeCap")
   
@@ -120,6 +121,7 @@ function deploy() {
     --gas-budget $GAS_BUDGET_DEFAULT --json > ./config/bridge_initialize_output.json
     
   # Extract bridge ID
+  BRIDGE_INIT_OUTPUT=$(cat ./config/bridge_initialize_output.json)
   BRIDGE_ID=$(extract_object_id "$BRIDGE_INIT_OUTPUT" "bridge::Bridge")
   
   echo "Bridge ID: $BRIDGE_ID"
