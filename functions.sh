@@ -104,7 +104,7 @@ function deploy() {
   
   # Step 3: Initialize bridge
   echo "Initializing bridge..."
-  echo "Using public keys: [$PK_1, $PK_2, $PK_3]"
+  echo "Using public keys: [$RELAYER_1_PK, $RELAYER_2_PK, $RELAYER_3_PK, $RELAYER_4_PK]"
   echo "Quorum: $QUORUM"
   echo "Safe ID: $SAFE_ID"
   echo "Bridge Cap: $BRIDGE_CAP_ID"
@@ -114,7 +114,7 @@ function deploy() {
     --module bridge \
     --function initialize \
     --args \
-      $PUBKEYS \
+      "$PUBKEYS" \
       "$QUORUM" \
       "$SAFE_ID" \
       "$BRIDGE_CAP_ID" \
