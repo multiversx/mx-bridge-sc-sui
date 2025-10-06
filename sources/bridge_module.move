@@ -1,3 +1,9 @@
+/// Bridge Module - Cross-chain Bridge Implementation
+/// 
+/// This module implements a secure cross-chain bridge that allows transferring
+/// tokens between different blockchain networks. It includes relayer management,
+/// batch processing, signature validation, and migration support.
+
 module bridge_safe::bridge;
 
 use bridge_safe::bridge_roles::BridgeCap;
@@ -19,6 +25,7 @@ use sui::hash::blake2b256;
 use sui::table::{Self, Table};
 use sui::vec_set::{Self, VecSet};
 
+// === Error Constants ===
 const EQuorumTooLow: u64 = 0;
 const EInvalidPublicKeyLength: u64 = 1;
 const EInvalidAmountsLength: u64 = 2;
@@ -131,6 +138,9 @@ public fun initialize(
     transfer::share_object(bridge);
 }
 
+// === Utility Functions ===
+
+/// Derives Sui address from ED25519 public key
 /// address = blake2b256( 0x00 || ed25519_pubkey )
 fun getAddressFromPublicKey(public_key: &vector<u8>): address {
     let mut long_public_key = vector[0u8];
@@ -139,10 +149,14 @@ fun getAddressFromPublicKey(public_key: &vector<u8>): address {
     address::from_bytes(relayer_bytes)
 }
 
+/// Asserts that the caller is a registered relayer
 fun assert_relayer(bridge: &Bridge, signer: address) {
     assert!(vec_set::contains(&bridge.relayers, &signer), ENotRelayer);
 }
 
+// === Configuration Management ===
+
+/// Updates the quorum requirement for batch execution
 public fun set_quorum(
     bridge: &mut Bridge,
     safe: &BridgeSafe,
@@ -174,6 +188,9 @@ public fun set_batch_settle_timeout_ms(
     bridge.batch_settle_timeout_ms = new_timeout_ms;
 }
 
+// === Relayer Management ===
+
+/// Adds a new relayer to the bridge system
 public fun add_relayer(
     bridge: &mut Bridge,
     safe: &BridgeSafe,

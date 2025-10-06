@@ -1,3 +1,8 @@
+/// Upgrade Manager - Coordinated System Upgrades
+/// 
+/// This module manages coordinated upgrades across both Bridge and BridgeSafe objects,
+/// ensuring version compatibility and providing a unified upgrade interface.
+
 module bridge_safe::upgrade_manager;
 
 use bridge_safe::bridge::{Self, Bridge};

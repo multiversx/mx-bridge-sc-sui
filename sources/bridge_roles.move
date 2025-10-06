@@ -1,3 +1,7 @@
+/// Bridge Roles Module - Access Control and Capabilities
+/// 
+/// This module manages roles, permissions, and capabilities for the bridge system.
+
 module bridge_safe::bridge_roles;
 
 use sui::bag::{Self, Bag};

@@ -1,3 +1,8 @@
+/// Safe Module - Token Management and Batch Processing
+/// 
+/// This module manages token deposits, batching, and secure transfers.
+/// It handles whitelisting, token limits, and coordinates with the bridge module.
+
 module bridge_safe::safe;
 
 use bridge_safe::bridge_roles::{Self, Roles, BridgeSafeTag};
@@ -15,7 +20,7 @@ use sui::coin::{Self, Coin};
 use sui::event;
 use sui::table::{Self, Table};
 use sui::vec_set::{Self, VecSet};
-use sui_extensions::upgrade_service;
+use bridge_safe::upgrade_service_bridge;
 
 // === Migration Events ===
 
@@ -31,6 +36,7 @@ public struct MigrationCompleted has copy, drop {
     compatible_versions: vector<u64>,
 }
 
+// === Error Constants ===
 const ETokenAlreadyExists: u64 = 0;
 const EBatchBlockLimitExceedsSettle: u64 = 1;
 const EBatchSettleLimitBelowBlock: u64 = 2;
@@ -623,7 +629,7 @@ public fun accept_ownership(safe: &mut BridgeSafe, ctx: &TxContext) {
 fun initialize_upgrade_service(safe: &mut BridgeSafe, ctx: &mut TxContext) {
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
     let w = bridge_roles::grant_witness();
-    let (upgrade_service, _witness) = upgrade_service::new(
+    let (upgrade_service, _witness) = upgrade_service_bridge::new(
         w,
         ctx.sender(),
         ctx,

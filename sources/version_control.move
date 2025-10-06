@@ -1,3 +1,8 @@
+/// Version Control - Package Version Management
+/// 
+/// This module manages package versioning and compatibility checks
+/// for the bridge system upgrade process.
+
 module bridge_safe::version_control;
 
 use sui::vec_set::VecSet;
