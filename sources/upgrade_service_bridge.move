@@ -107,8 +107,8 @@ public fun new<T: drop>(witness: T, admin: address, ctx: &mut TxContext): (Upgra
 /// `UpgradeCap` must control the package that `T` is defined in.
 /// - Only callable if the `UpgradeCap` has not been used for an upgrade.
 public fun deposit<T>(upgrade_service_token: &mut UpgradeService<T>, upgrade_cap: UpgradeCap) {
-    let package_address_of_type = address::from_ascii_bytes(type_name::get_with_original_ids<T>()
-        .get_address()
+    let package_address_of_type = address::from_ascii_bytes(type_name::with_original_ids<T>()
+        .address_string()
         .as_bytes());
     let package_address_of_upgrade_cap = &upgrade_cap.package().to_address();
     assert!(package_address_of_type == package_address_of_upgrade_cap, ETypeNotFromPackage);
