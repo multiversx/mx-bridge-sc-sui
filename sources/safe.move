@@ -626,7 +626,7 @@ public fun accept_ownership(safe: &mut BridgeSafe, ctx: &TxContext) {
 // === Upgrade Management ===
 
 /// Initialize upgrade service with proper witness
-fun initialize_upgrade_service(safe: &mut BridgeSafe, ctx: &mut TxContext) {
+fun initialize_upgrade_service(safe: &BridgeSafe, ctx: &mut TxContext) {
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
     let w = bridge_roles::grant_witness();
     let (upgrade_service, _witness) = upgrade_service_bridge::new(
@@ -635,8 +635,7 @@ fun initialize_upgrade_service(safe: &mut BridgeSafe, ctx: &mut TxContext) {
         ctx,
     );
 
-    // Store upgrade service in the safe's storage or pass it back to caller
-    // This depends on your specific upgrade service API design
+    // Share the upgrade service object
     transfer::public_share_object(upgrade_service);
 }
 
