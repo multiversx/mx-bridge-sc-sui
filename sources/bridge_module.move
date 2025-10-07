@@ -1,3 +1,9 @@
+/// Bridge Module - Cross-chain Bridge Implementation
+/// 
+/// This module implements a secure cross-chain bridge that allows transferring
+/// tokens between different blockchain networks. It includes relayer management,
+/// batch processing, signature validation, and migration support.
+
 module bridge_safe::bridge;
 
 use bridge_safe::bridge_roles::BridgeCap;
@@ -5,9 +11,11 @@ use bridge_safe::events;
 use bridge_safe::pausable::{Self, Pause};
 use bridge_safe::safe::{Self, BridgeSafe};
 use bridge_safe::utils;
+use bridge_safe::version_control;
 use locked_token::bridge_token::BRIDGE_TOKEN;
 use locked_token::treasury;
 use shared_structs::shared_structs::{Self, Deposit, Batch, CrossTransferStatus, DepositStatus};
+use std::u64::{min, max};
 use sui::address;
 use sui::bcs;
 use sui::clock::{Self, Clock};
@@ -17,6 +25,7 @@ use sui::hash::blake2b256;
 use sui::table::{Self, Table};
 use sui::vec_set::{Self, VecSet};
 
+// === Error Constants ===
 const EQuorumTooLow: u64 = 0;
 const EInvalidPublicKeyLength: u64 = 1;
 const EInvalidAmountsLength: u64 = 2;
@@ -34,6 +43,10 @@ const ECannotRemoveRelayerBelowQuorum: u64 = 13;
 const ERelayerNotFound: u64 = 14;
 const ERelayerAlreadyExists: u64 = 15;
 const EInvalidDepositNoncesLength: u64 = 16;
+const EMigrationStarted: u64 = 17;
+const EMigrationNotStarted: u64 = 18;
+const ENotPendingVersion: u64 = 19;
+const EObjectMigrated: u64 = 20;
 
 const MINIMUM_QUORUM: u64 = 3;
 const ED25519_PUBLIC_KEY_LENGTH: u64 = 32;
@@ -48,6 +61,20 @@ public struct BatchExecuted has copy, drop {
     batch_nonce_mvx: u64,
     transfers_count: u64,
     successful_transfers: u64,
+}
+
+// === Migration Events ===
+
+public struct BridgeMigrationStarted has copy, drop {
+    compatible_versions: vector<u64>,
+}
+
+public struct BridgeMigrationAborted has copy, drop {
+    compatible_versions: vector<u64>,
+}
+
+public struct BridgeMigrationCompleted has copy, drop {
+    compatible_versions: vector<u64>,
 }
 
 public struct Bridge has key {
@@ -65,6 +92,7 @@ public struct Bridge has key {
     bridge_cap: BridgeCap,
     executed_transfer_by_batch_type_arg: VecSet<vector<u8>>,
     successful_transfers_by_batch: Table<u64, u64>,
+    compatible_versions: VecSet<u64>,
 }
 
 public fun initialize(
@@ -104,11 +132,15 @@ public fun initialize(
         bridge_cap,
         executed_transfer_by_batch_type_arg: vec_set::empty<vector<u8>>(),
         successful_transfers_by_batch: table::new(ctx),
+        compatible_versions: vec_set::singleton(version_control::current_version()),
     };
 
     transfer::share_object(bridge);
 }
 
+// === Utility Functions ===
+
+/// Derives Sui address from ED25519 public key
 /// address = blake2b256( 0x00 || ed25519_pubkey )
 fun getAddressFromPublicKey(public_key: &vector<u8>): address {
     let mut long_public_key = vector[0u8];
@@ -117,10 +149,14 @@ fun getAddressFromPublicKey(public_key: &vector<u8>): address {
     address::from_bytes(relayer_bytes)
 }
 
+/// Asserts that the caller is a registered relayer
 fun assert_relayer(bridge: &Bridge, signer: address) {
     assert!(vec_set::contains(&bridge.relayers, &signer), ENotRelayer);
 }
 
+// === Configuration Management ===
+
+/// Updates the quorum requirement for batch execution
 public fun set_quorum(
     bridge: &mut Bridge,
     safe: &BridgeSafe,
@@ -152,6 +188,9 @@ public fun set_batch_settle_timeout_ms(
     bridge.batch_settle_timeout_ms = new_timeout_ms;
 }
 
+// === Relayer Management ===
+
+/// Adds a new relayer to the bridge system
 public fun add_relayer(
     bridge: &mut Bridge,
     safe: &BridgeSafe,
@@ -589,6 +628,96 @@ public fun execute_transfer_for_testing<T>(
             successful_transfers: successful_count,
         });
     };
+}
+
+// === Upgrade Management for Bridge ===
+
+/// Returns the compatible versions for the bridge
+public fun bridge_compatible_versions(bridge: &Bridge): vector<u64> {
+    *bridge.compatible_versions.keys()
+}
+
+/// Returns the current active version (lowest version in the set)
+public fun bridge_current_active_version(bridge: &Bridge): u64 {
+    let versions = bridge.compatible_versions.keys();
+    if (versions.length() == 1) {
+        versions[0]
+    } else {
+        min(versions[0], versions[1])
+    }
+}
+
+/// Returns the pending version if migration is in progress, otherwise returns none
+public fun bridge_pending_version(bridge: &Bridge): Option<u64> {
+    if (bridge.compatible_versions.length() == 2) {
+        let versions = bridge.compatible_versions.keys();
+        option::some(max(versions[0], versions[1]))
+    } else {
+        option::none()
+    }
+}
+
+/// Starts the migration process for the bridge
+public fun start_bridge_migration(bridge: &mut Bridge, safe: &BridgeSafe, ctx: &TxContext) {
+    safe::checkOwnerRole(safe, ctx);
+    assert!(bridge.compatible_versions.length() == 1, EMigrationStarted);
+
+    let active_version = bridge.compatible_versions.keys()[0];
+    assert!(active_version < version_control::current_version(), EObjectMigrated);
+
+    bridge.compatible_versions.insert(version_control::current_version());
+
+    event::emit(BridgeMigrationStarted {
+        compatible_versions: *bridge.compatible_versions.keys(),
+    });
+}
+
+/// Aborts the migration process for the bridge
+public fun abort_bridge_migration(bridge: &mut Bridge, safe: &BridgeSafe, ctx: &TxContext) {
+    safe::checkOwnerRole(safe, ctx);
+    assert!(bridge.compatible_versions.length() == 2, EMigrationNotStarted);
+
+    let pending_version = max(
+        bridge.compatible_versions.keys()[0],
+        bridge.compatible_versions.keys()[1],
+    );
+    assert!(pending_version == version_control::current_version(), ENotPendingVersion);
+
+    bridge.compatible_versions.remove(&pending_version);
+
+    event::emit(BridgeMigrationAborted {
+        compatible_versions: *bridge.compatible_versions.keys(),
+    });
+}
+
+/// Completes the migration process for the bridge
+public fun complete_bridge_migration(bridge: &mut Bridge, safe: &BridgeSafe, ctx: &TxContext) {
+    safe::checkOwnerRole(safe, ctx);
+    assert!(bridge.compatible_versions.length() == 2, EMigrationNotStarted);
+
+    let (version_a, version_b) = (
+        bridge.compatible_versions.keys()[0],
+        bridge.compatible_versions.keys()[1],
+    );
+    let (active_version, pending_version) = (min(version_a, version_b), max(version_a, version_b));
+
+    assert!(pending_version == version_control::current_version(), ENotPendingVersion);
+
+    bridge.compatible_versions.remove(&active_version);
+
+    event::emit(BridgeMigrationCompleted {
+        compatible_versions: *bridge.compatible_versions.keys(),
+    });
+}
+
+/// Helper function to check if a bridge migration is in progress
+public fun is_bridge_migration_in_progress(bridge: &Bridge): bool {
+    bridge.compatible_versions.length() > 1
+}
+
+/// [Package private] Asserts that the Bridge object is compatible with current version
+public(package) fun assert_bridge_is_compatible(bridge: &Bridge) {
+    version_control::assert_object_version_is_compatible_with_package(bridge.compatible_versions);
 }
 
 #[test_only]

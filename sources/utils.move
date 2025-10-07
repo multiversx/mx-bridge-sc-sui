@@ -1,3 +1,7 @@
+/// Utils Module - Utility Functions
+/// 
+/// This module provides common utility functions used across the bridge system.
+
 module bridge_safe::utils;
 
 use std::ascii;

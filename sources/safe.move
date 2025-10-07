@@ -1,32 +1,62 @@
+/// Safe Module - Token Management and Batch Processing
+/// 
+/// This module manages token deposits, batching, and secure transfers.
+/// It handles whitelisting, token limits, and coordinates with the bridge module.
+
 module bridge_safe::safe;
 
 use bridge_safe::bridge_roles::{Self, Roles, BridgeSafeTag};
 use bridge_safe::events;
 use bridge_safe::pausable::{Self, Pause};
 use bridge_safe::utils;
+use bridge_safe::version_control;
 use locked_token::bridge_token::BRIDGE_TOKEN;
 use locked_token::treasury;
 use shared_structs::shared_structs::{Self, TokenConfig, Batch, Deposit};
+use std::u64::{min, max};
 use sui::bag::{Self, Bag};
 use sui::clock::{Self, Clock};
 use sui::coin::{Self, Coin};
+use sui::event;
 use sui::table::{Self, Table};
+use sui::vec_set::{Self, VecSet};
+use bridge_safe::upgrade_service_bridge;
 
-const ETokenAlreadyExists: u64 = 2;
-const EBatchBlockLimitExceedsSettle: u64 = 5;
-const EBatchSettleLimitBelowBlock: u64 = 6;
-const EBatchInProgress: u64 = 7;
-const EBatchSizeTooLarge: u64 = 8;
-const ETokenNotWhitelisted: u64 = 10;
-const EAmountBelowMinimum: u64 = 11;
-const EAmountAboveMaximum: u64 = 12;
-const EInsufficientBalance: u64 = 13;
-const EInvalidRecipient: u64 = 14;
-const EZeroAmount: u64 = 15;
-const EOverflow: u64 = 16;
-const EBatchNotFound: u64 = 17;
-const EBatchSizeZero: u64 = 18;
-const EInvalidTokenLimits: u64 = 19;
+// === Migration Events ===
+
+public struct MigrationStarted has copy, drop {
+    compatible_versions: vector<u64>,
+}
+
+public struct MigrationAborted has copy, drop {
+    compatible_versions: vector<u64>,
+}
+
+public struct MigrationCompleted has copy, drop {
+    compatible_versions: vector<u64>,
+}
+
+// === Error Constants ===
+const ETokenAlreadyExists: u64 = 0;
+const EBatchBlockLimitExceedsSettle: u64 = 1;
+const EBatchSettleLimitBelowBlock: u64 = 2;
+const EBatchInProgress: u64 = 3;
+const EBatchSizeTooLarge: u64 = 4;
+const ETokenNotWhitelisted: u64 = 5;
+const EAmountBelowMinimum: u64 = 6;
+const EAmountAboveMaximum: u64 = 7;
+const EInsufficientBalance: u64 = 8;
+const EInvalidRecipient: u64 = 9;
+const EZeroAmount: u64 = 10;
+const EOverflow: u64 = 11;
+const EBatchNotFound: u64 = 12;
+const EBatchSizeZero: u64 = 13;
+const EBridgeAddressZero: u64 = 14;
+const EInvalidTokenLimits: u64 = 15;
+const EMigrationStarted: u64 = 16;
+const EMigrationNotStarted: u64 = 17;
+const ENotPendingVersion: u64 = 18;
+const EObjectMigrated: u64 = 19;
 
 const MAX_U64: u64 = 18446744073709551615;
 const DEFAULT_BATCH_TIMEOUT_MS: u64 = 5 * 1000; // 5 seconds
@@ -47,6 +77,7 @@ public struct BridgeSafe has key {
     batch_deposits: Table<u64, vector<Deposit>>,
     coin_storage: Bag,
     from_coin_cap: treasury::FromCoinCap<BRIDGE_TOKEN>,
+    compatible_versions: VecSet<u64>,
 }
 
 #[allow(lint(self_transfer))]
@@ -55,7 +86,7 @@ public fun initialize(from_coin_cap: treasury::FromCoinCap<BRIDGE_TOKEN>, ctx: &
     let w = bridge_roles::grant_witness();
     let (bridge_cap) = bridge_roles::publish_caps(w, ctx);
 
-    let safe = BridgeSafe {
+    let mut safe = BridgeSafe {
         id: object::new(ctx),
         pause: pausable::new(),
         roles: bridge_roles::new<BridgeSafeTag>(deployer, ctx),
@@ -70,10 +101,12 @@ public fun initialize(from_coin_cap: treasury::FromCoinCap<BRIDGE_TOKEN>, ctx: &
         batch_deposits: table::new(ctx),
         coin_storage: bag::new(ctx),
         from_coin_cap,
+        compatible_versions: vec_set::singleton(version_control::current_version()),
     };
 
-    transfer::public_transfer(bridge_cap, deployer);
+    initialize_upgrade_service(&mut safe, ctx);
 
+    transfer::public_transfer(bridge_cap, deployer);
     transfer::share_object(safe);
 }
 
@@ -263,11 +296,7 @@ public fun set_token_is_mint_burn<T>(
     events::emit_token_is_mint_burn_updated(key, is_mint_burn);
 }
 
-public fun set_bridge_addr(
-    safe: &mut BridgeSafe,
-    new_bridge_addr: address,
-    ctx: &TxContext,
-) {
+public fun set_bridge_addr(safe: &mut BridgeSafe, new_bridge_addr: address, ctx: &TxContext) {
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
 
     let previous_bridge = safe.bridge_addr;
@@ -592,6 +621,114 @@ public fun transfer_ownership(safe: &mut BridgeSafe, new_owner: address, ctx: &T
 
 public fun accept_ownership(safe: &mut BridgeSafe, ctx: &TxContext) {
     safe.roles_mut().owner_role_mut().accept_role(ctx)
+}
+
+// === Upgrade Management ===
+
+/// Initialize upgrade service with proper witness
+fun initialize_upgrade_service(safe: &BridgeSafe, ctx: &mut TxContext) {
+    safe.roles.owner_role().assert_sender_is_active_role(ctx);
+    let w = bridge_roles::grant_witness();
+    let (upgrade_service, _witness) = upgrade_service_bridge::new(
+        w,
+        ctx.sender(),
+        ctx,
+    );
+
+    // Share the upgrade service object
+    transfer::public_share_object(upgrade_service);
+}
+
+/// Returns the compatible versions for the safe
+public fun compatible_versions(safe: &BridgeSafe): vector<u64> {
+    *safe.compatible_versions.keys()
+}
+
+/// Returns the current active version (lowest version in the set)
+public fun current_active_version(safe: &BridgeSafe): u64 {
+    let versions = safe.compatible_versions.keys();
+    if (versions.length() == 1) {
+        versions[0]
+    } else {
+        min(versions[0], versions[1])
+    }
+}
+
+/// Returns the pending version if migration is in progress, otherwise returns none
+public fun pending_version(safe: &BridgeSafe): Option<u64> {
+    if (safe.compatible_versions.length() == 2) {
+        let versions = safe.compatible_versions.keys();
+        option::some(max(versions[0], versions[1]))
+    } else {
+        option::none()
+    }
+}
+
+/// Starts the migration process, making the Safe object be
+/// additionally compatible with this package's version.
+public fun start_migration(safe: &mut BridgeSafe, ctx: &TxContext) {
+    safe.roles.owner_role().assert_sender_is_active_role(ctx);
+    assert!(safe.compatible_versions.length() == 1, EMigrationStarted);
+
+    let active_version = safe.compatible_versions.keys()[0];
+    assert!(active_version < version_control::current_version(), EObjectMigrated);
+
+    safe.compatible_versions.insert(version_control::current_version());
+
+    event::emit(MigrationStarted {
+        compatible_versions: *safe.compatible_versions.keys(),
+    });
+}
+
+/// Aborts the migration process, reverting the Safe object's compatibility
+/// to the previous version.
+public fun abort_migration(safe: &mut BridgeSafe, ctx: &TxContext) {
+    safe.roles.owner_role().assert_sender_is_active_role(ctx);
+    assert!(safe.compatible_versions.length() == 2, EMigrationNotStarted);
+
+    let pending_version = max(
+        safe.compatible_versions.keys()[0],
+        safe.compatible_versions.keys()[1],
+    );
+    assert!(pending_version == version_control::current_version(), ENotPendingVersion);
+
+    safe.compatible_versions.remove(&pending_version);
+
+    event::emit(MigrationAborted {
+        compatible_versions: *safe.compatible_versions.keys(),
+    });
+}
+
+/// Completes the migration process, making the Safe object be
+/// only compatible with this package's version.
+public fun complete_migration(safe: &mut BridgeSafe, ctx: &TxContext) {
+    safe.roles.owner_role().assert_sender_is_active_role(ctx);
+    assert!(safe.compatible_versions.length() == 2, EMigrationNotStarted);
+
+    let (version_a, version_b) = (
+        safe.compatible_versions.keys()[0],
+        safe.compatible_versions.keys()[1],
+    );
+    let (active_version, pending_version) = (min(version_a, version_b), max(version_a, version_b));
+
+    assert!(pending_version == version_control::current_version(), ENotPendingVersion);
+
+    safe.compatible_versions.remove(&active_version);
+
+    event::emit(MigrationCompleted {
+        compatible_versions: *safe.compatible_versions.keys(),
+    });
+}
+
+/// Helper function to check if a migration is in progress
+public fun is_migration_in_progress(safe: &BridgeSafe): bool {
+    safe.compatible_versions.length() > 1
+}
+
+/// [Package private] Asserts that the Safe object
+/// is compatible with the package's version.
+public(package) fun assert_is_compatible(safe: &BridgeSafe) {
+    version_control::assert_object_version_is_compatible_with_package(safe.compatible_versions);
 }
 
 #[test_only]
