@@ -11,7 +11,7 @@ use bridge_safe::events;
 use bridge_safe::pausable::{Self, Pause};
 use bridge_safe::safe::{Self, BridgeSafe};
 use bridge_safe::utils;
-use bridge_safe::version_control;
+use bridge_safe::bridge_version_control;
 use locked_token::bridge_token::BRIDGE_TOKEN;
 use locked_token::treasury;
 use shared_structs::shared_structs::{Self, Deposit, Batch, CrossTransferStatus, DepositStatus};
@@ -132,7 +132,7 @@ public fun initialize(
         bridge_cap,
         executed_transfer_by_batch_type_arg: vec_set::empty<vector<u8>>(),
         successful_transfers_by_batch: table::new(ctx),
-        compatible_versions: vec_set::singleton(version_control::current_version()),
+        compatible_versions: vec_set::singleton(bridge_version_control::current_version()),
     };
 
     transfer::share_object(bridge);
@@ -663,9 +663,9 @@ public fun start_bridge_migration(bridge: &mut Bridge, safe: &BridgeSafe, ctx: &
     assert!(bridge.compatible_versions.length() == 1, EMigrationStarted);
 
     let active_version = bridge.compatible_versions.keys()[0];
-    assert!(active_version < version_control::current_version(), EObjectMigrated);
+    assert!(active_version < bridge_version_control::current_version(), EObjectMigrated);
 
-    bridge.compatible_versions.insert(version_control::current_version());
+    bridge.compatible_versions.insert(bridge_version_control::current_version());
 
     event::emit(BridgeMigrationStarted {
         compatible_versions: *bridge.compatible_versions.keys(),
@@ -681,7 +681,7 @@ public fun abort_bridge_migration(bridge: &mut Bridge, safe: &BridgeSafe, ctx: &
         bridge.compatible_versions.keys()[0],
         bridge.compatible_versions.keys()[1],
     );
-    assert!(pending_version == version_control::current_version(), ENotPendingVersion);
+    assert!(pending_version == bridge_version_control::current_version(), ENotPendingVersion);
 
     bridge.compatible_versions.remove(&pending_version);
 
@@ -701,7 +701,7 @@ public fun complete_bridge_migration(bridge: &mut Bridge, safe: &BridgeSafe, ctx
     );
     let (active_version, pending_version) = (min(version_a, version_b), max(version_a, version_b));
 
-    assert!(pending_version == version_control::current_version(), ENotPendingVersion);
+    assert!(pending_version == bridge_version_control::current_version(), ENotPendingVersion);
 
     bridge.compatible_versions.remove(&active_version);
 
@@ -717,7 +717,7 @@ public fun is_bridge_migration_in_progress(bridge: &Bridge): bool {
 
 /// [Package private] Asserts that the Bridge object is compatible with current version
 public(package) fun assert_bridge_is_compatible(bridge: &Bridge) {
-    version_control::assert_object_version_is_compatible_with_package(bridge.compatible_versions);
+    bridge_version_control::assert_object_version_is_compatible_with_package(bridge.compatible_versions);
 }
 
 #[test_only]

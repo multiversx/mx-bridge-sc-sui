@@ -3,7 +3,7 @@
 /// This module manages package versioning and compatibility checks
 /// for the bridge system upgrade process.
 
-module bridge_safe::version_control;
+module bridge_safe::bridge_version_control;
 
 use sui::vec_set::VecSet;
 
