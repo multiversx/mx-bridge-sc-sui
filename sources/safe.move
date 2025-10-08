@@ -79,6 +79,8 @@ public struct BridgeSafe has key {
     compatible_versions: VecSet<u64>,
 }
 
+public struct SAFE has drop {}
+
 #[allow(lint(self_transfer))]
 public fun initialize(from_coin_cap: treasury::FromCoinCap<BRIDGE_TOKEN>, ctx: &mut TxContext) {
     let deployer = tx_context::sender(ctx);
@@ -103,10 +105,19 @@ public fun initialize(from_coin_cap: treasury::FromCoinCap<BRIDGE_TOKEN>, ctx: &
         compatible_versions: vec_set::singleton(bridge_version_control::current_version()),
     };
 
-    initialize_upgrade_service(&safe, ctx);
-
     transfer::public_transfer(bridge_cap, deployer);
     transfer::share_object(safe);
+}
+
+fun init(witness: SAFE, ctx: &mut TxContext) {
+    let (upgrade_service, _witness) = upgrade_service_bridge::new(
+        witness,
+        ctx.sender(),
+        ctx,
+    );
+
+    // Share the upgrade service object
+    transfer::public_share_object(upgrade_service);
 }
 
 fun borrow_token_cfg_mut(safe: &mut BridgeSafe, key: vector<u8>): &mut TokenConfig {
@@ -623,20 +634,6 @@ public fun accept_ownership(safe: &mut BridgeSafe, ctx: &TxContext) {
 }
 
 // === Upgrade Management ===
-
-/// Initialize upgrade service with proper witness
-fun initialize_upgrade_service(safe: &BridgeSafe, ctx: &mut TxContext) {
-    safe.roles.owner_role().assert_sender_is_active_role(ctx);
-    let w = bridge_roles::grant_witness();
-    let (upgrade_service, _witness) = upgrade_service_bridge::new(
-        w,
-        ctx.sender(),
-        ctx,
-    );
-
-    // Share the upgrade service object
-    transfer::public_share_object(upgrade_service);
-}
 
 /// Returns the compatible versions for the safe
 public fun compatible_versions(safe: &BridgeSafe): vector<u64> {
