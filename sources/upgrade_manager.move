@@ -7,7 +7,7 @@ module bridge_safe::upgrade_manager;
 
 use bridge_safe::bridge::{Self, Bridge};
 use bridge_safe::safe::{Self, BridgeSafe};
-use bridge_safe::version_control;
+use bridge_safe::bridge_version_control;
 use sui::event;
 
 // === Events ===
@@ -56,8 +56,8 @@ public fun complete_system_migration(
     bridge::complete_bridge_migration(bridge, safe, ctx);
     
     event::emit(SystemUpgradeCompleted {
-        new_version: version_control::current_version(),
-        previous_versions: vector[version_control::current_version() - 1], // Previous version
+        new_version: bridge_version_control::current_version(),
+        previous_versions: vector[bridge_version_control::current_version() - 1], // Previous version
     });
 }
 
