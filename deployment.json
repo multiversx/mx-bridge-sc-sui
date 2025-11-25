@@ -1,0 +1,94 @@
+{
+  "testnet": {
+    "deployments": [
+      {
+        "id": 1,
+        "createdAt": "2025-11-24T09:49:20.293Z",
+        "active": false,
+        "Package": "0x04981bede3356e51882e263039eb92e93b15c29d91c06bcfe3f370b69e3d2d53",
+        "Objects": {
+          "UpgradeCap": "0x2e0987c0ed645e9f9491a1f584fdc33b87c0bfe2ee3c4bc75862adfdbc81cbad",
+          "UpgradeService": "0x8b5aeb7339234e31132687bbfb3c3516a652675d90df40509ab1d610b35cae3a"
+        },
+        "Operators": {
+          "Admin": "0xde91225b70964422bbaea44f2b77bf76e962eb7b1607039783bd2af31e96ce74"
+        },
+        "digest": "G7w1tp4DCcrQ5PrfFdb7fPTeWU8jMGfkT4UA1KxaT5bg",
+        "lastUpgrade": {
+          "previousPackage": "0xcb201e19f209eda1a88c908dabfac0c826283f83f2f1c8f71b210c1e9f70a7e6",
+          "upgradedAt": "2025-11-24T09:54:10.631Z",
+          "digest": "46VKVFtRJmEemNoYRg3KTAjFKQPR6d9jX9Uy8iyD5GBS"
+        }
+      },
+      {
+        "id": 2,
+        "createdAt": "2025-11-24T10:22:36.050Z",
+        "active": true,
+        "Package": "0xe8674ecf82980c6ff35a263a69edbb04db274cb309f6c58fab72a960092e8e08",
+        "Objects": {
+          "UpgradeCap": "0x67625747e880badbcb09ded24bad2740edfbc5df5e46dde09fe8d8dde8cee46b",
+          "UpgradeService": "0xef70da735a0df4d60e0ce1a5905d84f33e36e6217f017ca9386b70ae397afbd0",
+          "Field": "0xfacaf93df717012c7bc97c71f111c66d897231e3441a1d124f701c61d003bbde",
+          "BridgeCap": "0x3f1cceb9c4c13d658088bebbb40d689614be82ee2ee3607810d28ca62bcaad32",
+          "BridgeSafe": "0x560f5b6f1013dccb1137d8e39c0f6c932da1f9d6cc2edd6e87822544e9ef3243",
+          "Bridge": "0x0d807d28e49f8ac9ff2f26a771e1393ff7d9148ebfd4a1c66d78455f5dd10750"
+        },
+        "Operators": {
+          "Admin": "0xde91225b70964422bbaea44f2b77bf76e962eb7b1607039783bd2af31e96ce74"
+        },
+        "digest": "8TgXERGSHNTjUpaLPNxBKpcsFSmdyLGLD6ZMuQyTiHKu",
+        "whitelistHistory": [
+          {
+            "timestamp": "2025-11-24T11:49:27.083Z",
+            "digest": "DYSfz1ZNLiwWS8pdg1hwj9VTv2CwzwSQkrAcEJRNikR3",
+            "tokenType": "0x49934c5c0866e0b62db2f43296994f28d09505f48005032d4285a5da53f35e2a::xmn::XMN",
+            "minAmount": "1",
+            "maxAmount": "1000000000000000",
+            "isNative": true,
+            "isLocked": false
+          },
+          {
+            "timestamp": "2025-11-24T12:30:25.354Z",
+            "digest": "GUk1VZr8NH9dw1qHaNXEUkjkfBknCi5iYYmqhkY8N7GV",
+            "tokenType": "0x49934c5c0866e0b62db2f43296994f28d09505f48005032d4285a5da53f35e2a::xmn::XMN",
+            "minAmount": "1",
+            "maxAmount": "1000000000000000",
+            "isNative": true,
+            "isLocked": false
+          }
+        ],
+        "whitelistRemovalHistory": [
+          {
+            "timestamp": "2025-11-24T12:27:45.582Z",
+            "digest": "HzqaUHvqiN5Nqw6GWFb3At3UQvpzS3wSwCs1RsoHZ94S",
+            "tokenType": "0x49934c5c0866e0b62db2f43296994f28d09505f48005032d4285a5da53f35e2a::xmn::XMN"
+          },
+          {
+            "timestamp": "2025-11-24T12:28:03.199Z",
+            "digest": "FD2a2CZvhSvwoxoyMw9G1tRq7U6M494Q67mrBoFtkCU8",
+            "tokenType": "0x49934c5c0866e0b62db2f43296994f28d09505f48005032d4285a5da53f35e2a::xmn::XMN"
+          },
+          {
+            "timestamp": "2025-11-24T12:28:44.532Z",
+            "digest": "5h1T6DwgqATv4PEK3a8feQADxQDmE3qf7nBo4wScGpef",
+            "tokenType": "0x49934c5c0866e0b62db2f43296994f28d09505f48005032d4285a5da53f35e2a::xmn::XMN"
+          }
+        ],
+        "initSupplyHistory": [
+          {
+            "timestamp": "2025-11-24T12:47:26.882Z",
+            "digest": "87qU9RFfuXvpsLcwVndFncTZ27jRMMmPVE4YpRMcmKat",
+            "tokenType": "0x49934c5c0866e0b62db2f43296994f28d09505f48005032d4285a5da53f35e2a::xmn::XMN",
+            "coinAmount": "15000000"
+          }
+        ]
+      }
+    ]
+  },
+  "mainnet": {
+    "deployments": []
+  },
+  "devnet": {
+    "deployments": []
+  }
+}
