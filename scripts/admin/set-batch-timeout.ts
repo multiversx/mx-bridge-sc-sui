@@ -1,8 +1,8 @@
 import { ADMIN, DEPLOYMENT, SUI_CLIENT, ENV } from "@/env";
 import { sleep } from "@/mx-bridge-typescript/src/utils";
 
-// --- CONFIGURATION ---
-const TIMEOUT_MS = "60000"; // Set your desired timeout in milliseconds (e.g., 60000 = 60 seconds)
+// --- PARAMS ---
+const TIMEOUT_MS = 5 * 1000;
 // ----------------------
 
 async function main() {

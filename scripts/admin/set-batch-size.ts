@@ -1,8 +1,8 @@
 import { ADMIN, DEPLOYMENT, SUI_CLIENT, ENV } from "@/env";
 import { sleep } from "@/mx-bridge-typescript/src/utils";
 
-// --- CONFIGURATION ---
-const NEW_BATCH_SIZE = "100"; // Set your desired batch size
+// --- PARAMS ---
+const NEW_BATCH_SIZE = 100;
 // ----------------------
 
 async function main() {

@@ -1,14 +1,13 @@
 import path from "path";
-import fs from "fs";
 import { execSync } from "child_process";
-import { ADMIN, DEPLOYMENT, SUI_CLIENT, ENV, suiClient } from "@/env";
-import { Transaction, UpgradePolicy } from "@mysten/sui/transactions";
-import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
+import { ADMIN, DEPLOYMENT, SUI_CLIENT, ENV } from "@/env";
 import {
   getCreatedObjectsIDs,
+  newTransactionBlock,
   readJSONFile,
   sleep,
-  validateTransactionSuccess,
+  UpgradePolicy,
+  writeJSONFile,
 } from "@/mx-bridge-typescript/src/utils";
 
 async function main() {
@@ -38,7 +37,7 @@ async function main() {
     )
   );
 
-  const tx = new Transaction();
+  const tx = newTransactionBlock();
   const cap = tx.object(DEPLOYMENT.Objects.UpgradeCap);
 
   const ticket = tx.moveCall({
@@ -64,18 +63,7 @@ async function main() {
 
   tx.setSender(deployerAddress);
 
-  const result = await suiClient.signAndExecuteTransaction({
-    signer: ADMIN as unknown as Ed25519Keypair,
-    transaction: tx,
-    options: {
-      showEffects: true,
-      showObjectChanges: true,
-    },
-  });
-
-  console.log("Digest:", result.digest);
-
-  validateTransactionSuccess(result);
+  const result = await SUI_CLIENT.sendTransactionReturnResult(tx);
 
   await sleep(3000);
 
@@ -121,7 +109,7 @@ async function main() {
     digest: result.digest,
   };
 
-  fs.writeFileSync(filePath, JSON.stringify(allDeployments, null, 2), "utf-8"); // TODO
+  writeJSONFile(allDeployments, filePath);
 
   console.log("Upgrade details saved.");
 

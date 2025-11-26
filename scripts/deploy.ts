@@ -1,14 +1,13 @@
 import path from "path";
-import fs from "fs";
 import { execSync } from "child_process";
-import { ADMIN, SUI_CLIENT, ENV, suiClient } from "@/env";
-import { Transaction } from "@mysten/sui/transactions";
-import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
+
+import { ADMIN, ENV, SUI_CLIENT } from "@/env";
 import {
   sleep,
   getCreatedObjectsIDs,
   readJSONFile,
-  validateTransactionSuccess,
+  newTransactionBlock,
+  writeJSONFile,
 } from "@/mx-bridge-typescript/src/utils";
 
 export async function main() {
@@ -26,25 +25,14 @@ export async function main() {
     )
   );
 
-  const tx = new Transaction();
+  const tx = newTransactionBlock();
   const [upgradeCap] = tx.publish({ modules, dependencies });
 
   tx.transferObjects([upgradeCap], tx.pure.address(deployerAddress));
 
   console.log("Deploying");
-  await sleep(3000);
 
-  const result = await suiClient.signAndExecuteTransaction({
-    signer: ADMIN as unknown as Ed25519Keypair,
-    transaction: tx,
-    options: {
-      showEffects: true,
-      showObjectChanges: true,
-    },
-  });
-
-  validateTransactionSuccess(result);
-
+  const result = await SUI_CLIENT.sendTransactionReturnResult(tx);
   await sleep(3000);
 
   console.log("Deployment successful!");
@@ -53,7 +41,7 @@ export async function main() {
     `View transaction: https://suiscan.xyz/${ENV.DEPLOY_ON}/tx/${result.digest}`
   );
 
-  console.log("Saving deployment details...");
+  console.log("\nSaving deployment details...");
 
   const objects = getCreatedObjectsIDs(result);
 
@@ -70,13 +58,14 @@ export async function main() {
   const createdAt = new Date().toISOString();
 
   const deploymentData = {
+    type: "bridge",
     id: deploymentId,
-    createdAt,
     active: false,
+    digest: result.digest,
+    createdAt,
     Package: Package || undefined,
     Objects: restObjects,
     Operators: { Admin: deployerAddress },
-    digest: result.digest,
   };
 
   if (!allDeployments[ENV.DEPLOY_ON]) {
@@ -88,7 +77,7 @@ export async function main() {
 
   allDeployments[ENV.DEPLOY_ON].deployments.push(deploymentData);
 
-  fs.writeFileSync(filePath, JSON.stringify(allDeployments, null, 2), "utf-8"); // TODO
+  writeJSONFile(allDeployments, filePath);
 
   console.log("Deployment saved to:", filePath);
 
@@ -98,11 +87,7 @@ export async function main() {
   console.log(`Package: ${Package || "N/A"}`);
 
   console.log(`\nTo make this deployment active, run the following command:\n`);
-  console.log(
-    `ENVIRONMENT_ID=${deploymentId} npx tsx scripts/mark-active.ts\n`
-  );
-
-  return result;
+  console.log(`DEPLOYMENT_ID=${deploymentId} npx tsx scripts/mark-active.ts\n`);
 }
 
 if (require.main === module) {

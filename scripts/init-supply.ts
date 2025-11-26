@@ -1,9 +1,12 @@
 import path from "path";
-import fs from "fs";
 import { SUI_CLIENT, DEPLOYMENT, ENV, CONFIG, ADMIN } from "@/env";
-import { sleep, readJSONFile } from "@/mx-bridge-typescript/src/utils";
+import {
+  sleep,
+  readJSONFile,
+  writeJSONFile,
+} from "@/mx-bridge-typescript/src/utils";
 
-// --- CONFIGURATION ---
+// --- PARAMS ---
 const TOKEN_TYPE = CONFIG.Coin_types.reward;
 const COIN_AMOUNT = "15000000";
 // ----------------------
@@ -107,7 +110,7 @@ async function main() {
   targetDeployment.whitelistedTokens[TOKEN_TYPE].initializedSupply =
     newSupply.toString();
 
-  fs.writeFileSync(filePath, JSON.stringify(allDeployments, null, 2), "utf-8");
+  writeJSONFile(allDeployments, filePath);
 
   console.log(
     `\nToken supply updated: ${COIN_AMOUNT} added (total: ${newSupply.toString()})`

@@ -1,9 +1,12 @@
 import path from "path";
-import fs from "fs";
 import { SUI_CLIENT, DEPLOYMENT, ENV, CONFIG } from "@/env";
-import { sleep, readJSONFile } from "@/mx-bridge-typescript/src/utils";
+import {
+  sleep,
+  readJSONFile,
+  writeJSONFile,
+} from "@/mx-bridge-typescript/src/utils";
 
-// --- CONFIGURATION ---
+// --- PARAMS ---
 const TOKEN_TYPE = CONFIG.Coin_types.reward;
 // ----------------------
 
@@ -78,7 +81,6 @@ async function main() {
     targetDeployment.whitelistedTokens = {};
   }
 
-  // Remove the token from whitelistedTokens
   if (targetDeployment.whitelistedTokens[TOKEN_TYPE]) {
     delete targetDeployment.whitelistedTokens[TOKEN_TYPE];
     console.log(`\nToken ${TOKEN_TYPE} removed from whitelistedTokens`);
@@ -88,7 +90,7 @@ async function main() {
     );
   }
 
-  fs.writeFileSync(filePath, JSON.stringify(allDeployments, null, 2), "utf-8");
+  writeJSONFile(allDeployments, filePath);
 
   console.log("\nRemoval details saved to deployment.json");
 }

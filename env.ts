@@ -1,7 +1,6 @@
 import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
-import { SuiClient } from "@mysten/sui/client";
 
 import {
   readJSONFile,
@@ -11,8 +10,12 @@ import {
   getKeyPairFromPvtKey,
   getKeyPairFromSeed,
 } from "./mx-bridge-typescript/src/utils/keypair";
-import type { WalletScheme } from "./mx-bridge-typescript/src/clients/sui/types";
+import type {
+  BridgeDeploymentInfo,
+  WalletScheme,
+} from "./mx-bridge-typescript/src/clients/sui/types";
 import { createClient } from "./mx-bridge-typescript/src/clients/sui/factory";
+import { BridgeClient } from "./mx-bridge-typescript/src/clients/sui/BridgeClient";
 
 dotenv.config({ path: path.join(__dirname, ".env") });
 
@@ -33,12 +36,11 @@ export const CONFIG = readJSONFile(path.join(__dirname, "config.json"))[
 const deploymentPath = path.join(__dirname, "deployment.json");
 if (!fs.existsSync(deploymentPath)) {
   const emptyDeployment = {
-    type: "bridge",
     testnet: { deployments: [] },
     mainnet: { deployments: [] },
     devnet: { deployments: [] },
   };
-  writeJSONFile(emptyDeployment, deploymentPath); // TODO
+  writeJSONFile(emptyDeployment, deploymentPath);
   console.log("Created empty deployment.json file");
 }
 
@@ -99,13 +101,23 @@ try {
   console.warn("Error loading deployment.json:", error);
 }
 
-export const suiClient = new SuiClient({ url: CONFIG.rpc });
-
-export const DEPLOYMENT = deploymentData;
-
 export const ADMIN =
   ENV.DEPLOYER_KEY != "0x"
     ? getKeyPairFromPvtKey(ENV.DEPLOYER_KEY, ENV.WALLET_SCHEME)
     : getKeyPairFromSeed(ENV.DEPLOYER_PHRASE, ENV.WALLET_SCHEME);
 
-export const SUI_CLIENT = createClient(CONFIG.rpc, DEPLOYMENT, ADMIN);
+export const DEPLOYMENT = deploymentData as BridgeDeploymentInfo;
+
+const deploymentForClient: BridgeDeploymentInfo = DEPLOYMENT?.Package
+  ? DEPLOYMENT
+  : ({
+      type: "bridge",
+      Package: "",
+      Objects: {},
+    } as BridgeDeploymentInfo);
+
+export const SUI_CLIENT = createClient(
+  CONFIG.rpc,
+  deploymentForClient,
+  ADMIN
+) as BridgeClient;

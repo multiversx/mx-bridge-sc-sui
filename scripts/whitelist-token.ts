@@ -1,9 +1,13 @@
 import path from "path";
-import fs from "fs";
+import fs, { write } from "fs";
 import { ADMIN, DEPLOYMENT, SUI_CLIENT, ENV, CONFIG } from "@/env";
-import { sleep, readJSONFile } from "@/mx-bridge-typescript/src/utils";
+import {
+  sleep,
+  readJSONFile,
+  writeJSONFile,
+} from "@/mx-bridge-typescript/src/utils";
 
-// --- CONFIGURATION ---
+// --- PARAMS ---
 const TOKEN_TYPE = CONFIG.Coin_types.reward;
 const MIN_AMOUNT = "1";
 const MAX_AMOUNT = "1000000000000000";
@@ -104,7 +108,7 @@ async function main() {
       targetDeployment.whitelistedTokens[TOKEN_TYPE]?.initializedSupply || "0",
   };
 
-  fs.writeFileSync(filePath, JSON.stringify(allDeployments, null, 2), "utf-8");
+  writeJSONFile(allDeployments, filePath);
 
   console.log("\nWhitelist details saved to deployment.json");
 }

@@ -13,7 +13,7 @@
   "testnet": {
     "rpc": "https://fullnode.testnet.sui.io:443",
     "Capabilities": {
-      "fromCoinCap": "0x7e09505dcee7b4e4bf916468a07e0241b486f895a6c3aec21d269fb35b50f62e"
+      "fromCoinCap": "0x072009c1fe8000cc7e2e87716e198e8cbfa4c1919ddf5cb63c824f4a67255263"
     },
     "Coin_types": {
       "reward": "0x49934c5c0866e0b62db2f43296994f28d09505f48005032d4285a5da53f35e2a::xmn::XMN",

@@ -7,7 +7,7 @@ import {
   writeJSONFile,
 } from "@/mx-bridge-typescript/src/utils";
 
-// --- CONFIGURATION ---
+// --- PARAMS ---
 const RELAYER_PUBLIC_KEYS = [
   "0x30815d22b6d19ecc6df7f3f87ee9671177fdbf2dafbd79728baf5b75f6fe6f0e",
   "0xdd3105f3a5688568409413d86449b2a8ad0e1021d52846f6eef84f0e07e6d282",
@@ -106,8 +106,6 @@ async function main() {
   }
 
   console.log("\nBridge initialization details saved to deployment.json");
-  console.log(`\nDeployment ID: ${DEPLOYMENT.id}`);
-  console.log(`Network: ${ENV.DEPLOY_ON}`);
 }
 
 if (require.main === module) {

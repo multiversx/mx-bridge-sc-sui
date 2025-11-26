@@ -1,8 +1,6 @@
 import path from "path";
-import fs from "fs";
-import { readJSONFile } from "@/mx-bridge-typescript/src/utils";
+import { readJSONFile, writeJSONFile } from "@/mx-bridge-typescript/src/utils";
 import { ENV } from "@/env";
-import dotenv from "dotenv";
 
 /**
  * Mark a specific deployment as active/official for the current network
@@ -51,7 +49,7 @@ async function main() {
 
   deployment.active = true;
 
-  fs.writeFileSync(filePath, JSON.stringify(allDeployments, null, 2), "utf-8");
+  writeJSONFile(allDeployments, filePath);
 
   console.log("\nACTIVE DEPLOYMENT UPDATED");
   console.log(`Deployment ID: ${deploymentId}`);
