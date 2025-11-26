@@ -1,0 +1,22 @@
+{
+  "name": "mx-bridge-sc-sui",
+  "version": "1.0.0",
+  "description": "A comprehensive bridge solution enabling secure token transfers between MultiversX and Sui blockchains, built with Move smart contracts on Sui.",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3"
+  }
+}

@@ -4,3 +4,5 @@ build/*
 .cursor
 .prettierrc
 node_modules/
+
+.env
