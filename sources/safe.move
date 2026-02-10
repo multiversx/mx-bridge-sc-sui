@@ -397,7 +397,7 @@ public fun deposit<T>(
         bag::add(&mut safe.coin_storage, key, coin_in);
     };
 
-    events::emit_deposit(
+    events::emit_deposit_v1(
         batch_nonce,
         dep_nonce,
         tx_context::sender(ctx),

@@ -401,7 +401,8 @@ fun test_emit_deposit_with_large_values() {
     ts::end(scenario);
 }
 
-#[test(expected_failure(abort_code = EDeprecated))]
+#[test]
+#[expected_failure(abort_code = events::EDeprecated)]
 fun test_old_emit_deposit_aborts() {
     let mut scenario = ts::begin(ADMIN);
 
