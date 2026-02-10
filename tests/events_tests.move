@@ -17,7 +17,7 @@ fun test_emit_deposit() {
     scenario.next_tx(ADMIN);
     {
         // Test emitting a deposit event
-        events::emit_deposit(
+        events::emit_deposit_v1(
             123, // batch_id
             456, // deposit_nonce
             USER, // sender
@@ -369,7 +369,7 @@ fun test_emit_deposit_with_empty_vectors() {
     scenario.next_tx(ADMIN);
     {
         // Test emitting a deposit event with empty vectors
-        events::emit_deposit(
+        events::emit_deposit_v1(
             0, 
             0, 
             @0x0,
@@ -388,7 +388,7 @@ fun test_emit_deposit_with_large_values() {
     
     scenario.next_tx(ADMIN);
     {
-        events::emit_deposit(
+        events::emit_deposit_v1(
             18446744073709551615, 
             18446744073709551615, 
             @0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff, 
@@ -398,6 +398,25 @@ fun test_emit_deposit_with_large_values() {
         );
     };
     
+    ts::end(scenario);
+}
+
+#[test(expected_failure(abort_code = EDeprecated))]
+fun test_old_emit_deposit_aborts() {
+    let mut scenario = ts::begin(ADMIN);
+
+    scenario.next_tx(ADMIN);
+    {
+        events::emit_deposit(
+            18446744073709551615,
+            18446744073709551615,
+            @0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff,
+            b"very_long_recipient_address_that_could_potentially_be_quite_large",
+            18446744073709551615,
+            b"VERY_LONG_TOKEN_TYPE_NAME_FOR_TESTING_PURPOSES"
+        );
+    };
+
     ts::end(scenario);
 }
 
