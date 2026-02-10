@@ -7,6 +7,8 @@ module bridge_safe::events;
 
 use sui::event;
 
+const EDeprecated: u64 = 0;
+
 public struct DepositEvent has copy, drop {
     batch_id: u64,
     deposit_nonce: u64,
@@ -92,7 +94,18 @@ public struct BatchSettingsUpdated has copy, drop {
     batch_settle_limit: u8,
 }
 
-public(package) fun emit_deposit(
+public fun emit_deposit(
+    _batch_id: u64,
+    _deposit_nonce: u64,
+    _sender: address,
+    _recipient: vector<u8>,
+    _amount: u64,
+    _token_type: vector<u8>,
+) {
+    abort EDeprecated
+}
+
+public(package) fun emit_deposit_v1(
     batch_id: u64,
     deposit_nonce: u64,
     sender: address,
