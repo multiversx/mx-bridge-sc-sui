@@ -372,7 +372,11 @@ public fun sync_supply<T>(safe: &mut BridgeSafe, mut coin_in: Coin<T>, ctx: &mut
         bag::add(&mut safe.coin_storage, key, top_up_coin);
     };
 
-    transfer::public_transfer(coin_in, tx_context::sender(ctx));
+    if (coin::value(&coin_in) == 0) {
+        coin::destroy_zero(coin_in);
+    } else {
+        transfer::public_transfer(coin_in, tx_context::sender(ctx));
+    };
 }
 
 /// Deposit function: Users send coins FROM their wallet TO the bridge safe contract

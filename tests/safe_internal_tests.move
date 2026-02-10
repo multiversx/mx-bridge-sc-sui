@@ -1119,14 +1119,6 @@ fun test_sync_supply_exact_amount() {
 
         ts::return_shared(safe);
     };
-
-    scenario.next_tx(ADMIN);
-    {
-        let returned_coin = ts::take_from_sender<coin::Coin<TEST_COIN>>(&scenario);
-        assert!(coin::value(&returned_coin) == 0, 2);
-        ts::return_to_sender(&scenario, returned_coin);
-    };
-
     ts::end(scenario);
 }
 
