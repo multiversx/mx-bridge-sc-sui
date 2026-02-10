@@ -565,23 +565,21 @@ public(package) fun transfer<T>(
         return false
     };
 
-    let stored_coin = bag::borrow_mut<vector<u8>, Coin<T>>(&mut safe.coin_storage, key);
-    let coin_value = coin::value(stored_coin);
-    if (coin_value < amount) {
-        return false
-    };
-
-    let coin_to_transfer = coin::split(stored_coin, amount, ctx);
-
-    if (coin::value(stored_coin) == 0) {
-        let empty_coin = bag::remove<vector<u8>, Coin<T>>(&mut safe.coin_storage, key);
-        coin::destroy_zero(empty_coin);
-    };
-
     if (!shared_structs::get_token_config_is_locked(cfg_ref)) {
+        let stored_coin = bag::borrow_mut<vector<u8>, Coin<T>>(&mut safe.coin_storage, key);
+        let coin_value = coin::value(stored_coin);
+        if (coin_value < amount) {
+            return false
+        };
+
+        let coin_to_transfer = coin::split(stored_coin, amount, ctx);
+
+        if (coin::value(stored_coin) == 0) {
+            let empty_coin = bag::remove<vector<u8>, Coin<T>>(&mut safe.coin_storage, key);
+            coin::destroy_zero(empty_coin);
+        };
         transfer::public_transfer(coin_to_transfer, receiver);
     } else {
-        transfer::public_transfer(coin_to_transfer, @0x0);
         let stored_bt_coin = bag::borrow_mut<
             vector<u8>,
             Coin<locked_token::bridge_token::BRIDGE_TOKEN>,
@@ -613,6 +611,15 @@ public fun get_stored_coin_balance<T>(safe: &mut BridgeSafe): u64 {
     };
     let cfg_ref = table::borrow(&safe.token_cfg, key);
     shared_structs::token_config_total_balance(cfg_ref)
+}
+
+public fun get_coin_storage_balance<T>(safe: &BridgeSafe): u64 {
+    let key = utils::type_name_bytes<T>();
+    if (!bag::contains(&safe.coin_storage, key)) {
+        return 0
+    };
+    let stored_coin = bag::borrow<vector<u8>, Coin<T>>(&safe.coin_storage, key);
+    coin::value(stored_coin)
 }
 
 public fun pause_contract(safe: &mut BridgeSafe, ctx: &mut TxContext) {
@@ -736,3 +743,4 @@ public fun init_for_testing(from_cap: treasury::FromCoinCap<BRIDGE_TOKEN>, ctx: 
 public fun create_batch_for_testing(safe: &mut BridgeSafe, clock: &Clock, ctx: &mut TxContext) {
     create_new_batch_internal(safe, clock, ctx);
 }
+

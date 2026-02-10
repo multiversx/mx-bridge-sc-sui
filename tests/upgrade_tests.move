@@ -5,7 +5,7 @@ use bridge_safe::bridge::{Self, Bridge};
 use bridge_safe::bridge_roles::BridgeCap;
 use bridge_safe::safe::{Self, BridgeSafe};
 use bridge_safe::upgrade_manager;
-use bridge_safe::version_control;
+use bridge_safe::bridge_version_control;
 use locked_token::bridge_token::{Self as br, BRIDGE_TOKEN};
 use locked_token::treasury::{Self as lkt, Treasury, FromCoinCap};
 use sui::test_scenario::{Self as ts, Scenario};
@@ -86,8 +86,8 @@ fun test_upgrade_workflow() {
         
         assert!(safe_versions.length() == 1, 0);
         assert!(bridge_versions.length() == 1, 1);
-        assert!(safe_versions[0] == version_control::current_version(), 2);
-        assert!(bridge_versions[0] == version_control::current_version(), 3);
+        assert!(safe_versions[0] == bridge_version_control::current_version(), 2);
+        assert!(bridge_versions[0] == bridge_version_control::current_version(), 3);
         
         // Check that no migration is in progress
         assert!(!safe::is_migration_in_progress(&safe), 4);
@@ -114,8 +114,8 @@ fun test_system_upgrade_status() {
         let safe_active = safe::current_active_version(&safe);
         let bridge_active = bridge::bridge_current_active_version(&bridge);
         
-        assert!(safe_active == version_control::current_version(), 4);
-        assert!(bridge_active == version_control::current_version(), 5);
+        assert!(safe_active == bridge_version_control::current_version(), 4);
+        assert!(bridge_active == bridge_version_control::current_version(), 5);
         
         // Test pending versions (should be none)
         let safe_pending = safe::pending_version(&safe);
