@@ -1048,6 +1048,250 @@ fun test_overwrite_pending_ownership_transfer() {
 }
 
 #[test]
+fun test_sync_supply() {
+    let mut scenario = setup();
+    scenario.next_tx(ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+
+        safe::whitelist_token<TEST_COIN>(
+            &mut safe,
+            MIN_AMOUNT,
+            MAX_AMOUNT,
+            true,
+            false,
+            ts::ctx(&mut scenario),
+        );
+
+        let coin = coin::mint_for_testing<TEST_COIN>(1000, ts::ctx(&mut scenario));
+        safe::init_supply<TEST_COIN>(&mut safe, coin, ts::ctx(&mut scenario));
+
+        safe::add_to_balance_for_testing<TEST_COIN>(&mut safe, 500);
+
+        assert!(safe::get_stored_coin_balance<TEST_COIN>(&mut safe) == 1500, 0);
+        assert!(safe::get_coin_storage_balance<TEST_COIN>(&safe) == 1000, 1);
+
+        let sync_coin = coin::mint_for_testing<TEST_COIN>(800, ts::ctx(&mut scenario));
+        safe::sync_supply<TEST_COIN>(&mut safe, sync_coin, ts::ctx(&mut scenario));
+
+        assert!(safe::get_stored_coin_balance<TEST_COIN>(&mut safe) == 1500, 2);
+        assert!(safe::get_coin_storage_balance<TEST_COIN>(&safe) == 1500, 3);
+
+        ts::return_shared(safe);
+    };
+
+    scenario.next_tx(ADMIN);
+    {
+        let returned_coin = ts::take_from_sender<coin::Coin<TEST_COIN>>(&scenario);
+        assert!(coin::value(&returned_coin) == 300, 4);
+        ts::return_to_sender(&scenario, returned_coin);
+    };
+
+    ts::end(scenario);
+}
+
+#[test]
+fun test_sync_supply_exact_amount() {
+    let mut scenario = setup();
+    scenario.next_tx(ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+
+        safe::whitelist_token<TEST_COIN>(
+            &mut safe,
+            MIN_AMOUNT,
+            MAX_AMOUNT,
+            true,
+            false,
+            ts::ctx(&mut scenario),
+        );
+
+        let coin = coin::mint_for_testing<TEST_COIN>(1000, ts::ctx(&mut scenario));
+        safe::init_supply<TEST_COIN>(&mut safe, coin, ts::ctx(&mut scenario));
+
+        safe::add_to_balance_for_testing<TEST_COIN>(&mut safe, 500);
+
+        let sync_coin = coin::mint_for_testing<TEST_COIN>(500, ts::ctx(&mut scenario));
+        safe::sync_supply<TEST_COIN>(&mut safe, sync_coin, ts::ctx(&mut scenario));
+
+        assert!(safe::get_stored_coin_balance<TEST_COIN>(&mut safe) == 1500, 0);
+        assert!(safe::get_coin_storage_balance<TEST_COIN>(&safe) == 1500, 1);
+
+        ts::return_shared(safe);
+    };
+
+    scenario.next_tx(ADMIN);
+    {
+        let returned_coin = ts::take_from_sender<coin::Coin<TEST_COIN>>(&scenario);
+        assert!(coin::value(&returned_coin) == 0, 2);
+        ts::return_to_sender(&scenario, returned_coin);
+    };
+
+    ts::end(scenario);
+}
+
+#[test]
+fun test_sync_supply_no_existing_bag_entry() {
+    let mut scenario = setup();
+    scenario.next_tx(ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+
+        safe::whitelist_token<TEST_COIN>(
+            &mut safe,
+            MIN_AMOUNT,
+            MAX_AMOUNT,
+            true,
+            false,
+            ts::ctx(&mut scenario),
+        );
+
+        safe::add_to_balance_for_testing<TEST_COIN>(&mut safe, 500);
+
+        assert!(safe::get_stored_coin_balance<TEST_COIN>(&mut safe) == 500, 0);
+        assert!(safe::get_coin_storage_balance<TEST_COIN>(&safe) == 0, 1);
+
+        let sync_coin = coin::mint_for_testing<TEST_COIN>(500, ts::ctx(&mut scenario));
+        safe::sync_supply<TEST_COIN>(&mut safe, sync_coin, ts::ctx(&mut scenario));
+
+        assert!(safe::get_stored_coin_balance<TEST_COIN>(&mut safe) == 500, 2);
+        assert!(safe::get_coin_storage_balance<TEST_COIN>(&safe) == 500, 3);
+
+        ts::return_shared(safe);
+    };
+    ts::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = ESenderNotActiveRole)]
+fun test_sync_supply_not_owner() {
+    let mut scenario = setup();
+    scenario.next_tx(ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+
+        safe::whitelist_token<TEST_COIN>(
+            &mut safe,
+            MIN_AMOUNT,
+            MAX_AMOUNT,
+            true,
+            false,
+            ts::ctx(&mut scenario),
+        );
+
+        safe::add_to_balance_for_testing<TEST_COIN>(&mut safe, 500);
+
+        ts::return_shared(safe);
+    };
+
+    scenario.next_tx(USER);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        let sync_coin = coin::mint_for_testing<TEST_COIN>(500, ts::ctx(&mut scenario));
+        safe::sync_supply<TEST_COIN>(&mut safe, sync_coin, ts::ctx(&mut scenario));
+        ts::return_shared(safe);
+    };
+    ts::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = safe::ETokenNotWhitelisted)]
+fun test_sync_supply_token_not_whitelisted() {
+    let mut scenario = setup();
+    scenario.next_tx(ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        let sync_coin = coin::mint_for_testing<TEST_COIN>(500, ts::ctx(&mut scenario));
+        safe::sync_supply<TEST_COIN>(&mut safe, sync_coin, ts::ctx(&mut scenario));
+        ts::return_shared(safe);
+    };
+    ts::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = safe::EInsufficientBalance)]
+fun test_sync_supply_no_deficit() {
+    let mut scenario = setup();
+    scenario.next_tx(ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+
+        safe::whitelist_token<TEST_COIN>(
+            &mut safe,
+            MIN_AMOUNT,
+            MAX_AMOUNT,
+            true,
+            false,
+            ts::ctx(&mut scenario),
+        );
+
+        let coin = coin::mint_for_testing<TEST_COIN>(1000, ts::ctx(&mut scenario));
+        safe::init_supply<TEST_COIN>(&mut safe, coin, ts::ctx(&mut scenario));
+
+        let sync_coin = coin::mint_for_testing<TEST_COIN>(500, ts::ctx(&mut scenario));
+        safe::sync_supply<TEST_COIN>(&mut safe, sync_coin, ts::ctx(&mut scenario));
+
+        ts::return_shared(safe);
+    };
+    ts::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = safe::EInsufficientBalance)]
+fun test_sync_supply_insufficient_coin() {
+    let mut scenario = setup();
+    scenario.next_tx(ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+
+        safe::whitelist_token<TEST_COIN>(
+            &mut safe,
+            MIN_AMOUNT,
+            MAX_AMOUNT,
+            true,
+            false,
+            ts::ctx(&mut scenario),
+        );
+
+        let coin = coin::mint_for_testing<TEST_COIN>(1000, ts::ctx(&mut scenario));
+        safe::init_supply<TEST_COIN>(&mut safe, coin, ts::ctx(&mut scenario));
+
+        safe::add_to_balance_for_testing<TEST_COIN>(&mut safe, 500);
+
+        let sync_coin = coin::mint_for_testing<TEST_COIN>(200, ts::ctx(&mut scenario));
+        safe::sync_supply<TEST_COIN>(&mut safe, sync_coin, ts::ctx(&mut scenario));
+
+        ts::return_shared(safe);
+    };
+    ts::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = safe::EInsufficientBalance)]
+fun test_sync_supply_not_native() {
+    let mut scenario = setup();
+    scenario.next_tx(ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+
+        safe::whitelist_token<TEST_COIN>(
+            &mut safe,
+            MIN_AMOUNT,
+            MAX_AMOUNT,
+            false, 
+            false,
+            ts::ctx(&mut scenario),
+        );
+
+        let sync_coin = coin::mint_for_testing<TEST_COIN>(500, ts::ctx(&mut scenario));
+        safe::sync_supply<TEST_COIN>(&mut safe, sync_coin, ts::ctx(&mut scenario));
+
+        ts::return_shared(safe);
+    };
+    ts::end(scenario);
+}
+
+#[test]
 #[expected_failure(abort_code = ESenderNotActiveRole)]
 fun test_old_owner_cannot_use_owner_functions_after_transfer() {
     let mut scenario = setup();
