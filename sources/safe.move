@@ -565,23 +565,21 @@ public(package) fun transfer<T>(
         return false
     };
 
-    let stored_coin = bag::borrow_mut<vector<u8>, Coin<T>>(&mut safe.coin_storage, key);
-    let coin_value = coin::value(stored_coin);
-    if (coin_value < amount) {
-        return false
-    };
-
-    let coin_to_transfer = coin::split(stored_coin, amount, ctx);
-
-    if (coin::value(stored_coin) == 0) {
-        let empty_coin = bag::remove<vector<u8>, Coin<T>>(&mut safe.coin_storage, key);
-        coin::destroy_zero(empty_coin);
-    };
-
     if (!shared_structs::get_token_config_is_locked(cfg_ref)) {
+        let stored_coin = bag::borrow_mut<vector<u8>, Coin<T>>(&mut safe.coin_storage, key);
+        let coin_value = coin::value(stored_coin);
+        if (coin_value < amount) {
+            return false
+        };
+
+        let coin_to_transfer = coin::split(stored_coin, amount, ctx);
+
+        if (coin::value(stored_coin) == 0) {
+            let empty_coin = bag::remove<vector<u8>, Coin<T>>(&mut safe.coin_storage, key);
+            coin::destroy_zero(empty_coin);
+        };
         transfer::public_transfer(coin_to_transfer, receiver);
     } else {
-        transfer::public_transfer(coin_to_transfer, @0x0);
         let stored_bt_coin = bag::borrow_mut<
             vector<u8>,
             Coin<locked_token::bridge_token::BRIDGE_TOKEN>,

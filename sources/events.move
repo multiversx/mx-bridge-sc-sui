@@ -92,7 +92,7 @@ public struct BatchSettingsUpdated has copy, drop {
     batch_settle_limit: u8,
 }
 
-public fun emit_deposit(
+public(package) fun emit_deposit(
     batch_id: u64,
     deposit_nonce: u64,
     sender: address,
