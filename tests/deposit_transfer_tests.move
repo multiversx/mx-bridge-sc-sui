@@ -496,6 +496,10 @@ fun test_transfer_basic() {
         assert!(success, 1);
         assert!(safe::get_stored_coin_balance<TEST_COIN>(&mut safe) == 100000 - DEPOSIT_AMOUNT, 2);
 
+        let bag_balance = safe::get_coin_storage_balance<TEST_COIN>(&safe);
+        assert!(bag_balance == 100000 - DEPOSIT_AMOUNT, 10);
+        assert!(bag_balance == safe::get_stored_coin_balance<TEST_COIN>(&mut safe), 11);
+
         ts::return_shared(safe);
         ts::return_shared(treasury);
         ts::return_to_address(ADMIN, bridge_cap);
@@ -555,6 +559,10 @@ fun test_transfer_exact_balance() {
         assert!(success, 0);
         assert!(safe::get_stored_coin_balance<TEST_COIN>(&mut safe) == 0, 1);
 
+        let bag_balance = safe::get_coin_storage_balance<TEST_COIN>(&safe);
+        assert!(bag_balance == 0, 10);
+        assert!(bag_balance == safe::get_stored_coin_balance<TEST_COIN>(&mut safe), 11);
+
         ts::return_shared(safe);
         ts::return_shared(treasury);
         ts::return_to_address(ADMIN, bridge_cap);
@@ -584,6 +592,10 @@ fun test_transfer_token_not_whitelisted() {
         );
 
         assert!(!success, 0);
+
+        let bag_balance = safe::get_coin_storage_balance<TEST_COIN>(&safe);
+        assert!(bag_balance == 0, 10);
+        assert!(bag_balance == safe::get_stored_coin_balance<TEST_COIN>(&mut safe), 11);
 
         ts::return_shared(safe);
         ts::return_shared(treasury);
@@ -637,6 +649,10 @@ fun test_transfer_token_removed_from_whitelist() {
 
         assert!(success, 0);
 
+        let bag_balance = safe::get_coin_storage_balance<TEST_COIN>(&safe);
+        assert!(bag_balance == 100000 - DEPOSIT_AMOUNT, 10);
+        assert!(bag_balance == safe::get_stored_coin_balance<TEST_COIN>(&mut safe), 11);
+
         ts::return_shared(safe);
         ts::return_shared(treasury);
         ts::return_to_address(ADMIN, bridge_cap);
@@ -688,6 +704,10 @@ fun test_transfer_insufficient_balance() {
         assert!(!success, 0);
         assert!(safe::get_stored_coin_balance<TEST_COIN>(&mut safe) == 1000, 1); // Balance unchanged
 
+        let bag_balance = safe::get_coin_storage_balance<TEST_COIN>(&safe);
+        assert!(bag_balance == 1000, 10);
+        assert!(bag_balance == safe::get_stored_coin_balance<TEST_COIN>(&mut safe), 11);
+
         ts::return_shared(safe);
         ts::return_shared(treasury);
         ts::return_to_address(ADMIN, bridge_cap);
@@ -734,6 +754,10 @@ fun test_transfer_no_coin_storage() {
         );
 
         assert!(!success, 0);
+
+        let bag_balance = safe::get_coin_storage_balance<TEST_COIN>(&safe);
+        assert!(bag_balance == 0, 10);
+        assert!(bag_balance == safe::get_stored_coin_balance<TEST_COIN>(&mut safe), 11);
 
         ts::return_shared(safe);
         ts::return_shared(treasury);
@@ -803,6 +827,10 @@ fun test_transfer_multiple_partial() {
         assert!(success3, 2);
         assert!(safe::get_stored_coin_balance<TEST_COIN>(&mut safe) == 40000, 3);
 
+        let bag_balance = safe::get_coin_storage_balance<TEST_COIN>(&safe);
+        assert!(bag_balance == 40000, 10);
+        assert!(bag_balance == safe::get_stored_coin_balance<TEST_COIN>(&mut safe), 11);
+
         ts::return_shared(safe);
         ts::return_shared(treasury);
         ts::return_to_address(ADMIN, bridge_cap);
@@ -862,6 +890,10 @@ fun test_deposit_then_transfer_integration() {
 
         assert!(success, 1);
         assert!(safe::get_stored_coin_balance<TEST_COIN>(&mut safe) == 0, 2);
+
+        let bag_balance = safe::get_coin_storage_balance<TEST_COIN>(&safe);
+        assert!(bag_balance == 0, 10);
+        assert!(bag_balance == safe::get_stored_coin_balance<TEST_COIN>(&mut safe), 11);
 
         ts::return_shared(safe);
         ts::return_shared(treasury);

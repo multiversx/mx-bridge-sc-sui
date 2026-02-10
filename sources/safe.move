@@ -613,6 +613,15 @@ public fun get_stored_coin_balance<T>(safe: &mut BridgeSafe): u64 {
     shared_structs::token_config_total_balance(cfg_ref)
 }
 
+public fun get_coin_storage_balance<T>(safe: &BridgeSafe): u64 {
+    let key = utils::type_name_bytes<T>();
+    if (!bag::contains(&safe.coin_storage, key)) {
+        return 0
+    };
+    let stored_coin = bag::borrow<vector<u8>, Coin<T>>(&safe.coin_storage, key);
+    coin::value(stored_coin)
+}
+
 public fun pause_contract(safe: &mut BridgeSafe, ctx: &mut TxContext) {
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
     pausable::pause(&mut safe.pause);
@@ -734,3 +743,4 @@ public fun init_for_testing(from_cap: treasury::FromCoinCap<BRIDGE_TOKEN>, ctx: 
 public fun create_batch_for_testing(safe: &mut BridgeSafe, clock: &Clock, ctx: &mut TxContext) {
     create_new_batch_internal(safe, clock, ctx);
 }
+
