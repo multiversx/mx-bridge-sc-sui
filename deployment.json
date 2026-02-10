@@ -1,0 +1,55 @@
+{
+  "testnet": {
+    "deployments": [
+      {
+        "type": "bridge",
+        "id": 1,
+        "active": false,
+        "digest": "GUWvkgjxPxuwdzyuLmGMGT49GrSoBXce7Fph92Gttpt7",
+        "createdAt": "2025-11-26T11:44:30.341Z",
+        "Package": "0xfefd23050391d94981b12d7855a168bca02e73214c6fad168df8b3890bc3156e",
+        "Objects": {
+          "UpgradeCap": "0x150f81fb56255af653ac7bdb31918dec20b16a0ad1bdd532c27bbdfc87202a31",
+          "UpgradeService": "0x7a4b8b0cf4a023e4c93872efa891076bb11c94c8110b5db21bb95cad1ed948ea"
+        },
+        "Operators": {
+          "Admin": "0xde91225b70964422bbaea44f2b77bf76e962eb7b1607039783bd2af31e96ce74"
+        }
+      },
+      {
+        "type": "bridge",
+        "id": 2,
+        "active": true,
+        "digest": "DW2uHrou7GEvF8jTxSGmn563hpyt4PtW1oe89QM7MJc4",
+        "createdAt": "2025-11-26T11:47:03.359Z",
+        "Package": "0x9a7938a6b76168627ff1d9589d19c70f10796e6cb736a7a1166fbf969c878e04",
+        "Objects": {
+          "UpgradeCap": "0x1bc68f53212bdaaffeb6d08f5e17d6052775f28749771317022cb44dc52421a1",
+          "UpgradeService": "0xa7d3b08ab09e9c81ea0b4b496f01440f8d1ce0dd2e2946e7757c3541a2544a8f",
+          "Field": "0xe73c2a3003a637072821516000222189a8e8f6aa89498aa81ee0e95b28133140",
+          "BridgeCap": "0xbef78adaf5bd24bedb309c643d6a557e02b0974911f5bac6a11dadbb891c69f2",
+          "BridgeSafe": "0xdc0b9d2ece535ab2edbb8ce984fe90bf4c83ab26dde3b92c75a340f8ec656bbf",
+          "Bridge": "0xa1462c8925a3cec189d1171212aa90a743da1980189dd817519117eeb47279c1"
+        },
+        "Operators": {
+          "Admin": "0xde91225b70964422bbaea44f2b77bf76e962eb7b1607039783bd2af31e96ce74"
+        },
+        "whitelistedTokens": {
+          "0x49934c5c0866e0b62db2f43296994f28d09505f48005032d4285a5da53f35e2a::xmn::XMN": {
+            "minAmount": "1",
+            "maxAmount": "1000000000000000",
+            "isNative": true,
+            "isLocked": false,
+            "initializedSupply": "15000000"
+          }
+        }
+      }
+    ]
+  },
+  "mainnet": {
+    "deployments": []
+  },
+  "devnet": {
+    "deployments": []
+  }
+}

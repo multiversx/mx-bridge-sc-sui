@@ -1,0 +1,35 @@
+{
+  "mainnet": {
+    "rpc": "https://fullnode.mainnet.sui.io:443",
+    "Capabilities": {
+      "fromCoinCap": ""
+    },
+    "Coin_types": {
+      "reward": "",
+      "deposit_normal": "",
+      "deposit_boosted": ""
+    }
+  },
+  "testnet": {
+    "rpc": "https://fullnode.testnet.sui.io:443",
+    "Capabilities": {
+      "fromCoinCap": "0x072009c1fe8000cc7e2e87716e198e8cbfa4c1919ddf5cb63c824f4a67255263"
+    },
+    "Coin_types": {
+      "reward": "0x49934c5c0866e0b62db2f43296994f28d09505f48005032d4285a5da53f35e2a::xmn::XMN",
+      "deposit_normal": "0x49934c5c0866e0b62db2f43296994f28d09505f48005032d4285a5da53f35e2a::xmn::XMN",
+      "deposit_boosted": "0x1a331dc79355e84c138efc9f8b81b9bef220f7647efea47f17683381f9b3bada::bridge_token::BRIDGE_TOKEN"
+    }
+  },
+  "devnet": {
+    "rpc": "https://fullnode.devnet.sui.io:443",
+    "Capabilities": {
+      "fromCoinCap": ""
+    },
+    "Coin_types": {
+      "reward": "",
+      "deposit_normal": "",
+      "deposit_boosted": ""
+    }
+  }
+}
