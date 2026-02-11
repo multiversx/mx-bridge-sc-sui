@@ -338,6 +338,47 @@ public fun init_supply<T>(safe: &mut BridgeSafe, coin_in: Coin<T>, ctx: &mut TxC
     };
 }
 
+#[allow(lint(self_transfer))]
+public fun sync_supply<T>(safe: &mut BridgeSafe, mut coin_in: Coin<T>, ctx: &mut TxContext) {
+    safe.roles.owner_role().assert_sender_is_active_role(ctx);
+
+    let key = utils::type_name_bytes<T>();
+
+    assert!(table::contains(&safe.token_cfg, key), ETokenNotWhitelisted);
+    let cfg_ref = table::borrow(&safe.token_cfg, key);
+    assert!(shared_structs::token_config_whitelisted(cfg_ref), ETokenNotWhitelisted);
+    assert!(shared_structs::token_config_is_native(cfg_ref), EInsufficientBalance);
+
+    let expected_balance = shared_structs::token_config_total_balance(cfg_ref);
+
+    let actual_balance = if (bag::contains(&safe.coin_storage, key)) {
+        let stored_coin = bag::borrow<vector<u8>, Coin<T>>(&safe.coin_storage, key);
+        coin::value(stored_coin)
+    } else {
+        0
+    };
+
+    assert!(expected_balance > actual_balance, EInsufficientBalance);
+
+    let deficit = expected_balance - actual_balance;
+    assert!(coin::value(&coin_in) >= deficit, EInsufficientBalance);
+
+    let top_up_coin = coin::split(&mut coin_in, deficit, ctx);
+
+    if (bag::contains(&safe.coin_storage, key)) {
+        let existing_coin = bag::borrow_mut<vector<u8>, Coin<T>>(&mut safe.coin_storage, key);
+        coin::join(existing_coin, top_up_coin);
+    } else {
+        bag::add(&mut safe.coin_storage, key, top_up_coin);
+    };
+
+    if (coin::value(&coin_in) == 0) {
+        coin::destroy_zero(coin_in);
+    } else {
+        transfer::public_transfer(coin_in, tx_context::sender(ctx));
+    };
+}
+
 /// Deposit function: Users send coins FROM their wallet TO the bridge safe contract
 /// The coins are stored in the contract's coin_storage for later transfer
 public fun deposit<T>(
@@ -742,5 +783,12 @@ public fun init_for_testing(from_cap: treasury::FromCoinCap<BRIDGE_TOKEN>, ctx: 
 #[test_only]
 public fun create_batch_for_testing(safe: &mut BridgeSafe, clock: &Clock, ctx: &mut TxContext) {
     create_new_batch_internal(safe, clock, ctx);
+}
+
+#[test_only]
+public fun add_to_balance_for_testing<T>(safe: &mut BridgeSafe, amount: u64) {
+    let key = utils::type_name_bytes<T>();
+    let cfg_mut = borrow_token_cfg_mut(safe, key);
+    shared_structs::add_to_token_config_total_balance(cfg_mut, amount);
 }
 
