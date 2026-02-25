@@ -8,7 +8,7 @@ module bridge_safe::bridge_version_control;
 use sui::vec_set::VecSet;
 
 /// The current version of the package.
-const VERSION: u64 = 1;
+const VERSION: u64 = 3;
 
 // === Errors ===
 const EIncompatibleVersion: u64 = 0;

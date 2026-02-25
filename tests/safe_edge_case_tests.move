@@ -214,7 +214,7 @@ fun test_init_supply_zero_amount() {
 
 // Test init_supply with non-native token (should fail)
 #[test]
-#[expected_failure(abort_code = safe::EInsufficientBalance)]
+#[expected_failure(abort_code = safe::ENotNativeToken)]
 fun test_init_supply_non_native_token() {
     let mut scenario = setup();
     scenario.next_tx(ADMIN);

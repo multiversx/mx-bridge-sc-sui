@@ -18,9 +18,16 @@ use std::u64::{min, max};
 use sui::bag::{Self, Bag};
 use sui::clock::{Self, Clock};
 use sui::coin::{Self, Coin};
+use sui::dynamic_object_field as dof;
 use sui::event;
 use sui::table::{Self, Table};
 use sui::vec_set::{Self, VecSet};
+
+// === Structs ===
+
+public struct MintBurnCapKey has copy, drop, store {
+    token_type: vector<u8>,
+}
 
 // === Migration Events ===
 
@@ -56,6 +63,11 @@ const EInvalidTokenLimits: u64 = 15;
 const EMigrationStarted: u64 = 16;
 const EMigrationNotStarted: u64 = 17;
 const ENotPendingVersion: u64 = 18;
+const ENotNativeToken: u64 = 19;
+const EMintBurnCapNotFound: u64 = 20;
+const EMintBurnCapAlreadyRegistered: u64 = 21;
+const EIncompatibleTokenFlags: u64 = 22;
+const ETokenStillWhitelisted: u64 = 23;
 
 const MAX_U64: u64 = 18446744073709551615;
 const DEFAULT_BATCH_TIMEOUT_MS: u64 = 5 * 1000; // 5 seconds
@@ -276,6 +288,10 @@ public fun set_token_is_native<T>(safe: &mut BridgeSafe, is_native: bool, ctx: &
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
 
     let key = utils::type_name_bytes<T>();
+    if (is_native) {
+        let cfg_ref = table::borrow(&safe.token_cfg, key);
+        assert!(!shared_structs::token_config_is_mint_burn(cfg_ref), EIncompatibleTokenFlags);
+    };
     let cfg = borrow_token_cfg_mut(safe, key);
     shared_structs::set_token_config_is_native(cfg, is_native);
 
@@ -300,10 +316,45 @@ public fun set_token_is_mint_burn<T>(
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
 
     let key = utils::type_name_bytes<T>();
+    if (is_mint_burn) {
+        let cfg_ref = table::borrow(&safe.token_cfg, key);
+        assert!(!shared_structs::token_config_is_native(cfg_ref), EIncompatibleTokenFlags);
+    };
     let cfg = borrow_token_cfg_mut(safe, key);
     shared_structs::set_token_config_is_mint_burn(cfg, is_mint_burn);
 
     events::emit_token_is_mint_burn_updated(key, is_mint_burn);
+}
+
+public fun register_mint_burn_cap<T>(
+    safe: &mut BridgeSafe,
+    cap: coin::TreasuryCap<T>,
+    ctx: &TxContext,
+) {
+    safe.roles.owner_role().assert_sender_is_active_role(ctx);
+    let key = utils::type_name_bytes<T>();
+    assert!(table::contains(&safe.token_cfg, key), ETokenNotWhitelisted);
+    let cfg_ref = table::borrow(&safe.token_cfg, key);
+    assert!(shared_structs::token_config_is_mint_burn(cfg_ref), EIncompatibleTokenFlags);
+    let cap_key = MintBurnCapKey { token_type: key };
+    assert!(!dof::exists_(&safe.id, cap_key), EMintBurnCapAlreadyRegistered);
+    dof::add(&mut safe.id, cap_key, cap);
+}
+
+#[allow(lint(self_transfer))]
+public fun deregister_mint_burn_cap<T>(safe: &mut BridgeSafe, ctx: &TxContext) {
+    safe.roles.owner_role().assert_sender_is_active_role(ctx);
+    let key = utils::type_name_bytes<T>();
+    assert!(table::contains(&safe.token_cfg, key), ETokenNotWhitelisted);
+    let cfg_ref = table::borrow(&safe.token_cfg, key);
+    assert!(!shared_structs::token_config_whitelisted(cfg_ref), ETokenStillWhitelisted);
+    let cap_key = MintBurnCapKey { token_type: key };
+    assert!(
+        dof::exists_with_type<MintBurnCapKey, coin::TreasuryCap<T>>(&safe.id, cap_key),
+        EMintBurnCapNotFound,
+    );
+    let cap = dof::remove<MintBurnCapKey, coin::TreasuryCap<T>>(&mut safe.id, cap_key);
+    transfer::public_transfer(cap, ctx.sender());
 }
 
 public fun set_bridge_addr(safe: &mut BridgeSafe, new_bridge_addr: address, ctx: &TxContext) {
@@ -323,7 +374,7 @@ public fun init_supply<T>(safe: &mut BridgeSafe, coin_in: Coin<T>, ctx: &mut TxC
     let cfg_ref = table::borrow(&safe.token_cfg, key);
     assert!(shared_structs::token_config_whitelisted(cfg_ref), ETokenNotWhitelisted);
 
-    assert!(shared_structs::token_config_is_native(cfg_ref), EInsufficientBalance);
+    assert!(shared_structs::token_config_is_native(cfg_ref), ENotNativeToken);
 
     let amount = coin::value(&coin_in);
 
@@ -347,7 +398,7 @@ public fun sync_supply<T>(safe: &mut BridgeSafe, mut coin_in: Coin<T>, ctx: &mut
     assert!(table::contains(&safe.token_cfg, key), ETokenNotWhitelisted);
     let cfg_ref = table::borrow(&safe.token_cfg, key);
     assert!(shared_structs::token_config_whitelisted(cfg_ref), ETokenNotWhitelisted);
-    assert!(shared_structs::token_config_is_native(cfg_ref), EInsufficientBalance);
+    assert!(shared_structs::token_config_is_native(cfg_ref), ENotNativeToken);
 
     let expected_balance = shared_structs::token_config_total_balance(cfg_ref);
 
@@ -401,6 +452,15 @@ public fun deposit<T>(
     assert!(amount >= shared_structs::token_config_min_limit(cfg_ref), EAmountBelowMinimum);
     assert!(amount <= shared_structs::token_config_max_limit(cfg_ref), EAmountAboveMaximum);
 
+    let is_mint_burn = shared_structs::token_config_is_mint_burn(cfg_ref);
+    if (is_mint_burn) {
+        let cap_key = MintBurnCapKey { token_type: key };
+        assert!(
+            dof::exists_with_type<MintBurnCapKey, coin::TreasuryCap<T>>(&safe.id, cap_key),
+            EMintBurnCapNotFound,
+        );
+    };
+
     if (should_create_new_batch_internal(safe, clock)) {
         create_new_batch_internal(safe, clock, ctx);
     };
@@ -431,11 +491,17 @@ public fun deposit<T>(
     let cfg = borrow_token_cfg_mut(safe, key);
     shared_structs::add_to_token_config_total_balance(cfg, amount);
 
-    if (bag::contains(&safe.coin_storage, key)) {
-        let existing_coin = bag::borrow_mut<vector<u8>, Coin<T>>(&mut safe.coin_storage, key);
-        coin::join(existing_coin, coin_in);
+    if (is_mint_burn) {
+        let cap_key = MintBurnCapKey { token_type: key };
+        let cap = dof::borrow_mut<MintBurnCapKey, coin::TreasuryCap<T>>(&mut safe.id, cap_key);
+        let _ = coin::burn(cap, coin_in);
     } else {
-        bag::add(&mut safe.coin_storage, key, coin_in);
+        if (bag::contains(&safe.coin_storage, key)) {
+            let existing_coin = bag::borrow_mut<vector<u8>, Coin<T>>(&mut safe.coin_storage, key);
+            coin::join(existing_coin, coin_in);
+        } else {
+            bag::add(&mut safe.coin_storage, key, coin_in);
+        };
     };
 
     events::emit_deposit(
@@ -595,18 +661,37 @@ public(package) fun transfer<T>(
         return false
     };
 
-    let cfg_ref = table::borrow(&safe.token_cfg, key);
+    let (is_mint_burn, is_locked, current_balance) = {
+        let cfg_ref = table::borrow(&safe.token_cfg, key);
+        (
+            shared_structs::token_config_is_mint_burn(cfg_ref),
+            shared_structs::get_token_config_is_locked(cfg_ref),
+            shared_structs::token_config_total_balance(cfg_ref),
+        )
+    };
 
-    let current_balance = shared_structs::token_config_total_balance(cfg_ref);
     if (current_balance < amount) {
         return false
+    };
+
+    if (is_mint_burn) {
+        let cap_key = MintBurnCapKey { token_type: key };
+        if (!dof::exists_with_type<MintBurnCapKey, coin::TreasuryCap<T>>(&safe.id, cap_key)) {
+            return false
+        };
+        let cap = dof::borrow_mut<MintBurnCapKey, coin::TreasuryCap<T>>(&mut safe.id, cap_key);
+        let minted_coin = coin::mint(cap, amount, ctx);
+        transfer::public_transfer(minted_coin, receiver);
+        let cfg_mut = borrow_token_cfg_mut(safe, key);
+        shared_structs::subtract_from_token_config_total_balance(cfg_mut, amount);
+        return true
     };
 
     if (!bag::contains(&safe.coin_storage, key)) {
         return false
     };
 
-    if (!shared_structs::get_token_config_is_locked(cfg_ref)) {
+    if (!is_locked) {
         let stored_coin = bag::borrow_mut<vector<u8>, Coin<T>>(&mut safe.coin_storage, key);
         let coin_value = coin::value(stored_coin);
         if (coin_value < amount) {
