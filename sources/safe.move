@@ -13,6 +13,7 @@ use bridge_safe::upgrade_service_bridge;
 use bridge_safe::utils;
 use locked_token::bridge_token::BRIDGE_TOKEN;
 use locked_token::treasury;
+use treasury::treasury::{MintCap, Treasury as XmnTreasury};
 use shared_structs::shared_structs::{Self, TokenConfig, Batch, Deposit};
 use std::u64::{min, max};
 use sui::bag::{Self, Bag};
@@ -136,21 +137,41 @@ fun borrow_token_cfg_mut(safe: &mut BridgeSafe, key: vector<u8>): &mut TokenConf
     table::borrow_mut(&mut safe.token_cfg, key)
 }
 
-public fun whitelist_token<T>(
+fun assert_token_is_whitelisted(safe: &BridgeSafe, key: vector<u8>) {
+    assert!(table::contains(&safe.token_cfg, key), ETokenNotWhitelisted);
+    let cfg = table::borrow(&safe.token_cfg, key);
+    assert!(shared_structs::token_config_whitelisted(cfg), ETokenNotWhitelisted);
+}
+
+fun assert_token_is_not_whitelisted(safe: &BridgeSafe, key: vector<u8>) {
+    assert!(table::contains(&safe.token_cfg, key), ETokenNotWhitelisted);
+    let cfg = table::borrow(&safe.token_cfg, key);
+    assert!(!shared_structs::token_config_whitelisted(cfg), ETokenStillWhitelisted);
+}
+
+fun assert_token_is_mint_burn(safe: &BridgeSafe, key: vector<u8>) {
+    assert!(table::contains(&safe.token_cfg, key), ETokenNotWhitelisted);
+    let cfg = table::borrow(&safe.token_cfg, key);
+    assert!(shared_structs::token_config_is_mint_burn(cfg), EIncompatibleTokenFlags);
+}
+
+fun whitelist_token_internal<T>(
     safe: &mut BridgeSafe,
     minimum_amount: u64,
     maximum_amount: u64,
     is_native: bool,
     is_locked: bool,
+    is_mint_burn: bool,
     ctx: &mut TxContext,
 ) {
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
 
-    let key = utils::type_name_bytes<T>();
-    let exists = table::contains(&safe.token_cfg, key);
-
+    assert!(!(is_mint_burn && is_native), EIncompatibleTokenFlags);
     assert!(minimum_amount > 0, EZeroAmount);
     assert!(minimum_amount <= maximum_amount, EInvalidTokenLimits);
+
+    let key = utils::type_name_bytes<T>();
+    let exists = table::contains(&safe.token_cfg, key);
 
     if (exists) {
         let cfg = table::borrow(&safe.token_cfg, key);
@@ -160,17 +181,19 @@ public fun whitelist_token<T>(
         let cfg_mut = borrow_token_cfg_mut(safe, key);
         shared_structs::set_token_config_whitelisted(cfg_mut, true);
         shared_structs::set_token_config_is_native(cfg_mut, is_native);
+        shared_structs::set_token_config_is_mint_burn(cfg_mut, is_mint_burn);
         shared_structs::set_token_config_min_limit(cfg_mut, minimum_amount);
         shared_structs::set_token_config_max_limit(cfg_mut, maximum_amount);
         shared_structs::set_token_config_is_locked(cfg_mut, is_locked);
     } else {
-        let cfg = shared_structs::create_token_config(
+        let mut cfg = shared_structs::create_token_config(
             true,
             is_native,
             minimum_amount,
             maximum_amount,
             is_locked,
         );
+        shared_structs::set_token_config_is_mint_burn(&mut cfg, is_mint_burn);
         table::add(&mut safe.token_cfg, key, cfg);
     };
 
@@ -179,9 +202,29 @@ public fun whitelist_token<T>(
         minimum_amount,
         maximum_amount,
         is_native,
-        false,
+        is_mint_burn,
         is_locked,
     );
+}
+
+public fun whitelist_token<T>(
+    safe: &mut BridgeSafe,
+    minimum_amount: u64,
+    maximum_amount: u64,
+    is_native: bool,
+    is_locked: bool,
+    ctx: &mut TxContext,
+) {
+    whitelist_token_internal<T>(safe, minimum_amount, maximum_amount, is_native, is_locked, false, ctx);
+}
+
+public fun whitelist_token_mint_burn<T>(
+    safe: &mut BridgeSafe,
+    minimum_amount: u64,
+    maximum_amount: u64,
+    ctx: &mut TxContext,
+) {
+    whitelist_token_internal<T>(safe, minimum_amount, maximum_amount, false, false, true, ctx);
 }
 
 public fun remove_token_from_whitelist<T>(safe: &mut BridgeSafe, ctx: &mut TxContext) {
@@ -288,11 +331,11 @@ public fun set_token_is_native<T>(safe: &mut BridgeSafe, is_native: bool, ctx: &
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
 
     let key = utils::type_name_bytes<T>();
-    if (is_native) {
-        let cfg_ref = table::borrow(&safe.token_cfg, key);
-        assert!(!shared_structs::token_config_is_mint_burn(cfg_ref), EIncompatibleTokenFlags);
-    };
     let cfg = borrow_token_cfg_mut(safe, key);
+    assert!(
+        !(is_native && shared_structs::token_config_is_mint_burn(cfg)),
+        EIncompatibleTokenFlags,
+    );
     shared_structs::set_token_config_is_native(cfg, is_native);
 
     events::emit_token_is_native_updated(key, is_native);
@@ -316,26 +359,27 @@ public fun set_token_is_mint_burn<T>(
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
 
     let key = utils::type_name_bytes<T>();
-    if (is_mint_burn) {
-        let cfg_ref = table::borrow(&safe.token_cfg, key);
-        assert!(!shared_structs::token_config_is_native(cfg_ref), EIncompatibleTokenFlags);
-    };
     let cfg = borrow_token_cfg_mut(safe, key);
+    assert!(
+        !(is_mint_burn && shared_structs::token_config_is_native(cfg)),
+        EIncompatibleTokenFlags,
+    );
     shared_structs::set_token_config_is_mint_burn(cfg, is_mint_burn);
 
     events::emit_token_is_mint_burn_updated(key, is_mint_burn);
 }
 
+/// Register a legacy coin::TreasuryCap<T> for a mint-burn token.
+/// Signature is unchanged from the v2 deployment for upgrade compatibility.
 public fun register_mint_burn_cap<T>(
     safe: &mut BridgeSafe,
-    cap: coin::TreasuryCap<T>,
+    cap: MintCap<T>,
     ctx: &TxContext,
 ) {
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
     let key = utils::type_name_bytes<T>();
-    assert!(table::contains(&safe.token_cfg, key), ETokenNotWhitelisted);
-    let cfg_ref = table::borrow(&safe.token_cfg, key);
-    assert!(shared_structs::token_config_is_mint_burn(cfg_ref), EIncompatibleTokenFlags);
+    assert_token_is_whitelisted(safe, key);
+    assert_token_is_mint_burn(safe, key);
     let cap_key = MintBurnCapKey { token_type: key };
     assert!(!dof::exists_(&safe.id, cap_key), EMintBurnCapAlreadyRegistered);
     dof::add(&mut safe.id, cap_key, cap);
@@ -345,15 +389,13 @@ public fun register_mint_burn_cap<T>(
 public fun deregister_mint_burn_cap<T>(safe: &mut BridgeSafe, ctx: &TxContext) {
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
     let key = utils::type_name_bytes<T>();
-    assert!(table::contains(&safe.token_cfg, key), ETokenNotWhitelisted);
-    let cfg_ref = table::borrow(&safe.token_cfg, key);
-    assert!(!shared_structs::token_config_whitelisted(cfg_ref), ETokenStillWhitelisted);
+    assert_token_is_not_whitelisted(safe, key);
     let cap_key = MintBurnCapKey { token_type: key };
     assert!(
-        dof::exists_with_type<MintBurnCapKey, coin::TreasuryCap<T>>(&safe.id, cap_key),
+        dof::exists_with_type<MintBurnCapKey, MintCap<T>>(&safe.id, cap_key),
         EMintBurnCapNotFound,
     );
-    let cap = dof::remove<MintBurnCapKey, coin::TreasuryCap<T>>(&mut safe.id, cap_key);
+    let cap = dof::remove<MintBurnCapKey, MintCap<T>>(&mut safe.id, cap_key);
     transfer::public_transfer(cap, ctx.sender());
 }
 
@@ -370,10 +412,8 @@ public fun init_supply<T>(safe: &mut BridgeSafe, coin_in: Coin<T>, ctx: &mut TxC
 
     let key = utils::type_name_bytes<T>();
 
-    assert!(table::contains(&safe.token_cfg, key), ETokenNotWhitelisted);
+    assert_token_is_whitelisted(safe, key);
     let cfg_ref = table::borrow(&safe.token_cfg, key);
-    assert!(shared_structs::token_config_whitelisted(cfg_ref), ETokenNotWhitelisted);
-
     assert!(shared_structs::token_config_is_native(cfg_ref), ENotNativeToken);
 
     let amount = coin::value(&coin_in);
@@ -395,9 +435,8 @@ public fun sync_supply<T>(safe: &mut BridgeSafe, mut coin_in: Coin<T>, ctx: &mut
 
     let key = utils::type_name_bytes<T>();
 
-    assert!(table::contains(&safe.token_cfg, key), ETokenNotWhitelisted);
+    assert_token_is_whitelisted(safe, key);
     let cfg_ref = table::borrow(&safe.token_cfg, key);
-    assert!(shared_structs::token_config_whitelisted(cfg_ref), ETokenNotWhitelisted);
     assert!(shared_structs::token_config_is_native(cfg_ref), ENotNativeToken);
 
     let expected_balance = shared_structs::token_config_total_balance(cfg_ref);
@@ -429,6 +468,7 @@ public fun sync_supply<T>(safe: &mut BridgeSafe, mut coin_in: Coin<T>, ctx: &mut
         transfer::public_transfer(coin_in, tx_context::sender(ctx));
     };
 }
+
 
 /// Deposit function: Users send coins FROM their wallet TO the bridge safe contract
 /// The coins are stored in the contract's coin_storage for later transfer
