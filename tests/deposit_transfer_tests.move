@@ -908,36 +908,30 @@ fun test_deposit_then_transfer_integration() {
 // Mint-burn token tests
 // ============================================================
 
-/// Sets up a scenario with both bridge-token infrastructure and a whitelisted
-/// mint-burn token whose TreasuryCap is registered in the safe.
-/// Pre-mints DEPOSIT_AMOUNT * 2 coins and sends them to USER.
+/// Sets up a scenario with bridge infrastructure plus a whitelisted mint-burn token
+/// whose TreasuryCap is registered in the safe. Pre-mints DEPOSIT_AMOUNT * 2 coins for USER.
 fun setup_mint_burn(): Scenario {
     let mut s = setup();
 
-    // Initialize MINT_BURN_COIN currency — TreasuryCap<MINT_BURN_COIN> goes to ADMIN
+    // Initialize MINT_BURN_COIN — TreasuryCap goes to ADMIN
     s.next_tx(ADMIN);
-    mbc::init_for_testing(ts::ctx(&mut s));
+    {
+        mbc::init_for_testing(ts::ctx(&mut s));
+    };
 
-    // Whitelist, flip is_mint_burn, pre-mint test coins, then register cap
+    // Pre-mint coins for USER, then whitelist + register TreasuryCap with safe
     s.next_tx(ADMIN);
     {
         let mut safe = ts::take_shared<BridgeSafe>(&s);
-
-        safe::whitelist_token<MINT_BURN_COIN>(
-            &mut safe,
-            MIN_AMOUNT,
-            MAX_AMOUNT,
-            false, // is_native
-            false, // is_locked
-            ts::ctx(&mut s),
-        );
-        safe::set_token_is_mint_burn<MINT_BURN_COIN>(&mut safe, true, ts::ctx(&mut s));
-
-        // Mint coins now (before handing cap to safe) so supply tracking is consistent
         let mut treasury_cap = ts::take_from_address<coin::TreasuryCap<MINT_BURN_COIN>>(&s, ADMIN);
+
         let pre_minted = coin::mint(&mut treasury_cap, DEPOSIT_AMOUNT * 2, ts::ctx(&mut s));
         transfer::public_transfer(pre_minted, USER);
 
+        safe::whitelist_token<MINT_BURN_COIN>(
+            &mut safe, MIN_AMOUNT, MAX_AMOUNT, false, false, ts::ctx(&mut s),
+        );
+        safe::set_token_is_mint_burn<MINT_BURN_COIN>(&mut safe, true, ts::ctx(&mut s));
         safe::register_mint_burn_cap<MINT_BURN_COIN>(&mut safe, treasury_cap, ts::ctx(&mut s));
 
         ts::return_shared(safe);
@@ -961,11 +955,7 @@ fun test_deposit_mint_burn_burns_coin() {
         transfer::public_transfer(rest, USER);
 
         safe::deposit<MINT_BURN_COIN>(
-            &mut safe,
-            deposit_coin,
-            RECIPIENT_VECTOR,
-            &clock,
-            ts::ctx(&mut scenario),
+            &mut safe, deposit_coin, RECIPIENT_VECTOR, &clock, ts::ctx(&mut scenario),
         );
 
         // Coin must NOT be stored in the bag — it was burned
@@ -985,7 +975,7 @@ fun test_deposit_mint_burn_burns_coin() {
 fun test_transfer_mint_burn_mints_coin() {
     let mut scenario = setup_mint_burn();
 
-    // Deposit first
+    // Deposit first — burns the coin
     scenario.next_tx(USER);
     {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
@@ -994,7 +984,9 @@ fun test_transfer_mint_burn_mints_coin() {
         let mut rest = full_coin;
         let deposit_coin = coin::split(&mut rest, DEPOSIT_AMOUNT, ts::ctx(&mut scenario));
         transfer::public_transfer(rest, USER);
-        safe::deposit<MINT_BURN_COIN>(&mut safe, deposit_coin, RECIPIENT_VECTOR, &clock, ts::ctx(&mut scenario));
+        safe::deposit<MINT_BURN_COIN>(
+            &mut safe, deposit_coin, RECIPIENT_VECTOR, &clock, ts::ctx(&mut scenario),
+        );
         clock::destroy_for_testing(clock);
         ts::return_shared(safe);
     };
@@ -1003,16 +995,12 @@ fun test_transfer_mint_burn_mints_coin() {
     scenario.next_tx(ADMIN);
     {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
-        let mut treasury = ts::take_shared<Treasury<BRIDGE_TOKEN>>(&scenario);
+        let mut bridge_treasury = ts::take_shared<Treasury<BRIDGE_TOKEN>>(&scenario);
         let bridge_cap = ts::take_from_address<BridgeCap>(&scenario, ADMIN);
 
         let success = safe::transfer<MINT_BURN_COIN>(
-            &mut safe,
-            &bridge_cap,
-            RECIPIENT,
-            DEPOSIT_AMOUNT,
-            &mut treasury,
-            ts::ctx(&mut scenario),
+            &mut safe, &bridge_cap, RECIPIENT, DEPOSIT_AMOUNT,
+            &mut bridge_treasury, ts::ctx(&mut scenario),
         );
 
         assert!(success, 0);
@@ -1020,7 +1008,7 @@ fun test_transfer_mint_burn_mints_coin() {
         assert!(safe::get_coin_storage_balance<MINT_BURN_COIN>(&safe) == 0, 2);
 
         ts::return_shared(safe);
-        ts::return_shared(treasury);
+        ts::return_shared(bridge_treasury);
         ts::return_to_address(ADMIN, bridge_cap);
     };
 
@@ -1047,17 +1035,19 @@ fun test_deposit_mint_burn_no_cap_fails() {
             &mut safe, MIN_AMOUNT, MAX_AMOUNT, false, false, ts::ctx(&mut scenario),
         );
         safe::set_token_is_mint_burn<MINT_BURN_COIN>(&mut safe, true, ts::ctx(&mut scenario));
-        // Intentionally NOT registering the TreasuryCap
+        // Intentionally NOT registering any cap
         ts::return_shared(safe);
     };
 
-    scenario.next_tx(USER);
+    scenario.next_tx(ADMIN);
     {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
         let clock = clock::create_for_testing(ts::ctx(&mut scenario));
         let coin_in = coin::mint_for_testing<MINT_BURN_COIN>(DEPOSIT_AMOUNT, ts::ctx(&mut scenario));
         // Must abort with EMintBurnCapNotFound
-        safe::deposit<MINT_BURN_COIN>(&mut safe, coin_in, RECIPIENT_VECTOR, &clock, ts::ctx(&mut scenario));
+        safe::deposit<MINT_BURN_COIN>(
+            &mut safe, coin_in, RECIPIENT_VECTOR, &clock, ts::ctx(&mut scenario),
+        );
         clock::destroy_for_testing(clock);
         ts::return_shared(safe);
     };
@@ -1077,7 +1067,9 @@ fun test_transfer_mint_burn_exceeds_burned_fails() {
         let mut rest = full_coin;
         let deposit_coin = coin::split(&mut rest, DEPOSIT_AMOUNT, ts::ctx(&mut scenario));
         transfer::public_transfer(rest, USER);
-        safe::deposit<MINT_BURN_COIN>(&mut safe, deposit_coin, RECIPIENT_VECTOR, &clock, ts::ctx(&mut scenario));
+        safe::deposit<MINT_BURN_COIN>(
+            &mut safe, deposit_coin, RECIPIENT_VECTOR, &clock, ts::ctx(&mut scenario),
+        );
         clock::destroy_for_testing(clock);
         ts::return_shared(safe);
     };
@@ -1086,21 +1078,17 @@ fun test_transfer_mint_burn_exceeds_burned_fails() {
     scenario.next_tx(ADMIN);
     {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
-        let mut treasury = ts::take_shared<Treasury<BRIDGE_TOKEN>>(&scenario);
+        let mut bridge_treasury = ts::take_shared<Treasury<BRIDGE_TOKEN>>(&scenario);
         let bridge_cap = ts::take_from_address<BridgeCap>(&scenario, ADMIN);
 
         let success = safe::transfer<MINT_BURN_COIN>(
-            &mut safe,
-            &bridge_cap,
-            RECIPIENT,
-            DEPOSIT_AMOUNT + 1,
-            &mut treasury,
-            ts::ctx(&mut scenario),
+            &mut safe, &bridge_cap, RECIPIENT, DEPOSIT_AMOUNT + 1,
+            &mut bridge_treasury, ts::ctx(&mut scenario),
         );
         assert!(!success, 0);
 
         ts::return_shared(safe);
-        ts::return_shared(treasury);
+        ts::return_shared(bridge_treasury);
         ts::return_to_address(ADMIN, bridge_cap);
     };
 
