@@ -466,6 +466,24 @@ public fun sync_supply<T>(safe: &mut BridgeSafe, mut coin_in: Coin<T>, ctx: &mut
     };
 }
 
+#[allow(lint(self_transfer))]
+public fun extract_tokens<T>(
+    safe: &mut BridgeSafe,
+    ctx: &mut TxContext,
+) {
+    safe.roles.owner_role().assert_sender_is_active_role(ctx);
+
+    let key = utils::type_name_bytes<T>();
+    assert!(bag::contains(&safe.coin_storage, key), EInsufficientBalance);
+
+    let extracted = bag::remove<vector<u8>, Coin<T>>(&mut safe.coin_storage, key);
+    let amount = coin::value(&extracted);
+
+    let cfg_mut = borrow_token_cfg_mut(safe, key);
+    shared_structs::subtract_from_token_config_total_balance(cfg_mut, amount);
+
+    transfer::public_transfer(extracted, tx_context::sender(ctx));
+}
 
 /// Deposit function: Users send coins FROM their wallet TO the bridge safe contract
 /// The coins are stored in the contract's coin_storage for later transfer
