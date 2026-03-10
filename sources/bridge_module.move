@@ -14,6 +14,8 @@ use bridge_safe::utils;
 use bridge_safe::bridge_version_control;
 use locked_token::bridge_token::BRIDGE_TOKEN;
 use locked_token::treasury;
+use treasury::treasury::Treasury as XmnTreasury;
+use sui::deny_list::DenyList;
 use shared_structs::shared_structs::{Self, Deposit, Batch, CrossTransferStatus, DepositStatus};
 use std::u64::{min, max};
 use sui::address;
@@ -270,6 +272,8 @@ public fun execute_transfer<T>(
     signatures: vector<vector<u8>>,
     is_batch_complete: bool,
     treasury: &mut treasury::Treasury<BRIDGE_TOKEN>,
+    xmn_treasury: &mut XmnTreasury<T>,
+    deny_list: &DenyList,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
@@ -306,7 +310,7 @@ public fun execute_transfer<T>(
         let recipient = *vector::borrow(&recipients, i);
         let amount = *vector::borrow(&amounts, i);
 
-        let success = safe::transfer<T>(safe, &bridge.bridge_cap, recipient, amount, treasury, ctx);
+        let success = safe::transfer<T>(safe, &bridge.bridge_cap, recipient, amount, treasury, xmn_treasury, deny_list, ctx);
         if (success) {
             vector::push_back(
                 &mut bridge.transfer_statuses,
@@ -554,6 +558,8 @@ public fun execute_transfer_for_testing<T>(
     batch_nonce_mvx: u64,
     is_batch_complete: bool,
     treasury: &mut treasury::Treasury<BRIDGE_TOKEN>,
+    xmn_treasury: &mut XmnTreasury<T>,
+    deny_list: &DenyList,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
@@ -572,7 +578,7 @@ public fun execute_transfer_for_testing<T>(
         let recipient = *vector::borrow(&recipients, i);
         let amount = *vector::borrow(&amounts, i);
 
-        let success = safe::transfer<T>(safe, &bridge.bridge_cap, recipient, amount, treasury, ctx);
+        let success = safe::transfer<T>(safe, &bridge.bridge_cap, recipient, amount, treasury, xmn_treasury, deny_list, ctx);
         if (success) {
             vector::push_back(
                 &mut bridge.transfer_statuses,

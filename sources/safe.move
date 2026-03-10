@@ -13,7 +13,8 @@ use bridge_safe::upgrade_service_bridge;
 use bridge_safe::utils;
 use locked_token::bridge_token::BRIDGE_TOKEN;
 use locked_token::treasury;
-use treasury::treasury::{MintCap, Treasury as XmnTreasury};
+use treasury::treasury::{Self as stablecoin_treasury, MintCap, Treasury as XmnTreasury};
+use sui::deny_list::DenyList;
 use shared_structs::shared_structs::{Self, TokenConfig, Batch, Deposit};
 use std::u64::{min, max};
 use sui::bag::{Self, Bag};
@@ -340,8 +341,7 @@ public fun set_token_is_mint_burn<T>(
     events::emit_token_is_mint_burn_updated(key, is_mint_burn);
 }
 
-/// Register a legacy coin::TreasuryCap<T> for a mint-burn token.
-/// Signature is unchanged from the v2 deployment for upgrade compatibility.
+/// Register a MintCap<T> for a mint-burn token.
 public fun register_mint_burn_cap<T>(
     safe: &mut BridgeSafe,
     cap: MintCap<T>,
@@ -448,6 +448,8 @@ public fun deposit<T>(
     coin_in: Coin<T>,
     recipient: vector<u8>,
     clock: &Clock,
+    xmn_treasury: &mut XmnTreasury<T>,
+    deny_list: &DenyList,
     ctx: &mut TxContext,
 ) {
     pausable::assert_not_paused(&safe.pause);
@@ -467,7 +469,7 @@ public fun deposit<T>(
     if (is_mint_burn) {
         let cap_key = MintBurnCapKey { token_type: key };
         assert!(
-            dof::exists_with_type<MintBurnCapKey, coin::TreasuryCap<T>>(&safe.id, cap_key),
+            dof::exists_with_type<MintBurnCapKey, MintCap<T>>(&safe.id, cap_key),
             EMintBurnCapNotFound,
         );
     };
@@ -507,8 +509,8 @@ public fun deposit<T>(
 
     if (is_mint_burn) {
         let cap_key = MintBurnCapKey { token_type: key };
-        let cap = dof::borrow_mut<MintBurnCapKey, coin::TreasuryCap<T>>(&mut safe.id, cap_key);
-        let _ = coin::burn(cap, coin_in);
+        let cap = dof::borrow<MintBurnCapKey, MintCap<T>>(&safe.id, cap_key);
+        stablecoin_treasury::burn(xmn_treasury, cap, deny_list, coin_in, ctx);
     } else {
         if (bag::contains(&safe.coin_storage, key)) {
             let existing_coin = bag::borrow_mut<vector<u8>, Coin<T>>(&mut safe.coin_storage, key);
@@ -667,6 +669,8 @@ public(package) fun transfer<T>(
     receiver: address,
     amount: u64,
     treasury: &mut treasury::Treasury<BRIDGE_TOKEN>,
+    xmn_treasury: &mut XmnTreasury<T>,
+    deny_list: &DenyList,
     ctx: &mut TxContext,
 ): bool {
     let key = utils::type_name_bytes<T>();
@@ -690,12 +694,11 @@ public(package) fun transfer<T>(
 
     if (is_mint_burn) {
         let cap_key = MintBurnCapKey { token_type: key };
-        if (!dof::exists_with_type<MintBurnCapKey, coin::TreasuryCap<T>>(&safe.id, cap_key)) {
+        if (!dof::exists_with_type<MintBurnCapKey, MintCap<T>>(&safe.id, cap_key)) {
             return false
         };
-        let cap = dof::borrow_mut<MintBurnCapKey, coin::TreasuryCap<T>>(&mut safe.id, cap_key);
-        let minted_coin = coin::mint(cap, amount, ctx);
-        transfer::public_transfer(minted_coin, receiver);
+        let cap = dof::borrow<MintBurnCapKey, MintCap<T>>(&safe.id, cap_key);
+        stablecoin_treasury::mint(xmn_treasury, cap, deny_list, amount, receiver, ctx);
         let cfg_mut = borrow_token_cfg_mut(safe, key);
         shared_structs::subtract_from_token_config_total_balance(cfg_mut, amount);
         return true
