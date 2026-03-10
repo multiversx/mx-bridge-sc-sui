@@ -1,4 +1,4 @@
-/// Safe Module - Token Management and Batch Processing
+/// Safe Module - Token Management ani Batch Processing
 ///
 /// This module manages token deposits, batching, and secure transfers.
 /// It handles whitelisting, token limits, and coordinates with the bridge module.
@@ -68,7 +68,6 @@ const ENotNativeToken: u64 = 19;
 const EMintBurnCapNotFound: u64 = 20;
 const EMintBurnCapAlreadyRegistered: u64 = 21;
 const EIncompatibleTokenFlags: u64 = 22;
-const ETokenStillWhitelisted: u64 = 23;
 
 const MAX_U64: u64 = 18446744073709551615;
 const DEFAULT_BATCH_TIMEOUT_MS: u64 = 5 * 1000; // 5 seconds
@@ -137,24 +136,6 @@ fun borrow_token_cfg_mut(safe: &mut BridgeSafe, key: vector<u8>): &mut TokenConf
     table::borrow_mut(&mut safe.token_cfg, key)
 }
 
-fun assert_token_is_whitelisted(safe: &BridgeSafe, key: vector<u8>) {
-    assert!(table::contains(&safe.token_cfg, key), ETokenNotWhitelisted);
-    let cfg = table::borrow(&safe.token_cfg, key);
-    assert!(shared_structs::token_config_whitelisted(cfg), ETokenNotWhitelisted);
-}
-
-fun assert_token_is_not_whitelisted(safe: &BridgeSafe, key: vector<u8>) {
-    assert!(table::contains(&safe.token_cfg, key), ETokenNotWhitelisted);
-    let cfg = table::borrow(&safe.token_cfg, key);
-    assert!(!shared_structs::token_config_whitelisted(cfg), ETokenStillWhitelisted);
-}
-
-fun assert_token_is_mint_burn(safe: &BridgeSafe, key: vector<u8>) {
-    assert!(table::contains(&safe.token_cfg, key), ETokenNotWhitelisted);
-    let cfg = table::borrow(&safe.token_cfg, key);
-    assert!(shared_structs::token_config_is_mint_burn(cfg), EIncompatibleTokenFlags);
-}
-
 fun whitelist_token_internal<T>(
     safe: &mut BridgeSafe,
     minimum_amount: u64,
@@ -172,30 +153,20 @@ fun whitelist_token_internal<T>(
 
     let key = utils::type_name_bytes<T>();
     let exists = table::contains(&safe.token_cfg, key);
-
     if (exists) {
-        let cfg = table::borrow(&safe.token_cfg, key);
-        let is_currently_whitelisted = shared_structs::token_config_whitelisted(cfg);
-        assert!(!is_currently_whitelisted, ETokenAlreadyExists);
-
-        let cfg_mut = borrow_token_cfg_mut(safe, key);
-        shared_structs::set_token_config_whitelisted(cfg_mut, true);
-        shared_structs::set_token_config_is_native(cfg_mut, is_native);
-        shared_structs::set_token_config_is_mint_burn(cfg_mut, is_mint_burn);
-        shared_structs::set_token_config_min_limit(cfg_mut, minimum_amount);
-        shared_structs::set_token_config_max_limit(cfg_mut, maximum_amount);
-        shared_structs::set_token_config_is_locked(cfg_mut, is_locked);
-    } else {
-        let mut cfg = shared_structs::create_token_config(
-            true,
-            is_native,
-            minimum_amount,
-            maximum_amount,
-            is_locked,
-        );
-        shared_structs::set_token_config_is_mint_burn(&mut cfg, is_mint_burn);
-        table::add(&mut safe.token_cfg, key, cfg);
+        assert_token_is_not_whitelisted(safe, key);
     };
+    
+    shared_structs::upsert_token_config(
+        &mut safe.token_cfg,
+        key,
+        true,
+        is_native,
+        minimum_amount,
+        maximum_amount,
+        is_locked,
+        is_mint_burn,
+    );
 
     events::emit_token_whitelisted(
         key,
@@ -504,6 +475,7 @@ public fun deposit<T>(
     if (should_create_new_batch_internal(safe, clock)) {
         create_new_batch_internal(safe, clock, ctx);
     };
+
     let batch_index = safe.batches_count - 1;
     let batch = table::borrow_mut(&mut safe.batches, batch_index);
 
@@ -516,9 +488,11 @@ public fun deposit<T>(
         tx_context::sender(ctx),
         recipient,
     );
+
     if (!table::contains(&safe.batch_deposits, batch_index)) {
         table::add(&mut safe.batch_deposits, batch_index, vector::empty());
     };
+
     let vec_ref = table::borrow_mut(&mut safe.batch_deposits, batch_index);
     vector::push_back(vec_ref, dep);
 
@@ -806,6 +780,30 @@ public fun accept_ownership(safe: &mut BridgeSafe, ctx: &TxContext) {
     safe.roles_mut().owner_role_mut().accept_role(ctx)
 }
 
+// === Asserts ===
+
+public(package) fun assert_is_compatible(safe: &BridgeSafe) {
+    bridge_version_control::assert_object_version_is_compatible_with_package(safe.compatible_versions);
+}
+
+fun assert_token_is_whitelisted(safe: &BridgeSafe, key: vector<u8>) {
+    assert!(table::contains(&safe.token_cfg, key), ETokenNotWhitelisted);
+    let cfg = table::borrow(&safe.token_cfg, key);
+    assert!(shared_structs::token_config_whitelisted(cfg), ETokenNotWhitelisted);
+}
+
+fun assert_token_is_not_whitelisted(safe: &BridgeSafe, key: vector<u8>) {
+    assert!(table::contains(&safe.token_cfg, key), ETokenNotWhitelisted);
+    let cfg = table::borrow(&safe.token_cfg, key);
+    assert!(!shared_structs::token_config_whitelisted(cfg), ETokenAlreadyExists);
+}
+
+fun assert_token_is_mint_burn(safe: &BridgeSafe, key: vector<u8>) {
+    assert!(table::contains(&safe.token_cfg, key), ETokenNotWhitelisted);
+    let cfg = table::borrow(&safe.token_cfg, key);
+    assert!(shared_structs::token_config_is_mint_burn(cfg), EIncompatibleTokenFlags);
+}
+
 // === Upgrade Management ===
 
 /// Returns the compatible versions for the safe
@@ -892,12 +890,6 @@ public fun complete_migration(safe: &mut BridgeSafe, ctx: &TxContext) {
 /// Helper function to check if a migration is in progress
 public fun is_migration_in_progress(safe: &BridgeSafe): bool {
     safe.compatible_versions.length() > 1
-}
-
-/// [Package private] Asserts that the Safe object
-/// is compatible with the package's version.
-public(package) fun assert_is_compatible(safe: &BridgeSafe) {
-    bridge_version_control::assert_object_version_is_compatible_with_package(safe.compatible_versions);
 }
 
 #[test_only]

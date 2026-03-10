@@ -1,5 +1,7 @@
 module shared_structs::shared_structs;
 
+use sui::table::{Self, Table};
+
 public enum DepositStatus has copy, drop, store {
     None,
     Pending,
@@ -192,20 +194,59 @@ public(package) fun set_batch_last_updated_timestamp_ms(batch: &mut Batch, times
     batch.last_updated_timestamp_ms = timestamp_ms;
 }
 
+public fun upsert_token_config(
+    config: &mut Table<vector<u8>, TokenConfig>,
+    key: vector<u8>,
+    whitelisted: bool,
+    is_native: bool,
+    min_limit: u64,
+    max_limit: u64,
+    is_locked: bool,
+    is_mint_burn: bool,
+) {
+    if (table::contains(config, key)) {
+        let cfg = table::borrow_mut(config, key);
+        set_token_config(cfg, whitelisted, is_native, min_limit, max_limit, is_locked, is_mint_burn);
+
+        return;
+    };
+
+    let mut cfg = create_token_config(whitelisted, is_native, min_limit, max_limit, is_locked, is_mint_burn);
+    table::add(config, key, cfg);
+}
+
+public fun set_token_config(
+    config: &mut TokenConfig,
+    whitelisted: bool,
+    is_native: bool,
+    min_limit: u64,
+    max_limit: u64,
+    is_locked: bool,
+    is_mint_burn: bool,
+) {
+    set_token_config_whitelisted(config, whitelisted);
+    set_token_config_is_native(config, is_native);
+    set_token_config_is_mint_burn(config, is_mint_burn);
+    set_token_config_min_limit(config, min_limit);
+    set_token_config_max_limit(config, max_limit);
+    set_token_config_is_locked(config, is_locked);
+}
+
 public fun create_token_config(
     whitelisted: bool,
     is_native: bool,
     min_limit: u64,
     max_limit: u64,
     is_locked: bool,
+    is_mint_burn: bool,
 ): TokenConfig {
     TokenConfig {
         whitelisted,
         is_native,
-        is_mint_burn: false,
         min_limit,
         max_limit,
         total_balance: 0,
         is_locked,
+        is_mint_burn,
     }
 }
