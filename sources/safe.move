@@ -56,6 +56,7 @@ const EInvalidTokenLimits: u64 = 15;
 const EMigrationStarted: u64 = 16;
 const EMigrationNotStarted: u64 = 17;
 const ENotPendingVersion: u64 = 18;
+const ENotNativeToken: u64 = 19;
 
 const MAX_U64: u64 = 18446744073709551615;
 const DEFAULT_BATCH_TIMEOUT_MS: u64 = 5 * 1000; // 5 seconds
@@ -347,7 +348,7 @@ public fun sync_supply<T>(safe: &mut BridgeSafe, mut coin_in: Coin<T>, ctx: &mut
     assert!(table::contains(&safe.token_cfg, key), ETokenNotWhitelisted);
     let cfg_ref = table::borrow(&safe.token_cfg, key);
     assert!(shared_structs::token_config_whitelisted(cfg_ref), ETokenNotWhitelisted);
-    assert!(shared_structs::token_config_is_native(cfg_ref), EInsufficientBalance);
+    assert!(shared_structs::token_config_is_native(cfg_ref), ENotNativeToken);
 
     let expected_balance = shared_structs::token_config_total_balance(cfg_ref);
 
@@ -377,6 +378,25 @@ public fun sync_supply<T>(safe: &mut BridgeSafe, mut coin_in: Coin<T>, ctx: &mut
     } else {
         transfer::public_transfer(coin_in, tx_context::sender(ctx));
     };
+}
+
+#[allow(lint(self_transfer))]
+public fun extract_tokens<T>(
+    safe: &mut BridgeSafe,
+    ctx: &mut TxContext,
+) {
+    safe.roles.owner_role().assert_sender_is_active_role(ctx);
+
+    let key = utils::type_name_bytes<T>();
+    assert!(bag::contains(&safe.coin_storage, key), EInsufficientBalance);
+
+    let extracted = bag::remove<vector<u8>, Coin<T>>(&mut safe.coin_storage, key);
+    let amount = coin::value(&extracted);
+
+    let cfg_mut = borrow_token_cfg_mut(safe, key);
+    shared_structs::subtract_from_token_config_total_balance(cfg_mut, amount);
+
+    transfer::public_transfer(extracted, tx_context::sender(ctx));
 }
 
 /// Deposit function: Users send coins FROM their wallet TO the bridge safe contract

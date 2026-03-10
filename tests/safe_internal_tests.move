@@ -1259,7 +1259,7 @@ fun test_sync_supply_insufficient_coin() {
 }
 
 #[test]
-#[expected_failure(abort_code = safe::EInsufficientBalance)]
+#[expected_failure(abort_code = safe::ENotNativeToken)]
 fun test_sync_supply_not_native() {
     let mut scenario = setup();
     scenario.next_tx(ADMIN);
