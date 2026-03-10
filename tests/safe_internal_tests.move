@@ -7,8 +7,6 @@ use bridge_safe::safe::{Self, BridgeSafe};
 use sui::clock;
 use sui::coin;
 use sui::test_scenario::{Self as ts, Scenario};
-use locked_token::bridge_token::{Self as br, BRIDGE_TOKEN};
-use locked_token::treasury::{Self as lkt, Treasury, FromCoinCap};
 use sui_extensions::two_step_role::ESenderNotActiveRole;
 
 public struct TEST_COIN has drop {}
@@ -27,20 +25,9 @@ const MAX_AMOUNT: u64 = 1000000;
 fun setup(): Scenario {
     let mut s = ts::begin(ADMIN);
 
-    br::init_for_testing(s.ctx());
-
     s.next_tx(ADMIN);
     {
-        let mut treasury = s.take_shared<Treasury<BRIDGE_TOKEN>>();
-        lkt::transfer_to_coin_cap<BRIDGE_TOKEN>(&mut treasury, ADMIN, s.ctx());
-        lkt::transfer_from_coin_cap<BRIDGE_TOKEN>(&mut treasury, ADMIN, s.ctx());
-        ts::return_shared(treasury);
-    };
-
-    s.next_tx(ADMIN);
-    {
-        let from_cap_db = s.take_from_address<FromCoinCap<BRIDGE_TOKEN>>(ADMIN);
-        safe::init_for_testing(from_cap_db, s.ctx());
+        safe::init_for_testing(s.ctx());
     };
 
     s
@@ -86,7 +73,6 @@ fun test_whitelist_token() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true, // is_native
-            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -114,7 +100,6 @@ fun test_whitelist_token_already_exists() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true,
-            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -124,7 +109,6 @@ fun test_whitelist_token_already_exists() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true,
-            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -149,7 +133,6 @@ fun test_whitelist_token_not_admin() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true,
-            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -171,7 +154,6 @@ fun test_remove_token_from_whitelist() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true,
-            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -364,7 +346,6 @@ fun test_set_token_min_limit() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true,
-            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -396,7 +377,6 @@ fun test_set_token_max_limit() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true,
-            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -448,7 +428,6 @@ fun test_init_supply() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true, // is_native = true
-            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -482,7 +461,6 @@ fun test_init_supply_multiple_times() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true, // is_native = true
-            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -1059,7 +1037,6 @@ fun test_sync_supply() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true,
-            false,
             ts::ctx(&mut scenario),
         );
 
@@ -1102,7 +1079,6 @@ fun test_sync_supply_exact_amount() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true,
-            false,
             ts::ctx(&mut scenario),
         );
 
@@ -1134,7 +1110,6 @@ fun test_sync_supply_no_existing_bag_entry() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true,
-            false,
             ts::ctx(&mut scenario),
         );
 
@@ -1167,7 +1142,6 @@ fun test_sync_supply_not_owner() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true,
-            false,
             ts::ctx(&mut scenario),
         );
 
@@ -1213,7 +1187,6 @@ fun test_sync_supply_no_deficit() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true,
-            false,
             ts::ctx(&mut scenario),
         );
 
@@ -1241,7 +1214,6 @@ fun test_sync_supply_insufficient_coin() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true,
-            false,
             ts::ctx(&mut scenario),
         );
 
@@ -1271,7 +1243,6 @@ fun test_sync_supply_not_native() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             false, 
-            false,
             ts::ctx(&mut scenario),
         );
 
@@ -1330,7 +1301,6 @@ fun test_extract_tokens_success() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true,  // is_native
-            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -1371,7 +1341,7 @@ fun test_extract_tokens_after_multiple_supplies() {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
 
         safe::whitelist_token<TEST_COIN>(
-            &mut safe, MIN_AMOUNT, MAX_AMOUNT, true, false,
+            &mut safe, MIN_AMOUNT, MAX_AMOUNT, true,
             ts::ctx(&mut scenario),
         );
 
@@ -1411,7 +1381,7 @@ fun test_extract_tokens_not_owner() {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
 
         safe::whitelist_token<TEST_COIN>(
-            &mut safe, MIN_AMOUNT, MAX_AMOUNT, true, false,
+            &mut safe, MIN_AMOUNT, MAX_AMOUNT, true,
             ts::ctx(&mut scenario),
         );
 
@@ -1443,7 +1413,7 @@ fun test_extract_tokens_no_storage_entry() {
 
         // Whitelist but never seed supply → no bag entry
         safe::whitelist_token<TEST_COIN>(
-            &mut safe, MIN_AMOUNT, MAX_AMOUNT, true, false,
+            &mut safe, MIN_AMOUNT, MAX_AMOUNT, true,
             ts::ctx(&mut scenario),
         );
 
@@ -1463,7 +1433,7 @@ fun test_extract_tokens_then_reinitialize() {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
 
         safe::whitelist_token<TEST_COIN>(
-            &mut safe, MIN_AMOUNT, MAX_AMOUNT, true, false,
+            &mut safe, MIN_AMOUNT, MAX_AMOUNT, true,
             ts::ctx(&mut scenario),
         );
 
@@ -1496,7 +1466,7 @@ fun test_extract_tokens_new_owner() {
     {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
         safe::whitelist_token<TEST_COIN>(
-            &mut safe, MIN_AMOUNT, MAX_AMOUNT, true, false,
+            &mut safe, MIN_AMOUNT, MAX_AMOUNT, true,
             ts::ctx(&mut scenario),
         );
         let coin = coin::mint_for_testing<TEST_COIN>(2000, ts::ctx(&mut scenario));

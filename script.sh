@@ -49,8 +49,7 @@ case "$1" in
   read -p "Enter min amount [1]: " MIN_AMOUNT
   read -p "Enter max amount [1000000]: " MAX_AMOUNT
   read -p "Is native token? [true]: " IS_NATIVE
-  read -p "Is locked token? [false]: " IS_LOCKED
-  confirmation whitelist "$TOKEN_TYPE" "${MIN_AMOUNT:-1}" "${MAX_AMOUNT:-1000000}" "${IS_NATIVE:-true}" "${IS_LOCKED:-false}"
+  confirmation whitelist "$TOKEN_TYPE" "${MIN_AMOUNT:-1}" "${MAX_AMOUNT:-1000000}" "${IS_NATIVE:-true}"
   ;;
 
 'remove-whitelist')
@@ -140,7 +139,6 @@ case "$1" in
   echo "  Min: $TOKEN_MIN_XMN"
   echo "  Max: $TOKEN_MAX_XMN"
   echo "  Native: $TOKEN_IS_NATIVE_XMN"
-  echo "  Locked: $TOKEN_IS_LOCKED_XMN"
   echo "  Treasury: $COIN_ID_XMN"
   echo ""
   echo "Bridge Token Configuration:"
@@ -148,7 +146,6 @@ case "$1" in
   echo "  Min: $TOKEN_MIN_BRIDGE"
   echo "  Max: $TOKEN_MAX_BRIDGE"
   echo "  Native: $TOKEN_IS_NATIVE_BRIDGE"
-  echo "  Locked: $TOKEN_IS_LOCKED_BRIDGE"
   echo "  Treasury: $COIN_ID_BRIDGE"
   echo ""
   echo "Relayer Public Keys:"

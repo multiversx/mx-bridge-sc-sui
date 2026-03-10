@@ -35,7 +35,6 @@ public struct TokenConfig has copy, drop, store {
     min_limit: u64,
     max_limit: u64,
     total_balance: u64,
-    is_locked: bool,
 }
 
 public struct AdminRole has key {
@@ -133,16 +132,8 @@ public(package) fun set_token_config_is_native(config: &mut TokenConfig, is_nati
     config.is_native = is_native;
 }
 
-public(package) fun set_token_config_is_locked(config: &mut TokenConfig, is_locked: bool) {
-    config.is_locked = is_locked;
-}
-
 public(package) fun set_token_config_is_mint_burn(config: &mut TokenConfig, is_mint_burn: bool) {
     config.is_mint_burn = is_mint_burn;
-}
-
-public fun get_token_config_is_locked(config: &TokenConfig): bool {
-    config.is_locked
 }
 
 const EUnderflow: u64 = 0;
@@ -197,7 +188,6 @@ public fun create_token_config(
     is_native: bool,
     min_limit: u64,
     max_limit: u64,
-    is_locked: bool,
 ): TokenConfig {
     TokenConfig {
         whitelisted,
@@ -206,6 +196,5 @@ public fun create_token_config(
         min_limit,
         max_limit,
         total_balance: 0,
-        is_locked,
     }
 }

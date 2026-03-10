@@ -157,7 +157,6 @@ function whitelist-xmn() {
   echo "Min amount: $TOKEN_MIN_XMN"
   echo "Max amount: $TOKEN_MAX_XMN"
   echo "Native: $TOKEN_IS_NATIVE_XMN"
-  echo "Locked: $TOKEN_IS_LOCKED_XMN"
   
   sui client call \
     --package "$PACKAGE_ID" \
@@ -169,7 +168,6 @@ function whitelist-xmn() {
       "$TOKEN_MIN_XMN" \
       "$TOKEN_MAX_XMN" \
       "$TOKEN_IS_NATIVE_XMN" \
-      "$TOKEN_IS_LOCKED_XMN" \
     --gas-budget $GAS_BUDGET_DEFAULT --json > ./config/whitelist_xmn_output.json
   
   echo "✅ XMN Token whitelisted successfully"
@@ -183,7 +181,6 @@ function whitelist-bridge() {
   echo "Min amount: $TOKEN_MIN_BRIDGE"
   echo "Max amount: $TOKEN_MAX_BRIDGE"
   echo "Native: $TOKEN_IS_NATIVE_BRIDGE"
-  echo "Locked: $TOKEN_IS_LOCKED_BRIDGE"
   
   sui client call \
     --package "$PACKAGE_ID" \
@@ -195,7 +192,6 @@ function whitelist-bridge() {
       "$TOKEN_MIN_BRIDGE" \
       "$TOKEN_MAX_BRIDGE" \
       "$TOKEN_IS_NATIVE_BRIDGE" \
-      "$TOKEN_IS_LOCKED_BRIDGE" \
     --gas-budget $GAS_BUDGET_DEFAULT --json > ./config/whitelist_bridge_output.json
   
   echo "✅ Bridge Token whitelisted successfully"
@@ -206,8 +202,8 @@ function whitelist() {
   echo "=== Whitelisting Token ==="
   
   if [[ -z "$1" ]]; then
-    echo "Usage: whitelist <token_type> [min_amount] [max_amount] [is_native] [is_locked]"
-    echo "Example: whitelist \"0x123::token::TOKEN\" 1 1000000 true false"
+    echo "Usage: whitelist <token_type> [min_amount] [max_amount] [is_native] "
+    echo "Example: whitelist \"0x123::token::TOKEN\" 1 1000000 true"
     exit 1
   fi
   
@@ -215,13 +211,11 @@ function whitelist() {
   local MIN_AMOUNT="${2:-1}"
   local MAX_AMOUNT="${3:-1000000}"
   local IS_NATIVE="${4:-true}"
-  local IS_LOCKED="${5:-false}"
   
   echo "Whitelisting token: $TOKEN_TYPE"
   echo "Min amount: $MIN_AMOUNT"
   echo "Max amount: $MAX_AMOUNT"
   echo "Native: $IS_NATIVE"
-  echo "Locked: $IS_LOCKED"
   
   sui client call \
     --package "$PACKAGE_ID" \
@@ -233,7 +227,6 @@ function whitelist() {
       "$MIN_AMOUNT" \
       "$MAX_AMOUNT" \
       "$IS_NATIVE" \
-      "$IS_LOCKED" \
     --gas-budget $GAS_BUDGET_DEFAULT --json > ./config/whitelist_output.json
   
   echo "$WHITELIST_OUTPUT" > ./config/whitelist_output.json

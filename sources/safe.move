@@ -11,8 +11,6 @@ use bridge_safe::events;
 use bridge_safe::pausable::{Self, Pause};
 use bridge_safe::upgrade_service_bridge;
 use bridge_safe::utils;
-use locked_token::bridge_token::BRIDGE_TOKEN;
-use locked_token::treasury;
 use shared_structs::shared_structs::{Self, TokenConfig, Batch, Deposit};
 use std::u64::{min, max};
 use sui::bag::{Self, Bag};
@@ -76,14 +74,13 @@ public struct BridgeSafe has key {
     batches: Table<u64, Batch>,
     batch_deposits: Table<u64, vector<Deposit>>,
     coin_storage: Bag,
-    from_coin_cap: treasury::FromCoinCap<BRIDGE_TOKEN>,
     compatible_versions: VecSet<u64>,
 }
 
 public struct SAFE has drop {}
 
 #[allow(lint(self_transfer))]
-public fun initialize(from_coin_cap: treasury::FromCoinCap<BRIDGE_TOKEN>, ctx: &mut TxContext) {
+public fun initialize(ctx: &mut TxContext) {
     let deployer = tx_context::sender(ctx);
     let w = bridge_roles::grant_witness();
     let (bridge_cap) = bridge_roles::publish_caps(w, ctx);
@@ -102,7 +99,6 @@ public fun initialize(from_coin_cap: treasury::FromCoinCap<BRIDGE_TOKEN>, ctx: &
         batches: table::new(ctx),
         batch_deposits: table::new(ctx),
         coin_storage: bag::new(ctx),
-        from_coin_cap,
         compatible_versions: vec_set::singleton(bridge_version_control::current_version()),
     };
 
@@ -130,7 +126,6 @@ public fun whitelist_token<T>(
     minimum_amount: u64,
     maximum_amount: u64,
     is_native: bool,
-    is_locked: bool,
     ctx: &mut TxContext,
 ) {
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
@@ -151,14 +146,12 @@ public fun whitelist_token<T>(
         shared_structs::set_token_config_is_native(cfg_mut, is_native);
         shared_structs::set_token_config_min_limit(cfg_mut, minimum_amount);
         shared_structs::set_token_config_max_limit(cfg_mut, maximum_amount);
-        shared_structs::set_token_config_is_locked(cfg_mut, is_locked);
     } else {
         let cfg = shared_structs::create_token_config(
             true,
             is_native,
             minimum_amount,
             maximum_amount,
-            is_locked,
         );
         table::add(&mut safe.token_cfg, key, cfg);
     };
@@ -169,7 +162,6 @@ public fun whitelist_token<T>(
         maximum_amount,
         is_native,
         false,
-        is_locked,
     );
 }
 
@@ -283,15 +275,6 @@ public fun set_token_is_native<T>(safe: &mut BridgeSafe, is_native: bool, ctx: &
     events::emit_token_is_native_updated(key, is_native);
 }
 
-public fun set_token_is_locked<T>(safe: &mut BridgeSafe, is_locked: bool, ctx: &mut TxContext) {
-    safe.roles.owner_role().assert_sender_is_active_role(ctx);
-
-    let key = utils::type_name_bytes<T>();
-    let cfg = borrow_token_cfg_mut(safe, key);
-    shared_structs::set_token_config_is_locked(cfg, is_locked);
-
-    events::emit_token_is_locked_updated(key, is_locked);
-}
 
 public fun set_token_is_mint_burn<T>(
     safe: &mut BridgeSafe,
@@ -606,7 +589,6 @@ public(package) fun transfer<T>(
     _bridge_cap: &bridge_roles::BridgeCap,
     receiver: address,
     amount: u64,
-    treasury: &mut treasury::Treasury<BRIDGE_TOKEN>,
     ctx: &mut TxContext,
 ): bool {
     let key = utils::type_name_bytes<T>();
@@ -626,7 +608,7 @@ public(package) fun transfer<T>(
         return false
     };
 
-    if (!shared_structs::get_token_config_is_locked(cfg_ref)) {
+    if(get_token_is_native<T>(safe)){
         let stored_coin = bag::borrow_mut<vector<u8>, Coin<T>>(&mut safe.coin_storage, key);
         let coin_value = coin::value(stored_coin);
         if (coin_value < amount) {
@@ -640,25 +622,8 @@ public(package) fun transfer<T>(
             coin::destroy_zero(empty_coin);
         };
         transfer::public_transfer(coin_to_transfer, receiver);
-    } else {
-        let stored_bt_coin = bag::borrow_mut<
-            vector<u8>,
-            Coin<locked_token::bridge_token::BRIDGE_TOKEN>,
-        >(
-            &mut safe.coin_storage,
-            key,
-        );
-        let coin_bt = coin::split(stored_bt_coin, amount, ctx);
-
-        treasury::transfer_from_coin<locked_token::bridge_token::BRIDGE_TOKEN>(
-            treasury,
-            receiver,
-            &safe.from_coin_cap,
-            coin_bt,
-            ctx,
-        );
     };
-
+    
     let cfg_mut = borrow_token_cfg_mut(safe, key);
     shared_structs::subtract_from_token_config_total_balance(cfg_mut, amount);
 
@@ -796,8 +761,8 @@ public(package) fun assert_is_compatible(safe: &BridgeSafe) {
 }
 
 #[test_only]
-public fun init_for_testing(from_cap: treasury::FromCoinCap<BRIDGE_TOKEN>, ctx: &mut TxContext) {
-    initialize(from_cap, ctx);
+public fun init_for_testing(ctx: &mut TxContext) {
+    initialize(ctx);
 }
 
 #[test_only]

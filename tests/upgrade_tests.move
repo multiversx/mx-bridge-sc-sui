@@ -6,8 +6,6 @@ use bridge_safe::bridge_roles::BridgeCap;
 use bridge_safe::safe::{Self, BridgeSafe};
 use bridge_safe::upgrade_manager;
 use bridge_safe::bridge_version_control;
-use locked_token::bridge_token::{Self as br, BRIDGE_TOKEN};
-use locked_token::treasury::{Self as lkt, Treasury, FromCoinCap};
 use sui::test_scenario::{Self as ts, Scenario};
 
 public struct TEST_COIN has drop {}
@@ -25,20 +23,9 @@ const PK3: vector<u8> = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ123456";
 fun setup(): Scenario {
     let mut s = ts::begin(ADMIN);
 
-    br::init_for_testing(s.ctx());
-
     s.next_tx(ADMIN);
     {
-        let mut treasury = s.take_shared<Treasury<BRIDGE_TOKEN>>();
-        lkt::transfer_to_coin_cap<BRIDGE_TOKEN>(&mut treasury, ADMIN, s.ctx());
-        lkt::transfer_from_coin_cap<BRIDGE_TOKEN>(&mut treasury, ADMIN, s.ctx());
-        ts::return_shared(treasury);
-    };
-
-    s.next_tx(ADMIN);
-    {
-        let from_cap_db = s.take_from_address<FromCoinCap<BRIDGE_TOKEN>>(ADMIN);
-        safe::init_for_testing(from_cap_db, s.ctx());
+        safe::init_for_testing(s.ctx());
     };
 
     s.next_tx(ADMIN);
@@ -51,7 +38,6 @@ fun setup(): Scenario {
             MIN_AMOUNT,
             MAX_AMOUNT,
             true,
-            false,
             s.ctx(),
         );
 
