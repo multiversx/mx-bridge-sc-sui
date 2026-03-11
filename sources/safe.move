@@ -383,6 +383,7 @@ public fun sync_supply<T>(safe: &mut BridgeSafe, mut coin_in: Coin<T>, ctx: &mut
 #[allow(lint(self_transfer))]
 public fun extract_tokens<T>(
     safe: &mut BridgeSafe,
+    treasury: &mut treasury::Treasury<BRIDGE_TOKEN>,
     ctx: &mut TxContext,
 ) {
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
@@ -390,13 +391,36 @@ public fun extract_tokens<T>(
     let key = utils::type_name_bytes<T>();
     assert!(bag::contains(&safe.coin_storage, key), EInsufficientBalance);
 
-    let extracted = bag::remove<vector<u8>, Coin<T>>(&mut safe.coin_storage, key);
-    let amount = coin::value(&extracted);
+    let is_locked = {
+        let cfg_ref = table::borrow(&safe.token_cfg, key);
+        shared_structs::get_token_config_is_locked(cfg_ref)
+    };
 
-    let cfg_mut = borrow_token_cfg_mut(safe, key);
-    shared_structs::subtract_from_token_config_total_balance(cfg_mut, amount);
+    let sender = tx_context::sender(ctx);
 
-    transfer::public_transfer(extracted, tx_context::sender(ctx));
+    if (!is_locked) {
+        let extracted = bag::remove<vector<u8>, Coin<T>>(&mut safe.coin_storage, key);
+        let amount = coin::value(&extracted);
+
+        let cfg_mut = borrow_token_cfg_mut(safe, key);
+        shared_structs::subtract_from_token_config_total_balance(cfg_mut, amount);
+
+        transfer::public_transfer(extracted, sender);
+    } else {
+        let stored_bt_coin = bag::remove<vector<u8>, Coin<BRIDGE_TOKEN>>(&mut safe.coin_storage, key);
+        let amount = coin::value(&stored_bt_coin);
+
+        let cfg_mut = borrow_token_cfg_mut(safe, key);
+        shared_structs::subtract_from_token_config_total_balance(cfg_mut, amount);
+
+        treasury::transfer_from_coin<BRIDGE_TOKEN>(
+            treasury,
+            sender,
+            &safe.from_coin_cap,
+            stored_bt_coin,
+            ctx,
+        );
+    };
 }
 
 /// Deposit function: Users send coins FROM their wallet TO the bridge safe contract
