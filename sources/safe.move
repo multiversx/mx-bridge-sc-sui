@@ -425,24 +425,26 @@ public fun sync_supply<T>(safe: &mut BridgeSafe, mut coin_in: Coin<T>, ctx: &mut
 }
 
 
-/// Deposit function for native tokens: coin is stored in the safe's coin_storage bag.
-public fun deposit<T>(
+/// Shared helper: validates deposit preconditions, manages batching, records the deposit,
+/// and updates the token balance. Returns (key, amount, batch_nonce, dep_nonce).
+/// `expect_mint_burn` drives the variant guard: false for native, true for mint-burn.
+fun deposit_validate_and_record<T>(
     safe: &mut BridgeSafe,
-    coin_in: Coin<T>,
+    coin_in: &Coin<T>,
     recipient: vector<u8>,
+    expect_mint_burn: bool,
     clock: &Clock,
     ctx: &mut TxContext,
-) {
+): (vector<u8>, u64, u64, u64) {
     pausable::assert_not_paused(&safe.pause);
-
     assert!(vector::length(&recipient) == 32, EInvalidRecipient);
 
     let key = utils::type_name_bytes<T>();
     let cfg_ref = table::borrow(&safe.token_cfg, key);
     assert!(shared_structs::token_config_whitelisted(cfg_ref), ETokenNotWhitelisted);
-    assert!(!shared_structs::token_config_is_mint_burn(cfg_ref), EIncompatibleTokenFlags);
+    assert!(shared_structs::token_config_is_mint_burn(cfg_ref) == expect_mint_burn, EIncompatibleTokenFlags);
 
-    let amount = coin::value(&coin_in);
+    let amount = coin::value(coin_in);
     assert!(amount > 0, EZeroAmount);
     assert!(amount >= shared_structs::token_config_min_limit(cfg_ref), EAmountBelowMinimum);
     assert!(amount <= shared_structs::token_config_max_limit(cfg_ref), EAmountAboveMaximum);
@@ -456,18 +458,11 @@ public fun deposit<T>(
 
     assert!(safe.deposits_count < MAX_U64, EOverflow);
     let dep_nonce = safe.deposits_count + 1;
-    let dep = shared_structs::create_deposit(
-        dep_nonce,
-        key,
-        amount,
-        tx_context::sender(ctx),
-        recipient,
-    );
+    let dep = shared_structs::create_deposit(dep_nonce, key, amount, tx_context::sender(ctx), recipient);
 
     if (!table::contains(&safe.batch_deposits, batch_index)) {
         table::add(&mut safe.batch_deposits, batch_index, vector::empty());
     };
-
     let vec_ref = table::borrow_mut(&mut safe.batch_deposits, batch_index);
     vector::push_back(vec_ref, dep);
 
@@ -480,21 +475,27 @@ public fun deposit<T>(
     let cfg = borrow_token_cfg_mut(safe, key);
     shared_structs::add_to_token_config_total_balance(cfg, amount);
 
+    (key, amount, batch_nonce, dep_nonce)
+}
+
+/// Deposit function for native tokens: coin is stored in the safe's coin_storage bag.
+public fun deposit<T>(
+    safe: &mut BridgeSafe,
+    coin_in: Coin<T>,
+    recipient: vector<u8>,
+    clock: &Clock,
+    ctx: &mut TxContext,
+) {
+    let (key, amount, batch_nonce, dep_nonce) =
+        deposit_validate_and_record<T>(safe, &coin_in, recipient, false, clock, ctx);
+
     if (bag::contains(&safe.coin_storage, key)) {
-        let existing_coin = bag::borrow_mut<vector<u8>, Coin<T>>(&mut safe.coin_storage, key);
-        coin::join(existing_coin, coin_in);
+        coin::join(bag::borrow_mut<vector<u8>, Coin<T>>(&mut safe.coin_storage, key), coin_in);
     } else {
         bag::add(&mut safe.coin_storage, key, coin_in);
     };
 
-    events::emit_deposit(
-        batch_nonce,
-        dep_nonce,
-        tx_context::sender(ctx),
-        recipient,
-        amount,
-        key,
-    );
+    events::emit_deposit(batch_nonce, dep_nonce, tx_context::sender(ctx), recipient, amount, key);
 }
 
 /// Deposit function for mint-burn tokens: coin is burned immediately via the stablecoin-sui treasury.
@@ -507,70 +508,15 @@ public fun deposit_mint_burn<T>(
     deny_list: &DenyList,
     ctx: &mut TxContext,
 ) {
-    pausable::assert_not_paused(&safe.pause);
+    let cap_key = MintBurnCapKey { token_type: utils::type_name_bytes<T>() };
+    assert!(dof::exists_with_type<MintBurnCapKey, MintCap<T>>(&safe.id, cap_key), EMintBurnCapNotFound);
 
-    assert!(vector::length(&recipient) == 32, EInvalidRecipient);
+    let (key, amount, batch_nonce, dep_nonce) =
+        deposit_validate_and_record<T>(safe, &coin_in, recipient, true, clock, ctx);
 
-    let key = utils::type_name_bytes<T>();
-    let cfg_ref = table::borrow(&safe.token_cfg, key);
-    assert!(shared_structs::token_config_whitelisted(cfg_ref), ETokenNotWhitelisted);
-    assert!(shared_structs::token_config_is_mint_burn(cfg_ref), EIncompatibleTokenFlags);
+    stablecoin_treasury::burn(xmn_treasury, dof::borrow<MintBurnCapKey, MintCap<T>>(&safe.id, cap_key), deny_list, coin_in, ctx);
 
-    let amount = coin::value(&coin_in);
-    assert!(amount > 0, EZeroAmount);
-    assert!(amount >= shared_structs::token_config_min_limit(cfg_ref), EAmountBelowMinimum);
-    assert!(amount <= shared_structs::token_config_max_limit(cfg_ref), EAmountAboveMaximum);
-
-    let cap_key = MintBurnCapKey { token_type: key };
-    assert!(
-        dof::exists_with_type<MintBurnCapKey, MintCap<T>>(&safe.id, cap_key),
-        EMintBurnCapNotFound,
-    );
-
-    if (should_create_new_batch_internal(safe, clock)) {
-        create_new_batch_internal(safe, clock, ctx);
-    };
-
-    let batch_index = safe.batches_count - 1;
-    let batch = table::borrow_mut(&mut safe.batches, batch_index);
-
-    assert!(safe.deposits_count < MAX_U64, EOverflow);
-    let dep_nonce = safe.deposits_count + 1;
-    let dep = shared_structs::create_deposit(
-        dep_nonce,
-        key,
-        amount,
-        tx_context::sender(ctx),
-        recipient,
-    );
-
-    if (!table::contains(&safe.batch_deposits, batch_index)) {
-        table::add(&mut safe.batch_deposits, batch_index, vector::empty());
-    };
-
-    let vec_ref = table::borrow_mut(&mut safe.batch_deposits, batch_index);
-    vector::push_back(vec_ref, dep);
-
-    safe.deposits_count = dep_nonce;
-    shared_structs::increment_batch_deposits(batch);
-    shared_structs::set_batch_last_updated_timestamp_ms(batch, clock::timestamp_ms(clock));
-
-    let batch_nonce = shared_structs::batch_nonce(batch);
-
-    let cfg = borrow_token_cfg_mut(safe, key);
-    shared_structs::add_to_token_config_total_balance(cfg, amount);
-
-    let cap = dof::borrow<MintBurnCapKey, MintCap<T>>(&safe.id, cap_key);
-    stablecoin_treasury::burn(xmn_treasury, cap, deny_list, coin_in, ctx);
-
-    events::emit_deposit(
-        batch_nonce,
-        dep_nonce,
-        tx_context::sender(ctx),
-        recipient,
-        amount,
-        key,
-    );
+    events::emit_deposit(batch_nonce, dep_nonce, tx_context::sender(ctx), recipient, amount, key);
 }
 
 public(package) fun checkOwnerRole(safe: &BridgeSafe, ctx: &TxContext) {
