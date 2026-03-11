@@ -4,8 +4,6 @@ module bridge_safe::bridge_comprehensive_tests;
 use bridge_safe::bridge::{Self, Bridge};
 use bridge_safe::bridge_roles::BridgeCap;
 use bridge_safe::safe::{Self, BridgeSafe};
-use locked_token::bridge_token::{Self as br, BRIDGE_TOKEN};
-use locked_token::treasury::{Self as lkt, Treasury, FromCoinCap};
 use sui::clock;
 use sui::test_scenario::{Self as ts, Scenario};
 use sui_extensions::two_step_role::ESenderNotActiveRole;
@@ -29,20 +27,9 @@ const PK4: vector<u8> = b"98765432109876543210987654321098";
 fun setup(): Scenario {
     let mut s = ts::begin(ADMIN);
 
-    br::init_for_testing(s.ctx());
-
     s.next_tx(ADMIN);
     {
-        let mut treasury = s.take_shared<Treasury<BRIDGE_TOKEN>>();
-        lkt::transfer_to_coin_cap<BRIDGE_TOKEN>(&mut treasury, ADMIN, s.ctx());
-        lkt::transfer_from_coin_cap<BRIDGE_TOKEN>(&mut treasury, ADMIN, s.ctx());
-        ts::return_shared(treasury);
-    };
-
-    s.next_tx(ADMIN);
-    {
-        let from_cap_db = s.take_from_address<FromCoinCap<BRIDGE_TOKEN>>(ADMIN);
-        safe::init_for_testing(from_cap_db, s.ctx());
+        safe::init_for_testing(s.ctx());
     };
 
     s
@@ -61,8 +48,6 @@ fun test_initialize_bridge_success() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
-            true,
-            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -145,8 +130,6 @@ fun test_set_quorum_success() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
-            true,
-            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -192,8 +175,6 @@ fun test_set_quorum_not_admin() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
-            true,
-            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -237,8 +218,6 @@ fun test_add_relayer_success() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
-            true,
-            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -286,8 +265,6 @@ fun test_remove_relayer_success() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
-            true,
-            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -341,8 +318,6 @@ fun test_remove_relayer_below_quorum() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
-            true,
-            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -386,8 +361,6 @@ fun test_pause_unpause_contract() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
-            true,
-            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -442,8 +415,6 @@ fun test_getter_functions() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
-            true,
-            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -514,8 +485,6 @@ fun test_set_batch_settle_timeout_success() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
-            true,
-            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -575,8 +544,6 @@ fun test_set_batch_settle_timeout_not_admin() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
-            true,
-            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -629,8 +596,6 @@ fun test_execute_transfer_invalid_signature_length() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
-            true,
-            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -655,7 +620,6 @@ fun test_execute_transfer_invalid_signature_length() {
     {
         let mut bridge = ts::take_shared<Bridge>(&scenario);
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
-        let mut treasury = scenario.take_shared<lkt::Treasury<BRIDGE_TOKEN>>();
         let clock = clock::create_for_testing(ts::ctx(&mut scenario));
 
         let recipients = vector[USER];
@@ -674,13 +638,11 @@ fun test_execute_transfer_invalid_signature_length() {
             batch_nonce_mvx,
             invalid_signatures,
             false,
-            &mut treasury,
             &clock,
             ts::ctx(&mut scenario),
         );
 
         ts::return_shared(bridge);
-        ts::return_shared(treasury);
         ts::return_shared(safe);
         clock::destroy_for_testing(clock);
     };
@@ -702,8 +664,6 @@ fun test_execute_transfer_insufficient_signatures() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
-            true,
-            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -728,7 +688,6 @@ fun test_execute_transfer_insufficient_signatures() {
     {
         let mut bridge = ts::take_shared<Bridge>(&scenario);
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
-        let mut treasury = scenario.take_shared<lkt::Treasury<BRIDGE_TOKEN>>();
         let clock = clock::create_for_testing(ts::ctx(&mut scenario));
 
         let recipients = vector[USER];
@@ -758,14 +717,12 @@ fun test_execute_transfer_insufficient_signatures() {
             batch_nonce_mvx,
             signatures,
             false,
-            &mut treasury,
             &clock,
             ts::ctx(&mut scenario),
         );
 
         ts::return_shared(bridge);
         ts::return_shared(safe);
-        ts::return_shared(treasury);
         clock::destroy_for_testing(clock);
     };
 
@@ -786,8 +743,6 @@ fun test_add_relayer_invalid_public_key_length() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
-            true,
-            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -833,8 +788,6 @@ fun test_add_relayer_not_admin() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
-            true,
-            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -879,8 +832,6 @@ fun test_remove_relayer_not_admin() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
-            true,
-            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -925,8 +876,6 @@ fun test_pause_contract_not_admin() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
-            true,
-            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -971,8 +920,6 @@ fun test_unpause_contract_not_admin() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
-            true,
-            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -1051,21 +998,10 @@ fun setup_bridge_with_relayers_for_quorum(): (Scenario, vector<vector<u8>>, vect
     let addr4 = bridge::getAddressFromPublicKeyTest(&pk4);
     
     let relayer_addresses = vector[addr1, addr2, addr3, addr4];
-    
-    br::init_for_testing(scenario.ctx());
-    
-    scenario.next_tx(ADMIN);
-    {
-        let mut treasury = scenario.take_shared<Treasury<BRIDGE_TOKEN>>();
-        lkt::transfer_to_coin_cap<BRIDGE_TOKEN>(&mut treasury, ADMIN, scenario.ctx());
-        lkt::transfer_from_coin_cap<BRIDGE_TOKEN>(&mut treasury, ADMIN, scenario.ctx());
-        ts::return_shared(treasury);
-    };
 
     scenario.next_tx(ADMIN);
     {
-        let from_cap_db = scenario.take_from_address<FromCoinCap<BRIDGE_TOKEN>>(ADMIN);
-        safe::init_for_testing(from_cap_db, scenario.ctx());
+        safe::init_for_testing(scenario.ctx());
     };
 
     scenario.next_tx(ADMIN);

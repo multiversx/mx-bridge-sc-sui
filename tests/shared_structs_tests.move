@@ -12,7 +12,7 @@ fun test_token_config_is_mint_burn() {
         false, 
         100,   
         1000,  
-        false,
+        option::none(),
         false,
     );
     
@@ -46,7 +46,7 @@ fun test_subtract_from_token_config_total_balance() {
         false, 
         100,   
         1000,  
-        false,
+        option::none(),
         false,
     );
     
@@ -68,7 +68,7 @@ fun test_subtract_from_token_config_total_balance_underflow() {
         false,   
         100,     
         1000,    
-        false,
+        option::none(),
         false,
     );
     
@@ -83,7 +83,7 @@ fun test_subtract_from_token_config_total_balance_insufficient_funds() {
         false,   
         100,     
         1000,    
-        false,
+        option::none(),
         false,
     );
     
@@ -99,7 +99,7 @@ fun test_add_to_token_config_total_balance() {
         false,   
         100,     
         1000,    
-        false,
+        option::none(),
         false,
     );
     
@@ -120,7 +120,7 @@ fun test_add_to_token_config_total_balance_overflow() {
         false,   
         100,     
         1000,    
-        false,
+        option::none(),
         false,
     );
     
@@ -137,7 +137,7 @@ fun test_add_to_token_config_total_balance_near_max_overflow() {
         false,   
         100,     
         1000,    
-        false,
+        option::none(),
         false,
     );
     
@@ -153,7 +153,7 @@ fun test_set_token_config_is_native() {
         false,   
         100,     
         1000,    
-        false,
+        option::none(),
         false,
     );
       
@@ -164,29 +164,6 @@ fun test_set_token_config_is_native() {
     
     shared_structs::set_token_config_is_native(&mut config, false);
     assert!(shared_structs::token_config_is_native(&config) == false, 2);
-}
-
-#[test]
-fun test_set_token_config_is_locked() {
-    let mut config = shared_structs::create_token_config(
-        true,    
-        false,   
-        100,     
-        1000,    
-        false,
-        false,
-    );
-    
-      
-    assert!(shared_structs::get_token_config_is_locked(&config) == false, 0);
-    
-      
-    shared_structs::set_token_config_is_locked(&mut config, true);
-    assert!(shared_structs::get_token_config_is_locked(&config) == true, 1);
-    
-    // Set back to false
-    shared_structs::set_token_config_is_locked(&mut config, false);
-    assert!(shared_structs::get_token_config_is_locked(&config) == false, 2);
 }
 
 #[test]
@@ -257,19 +234,17 @@ fun test_combined_operations() {
         false,   
         100,     
         1000,    
-        false,
+        option::none(),
         false,
     );
     
     let mut batch = shared_structs::create_batch(42, 5000);
     
     shared_structs::set_token_config_is_native(&mut config, true);
-    shared_structs::set_token_config_is_locked(&mut config, true);
     shared_structs::set_token_config_is_mint_burn(&mut config, true);
     shared_structs::add_to_token_config_total_balance(&mut config, 500);
-    
+
     assert!(shared_structs::token_config_is_native(&config) == true, 0);
-    assert!(shared_structs::get_token_config_is_locked(&config) == true, 1);
     assert!(shared_structs::token_config_is_mint_burn(&config) == true, 2);
     assert!(shared_structs::token_config_total_balance(&config) == 500, 3);
     

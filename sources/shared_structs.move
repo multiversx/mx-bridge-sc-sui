@@ -1,5 +1,6 @@
 module shared_structs::shared_structs;
 
+use sui::object::ID;
 use sui::table::{Self, Table};
 
 public enum DepositStatus has copy, drop, store {
@@ -37,7 +38,7 @@ public struct TokenConfig has copy, drop, store {
     min_limit: u64,
     max_limit: u64,
     total_balance: u64,
-    is_locked: bool,
+    treasury_id: Option<ID>,
 }
 
 public struct AdminRole has key {
@@ -135,16 +136,12 @@ public(package) fun set_token_config_is_native(config: &mut TokenConfig, is_nati
     config.is_native = is_native;
 }
 
-public(package) fun set_token_config_is_locked(config: &mut TokenConfig, is_locked: bool) {
-    config.is_locked = is_locked;
-}
-
 public(package) fun set_token_config_is_mint_burn(config: &mut TokenConfig, is_mint_burn: bool) {
     config.is_mint_burn = is_mint_burn;
 }
 
-public fun get_token_config_is_locked(config: &TokenConfig): bool {
-    config.is_locked
+public fun token_config_treasury_id(config: &TokenConfig): Option<ID> {
+    config.treasury_id
 }
 
 const EUnderflow: u64 = 0;
@@ -201,17 +198,17 @@ public fun upsert_token_config(
     is_native: bool,
     min_limit: u64,
     max_limit: u64,
-    is_locked: bool,
+    treasury_id: Option<ID>,
     is_mint_burn: bool,
 ) {
     if (table::contains(config, key)) {
         let cfg = table::borrow_mut(config, key);
-        set_token_config(cfg, whitelisted, is_native, min_limit, max_limit, is_locked, is_mint_burn);
+        set_token_config(cfg, whitelisted, is_native, min_limit, max_limit, treasury_id, is_mint_burn);
 
         return;
     };
 
-    let mut cfg = create_token_config(whitelisted, is_native, min_limit, max_limit, is_locked, is_mint_burn);
+    let cfg = create_token_config(whitelisted, is_native, min_limit, max_limit, treasury_id, is_mint_burn);
     table::add(config, key, cfg);
 }
 
@@ -221,7 +218,7 @@ public fun set_token_config(
     is_native: bool,
     min_limit: u64,
     max_limit: u64,
-    is_locked: bool,
+    treasury_id: Option<ID>,
     is_mint_burn: bool,
 ) {
     set_token_config_whitelisted(config, whitelisted);
@@ -229,7 +226,7 @@ public fun set_token_config(
     set_token_config_is_mint_burn(config, is_mint_burn);
     set_token_config_min_limit(config, min_limit);
     set_token_config_max_limit(config, max_limit);
-    set_token_config_is_locked(config, is_locked);
+    config.treasury_id = treasury_id;
 }
 
 public fun create_token_config(
@@ -237,7 +234,7 @@ public fun create_token_config(
     is_native: bool,
     min_limit: u64,
     max_limit: u64,
-    is_locked: bool,
+    treasury_id: Option<ID>,
     is_mint_burn: bool,
 ): TokenConfig {
     TokenConfig {
@@ -246,7 +243,7 @@ public fun create_token_config(
         min_limit,
         max_limit,
         total_balance: 0,
-        is_locked,
+        treasury_id,
         is_mint_burn,
     }
 }

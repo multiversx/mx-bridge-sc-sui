@@ -4,8 +4,6 @@ module bridge_safe::security_tests;
 use bridge_safe::bridge::{Self, Bridge};
 use bridge_safe::bridge_roles::BridgeCap;
 use bridge_safe::safe::{Self, BridgeSafe};
-use locked_token::bridge_token::{Self as br, BRIDGE_TOKEN};
-use locked_token::treasury::{Self as lkt, Treasury, FromCoinCap};
 use sui::clock;
 use sui::coin;
 use sui::test_scenario::{Self as ts, Scenario};
@@ -29,20 +27,9 @@ const PK3: vector<u8> = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ123456";
 fun setup(): Scenario {
     let mut s = ts::begin(ADMIN);
 
-    br::init_for_testing(s.ctx());
-
     s.next_tx(ADMIN);
     {
-        let mut treasury = s.take_shared<Treasury<BRIDGE_TOKEN>>();
-        lkt::transfer_to_coin_cap<BRIDGE_TOKEN>(&mut treasury, ADMIN, s.ctx());
-        lkt::transfer_from_coin_cap<BRIDGE_TOKEN>(&mut treasury, ADMIN, s.ctx());
-        ts::return_shared(treasury);
-    };
-
-    s.next_tx(ADMIN);
-    {
-        let from_cap_db = s.take_from_address<FromCoinCap<BRIDGE_TOKEN>>(ADMIN);
-        safe::init_for_testing(from_cap_db, s.ctx());
+        safe::init_for_testing(s.ctx());
     };
 
     s.next_tx(ADMIN);
@@ -54,8 +41,6 @@ fun setup(): Scenario {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
-            true,
-            false, // is_locked
             ts::ctx(&mut s),
         );
 
@@ -144,7 +129,6 @@ fun test_replay_allows_double_spend_with_same_deposit_nonce() {
     {
         let mut bridge = ts::take_shared<Bridge>(&scenario);
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
-        let mut treasury = ts::take_shared<Treasury<BRIDGE_TOKEN>>(&scenario);
         let clock = clock::create_for_testing(ts::ctx(&mut scenario));
 
         // First call should succeed
@@ -155,7 +139,6 @@ fun test_replay_allows_double_spend_with_same_deposit_nonce() {
             vector[DRAIN_AMOUNT],
             1, // batch nonce
             false,
-            &mut treasury,
             &clock,
             ts::ctx(&mut scenario),
         );
@@ -168,7 +151,6 @@ fun test_replay_allows_double_spend_with_same_deposit_nonce() {
             vector[DRAIN_AMOUNT],
             1, // same batch nonce
             false,
-            &mut treasury,
             &clock,
             ts::ctx(&mut scenario),
         );
@@ -181,7 +163,6 @@ fun test_replay_allows_double_spend_with_same_deposit_nonce() {
 
         ts::return_shared(bridge);
         ts::return_shared(safe);
-        ts::return_shared(treasury);
         clock::destroy_for_testing(clock);
     };
 
