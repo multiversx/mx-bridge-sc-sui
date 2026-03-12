@@ -1248,3 +1248,173 @@ fun test_deposit_mint_burn_when_paused() {
     ts::end(scenario);
 }
 
+
+#[test]
+fun test_transfer_mint_burn_not_configured() {
+    let mut scenario = setup_with_treasury();
+
+    scenario.next_tx(ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        let mut treasury = ts::take_shared<XmnTreasury<DEPOSIT_TRANSFER_TESTS>>(&scenario);
+        let deny_list = ts::take_shared<DenyList>(&scenario);
+        let bridge_cap = ts::take_from_address<BridgeCap>(&scenario, ADMIN);
+
+        let success = xmn_mint_cap_adapter::transfer<DEPOSIT_TRANSFER_TESTS>(
+            &mut safe, &bridge_cap, RECIPIENT, DEPOSIT_AMOUNT, &mut treasury, &deny_list, ts::ctx(&mut scenario),
+        );
+        assert!(!success, 0);
+        ts::return_shared(safe);
+        ts::return_shared(treasury);
+        ts::return_shared(deny_list);
+        ts::return_to_address(ADMIN, bridge_cap);
+    };
+
+    ts::end(scenario);
+}
+
+#[test]
+fun test_transfer_mint_burn_wrong_variant() {
+    let mut scenario = setup_with_treasury();
+
+    scenario.next_tx(ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+
+        safe::whitelist_token<DEPOSIT_TRANSFER_TESTS>(&mut safe, MIN_AMOUNT, MAX_AMOUNT, ts::ctx(&mut scenario));
+        let supply = coin::mint_for_testing<DEPOSIT_TRANSFER_TESTS>(DEPOSIT_AMOUNT * 2, ts::ctx(&mut scenario));
+        safe::init_supply<DEPOSIT_TRANSFER_TESTS>(&mut safe, supply, ts::ctx(&mut scenario));
+        ts::return_shared(safe);
+    };
+
+    scenario.next_tx(ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        let mut treasury = ts::take_shared<XmnTreasury<DEPOSIT_TRANSFER_TESTS>>(&scenario);
+        let deny_list = ts::take_shared<DenyList>(&scenario);
+        let bridge_cap = ts::take_from_address<BridgeCap>(&scenario, ADMIN);
+
+        let success = xmn_mint_cap_adapter::transfer<DEPOSIT_TRANSFER_TESTS>(
+            &mut safe, &bridge_cap, RECIPIENT, DEPOSIT_AMOUNT, &mut treasury, &deny_list, ts::ctx(&mut scenario),
+        );
+        assert!(!success, 0);
+        ts::return_shared(safe);
+        ts::return_shared(treasury);
+        ts::return_shared(deny_list);
+        ts::return_to_address(ADMIN, bridge_cap);
+    };
+
+    ts::end(scenario);
+}
+
+#[test]
+fun test_transfer_mint_burn_zero_balance() {
+    let mut scenario = setup_with_treasury();
+
+    scenario.next_tx(ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        let treasury = ts::take_shared<XmnTreasury<DEPOSIT_TRANSFER_TESTS>>(&scenario);
+
+        safe::whitelist_token_internal<DEPOSIT_TRANSFER_TESTS>(
+            &mut safe, MIN_AMOUNT, MAX_AMOUNT, false,
+            option::some(object::id(&treasury)), true, ts::ctx(&mut scenario),
+        );
+        ts::return_shared(safe);
+        ts::return_shared(treasury);
+    };
+
+    scenario.next_tx(ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        let mut treasury = ts::take_shared<XmnTreasury<DEPOSIT_TRANSFER_TESTS>>(&scenario);
+        let deny_list = ts::take_shared<DenyList>(&scenario);
+        let bridge_cap = ts::take_from_address<BridgeCap>(&scenario, ADMIN);
+        // balance=0 < DEPOSIT_AMOUNT → returns false
+        let success = xmn_mint_cap_adapter::transfer<DEPOSIT_TRANSFER_TESTS>(
+            &mut safe, &bridge_cap, RECIPIENT, DEPOSIT_AMOUNT, &mut treasury, &deny_list, ts::ctx(&mut scenario),
+        );
+        assert!(!success, 0);
+        ts::return_shared(safe);
+        ts::return_shared(treasury);
+        ts::return_shared(deny_list);
+        ts::return_to_address(ADMIN, bridge_cap);
+    };
+
+    ts::end(scenario);
+}
+
+#[test]
+fun test_transfer_mint_burn_insufficient_balance() {
+    let mut scenario = setup_with_treasury();
+
+    scenario.next_tx(ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        let treasury = ts::take_shared<XmnTreasury<DEPOSIT_TRANSFER_TESTS>>(&scenario);
+        safe::whitelist_token_internal<DEPOSIT_TRANSFER_TESTS>(
+            &mut safe, MIN_AMOUNT, MAX_AMOUNT, false,
+            option::some(object::id(&treasury)), true, ts::ctx(&mut scenario),
+        );
+
+        safe::add_to_balance_for_testing<DEPOSIT_TRANSFER_TESTS>(&mut safe, DEPOSIT_AMOUNT - 1);
+        ts::return_shared(safe);
+        ts::return_shared(treasury);
+    };
+
+    scenario.next_tx(ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        let mut treasury = ts::take_shared<XmnTreasury<DEPOSIT_TRANSFER_TESTS>>(&scenario);
+        let deny_list = ts::take_shared<DenyList>(&scenario);
+        let bridge_cap = ts::take_from_address<BridgeCap>(&scenario, ADMIN);
+        let success = xmn_mint_cap_adapter::transfer<DEPOSIT_TRANSFER_TESTS>(
+            &mut safe, &bridge_cap, RECIPIENT, DEPOSIT_AMOUNT, &mut treasury, &deny_list, ts::ctx(&mut scenario),
+        );
+        assert!(!success, 0);
+        ts::return_shared(safe);
+        ts::return_shared(treasury);
+        ts::return_shared(deny_list);
+        ts::return_to_address(ADMIN, bridge_cap);
+    };
+
+    ts::end(scenario);
+}
+
+#[test]
+fun test_transfer_mint_burn_cap_not_registered() {
+    let mut scenario = setup_with_treasury();
+
+    scenario.next_tx(ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        let treasury = ts::take_shared<XmnTreasury<DEPOSIT_TRANSFER_TESTS>>(&scenario);
+        safe::whitelist_token_internal<DEPOSIT_TRANSFER_TESTS>(
+            &mut safe, MIN_AMOUNT, MAX_AMOUNT, false,
+            option::some(object::id(&treasury)), true, ts::ctx(&mut scenario),
+        );
+
+        safe::add_to_balance_for_testing<DEPOSIT_TRANSFER_TESTS>(&mut safe, DEPOSIT_AMOUNT);
+        ts::return_shared(safe);
+        ts::return_shared(treasury);
+    };
+
+    scenario.next_tx(ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        let mut treasury = ts::take_shared<XmnTreasury<DEPOSIT_TRANSFER_TESTS>>(&scenario);
+        let deny_list = ts::take_shared<DenyList>(&scenario);
+        let bridge_cap = ts::take_from_address<BridgeCap>(&scenario, ADMIN);
+        let success = xmn_mint_cap_adapter::transfer<DEPOSIT_TRANSFER_TESTS>(
+            &mut safe, &bridge_cap, RECIPIENT, DEPOSIT_AMOUNT, &mut treasury, &deny_list, ts::ctx(&mut scenario),
+        );
+        assert!(!success, 0);
+        ts::return_shared(safe);
+        ts::return_shared(treasury);
+        ts::return_shared(deny_list);
+        ts::return_to_address(ADMIN, bridge_cap);
+    };
+
+    ts::end(scenario);
+}
+
