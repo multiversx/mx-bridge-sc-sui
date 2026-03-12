@@ -4,6 +4,7 @@ module bridge_safe::deposit_transfer_tests;
 use bridge_safe::bridge_roles::BridgeCap;
 use bridge_safe::pausable;
 use bridge_safe::safe::{Self, BridgeSafe};
+use bridge_safe::xmn_mint_cap_adapter;
 use sui::clock;
 use sui::coin;
 use sui::deny_list::DenyList;
@@ -1172,7 +1173,7 @@ fun test_deposit_mint_burn_wrong_variant() {
 /// Uses the real deposit_mint_burn function (not the testing bypass) with a proper
 /// Treasury + DenyList. The abort happens before the treasury is accessed.
 #[test]
-#[expected_failure(abort_code = safe::EMintBurnCapNotFound)]
+#[expected_failure(abort_code = xmn_mint_cap_adapter::EMintBurnCapNotFound)]
 fun test_deposit_mint_burn_cap_not_registered() {
     let mut scenario = setup_with_treasury();
 
@@ -1197,7 +1198,7 @@ fun test_deposit_mint_burn_cap_not_registered() {
         );
 
         // No MintCap registered — expect EMintBurnCapNotFound
-        safe::deposit_mint_burn<DEPOSIT_TRANSFER_TESTS>(
+        xmn_mint_cap_adapter::deposit_mint_burn<DEPOSIT_TRANSFER_TESTS>(
             &mut safe,
             coin,
             RECIPIENT_VECTOR,

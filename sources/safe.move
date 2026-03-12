@@ -11,23 +11,15 @@ use bridge_safe::events;
 use bridge_safe::pausable::{Self, Pause};
 use bridge_safe::upgrade_service_bridge;
 use bridge_safe::utils;
-use treasury::treasury::{Self as stablecoin_treasury, MintCap, Treasury as XmnTreasury};
-use sui::deny_list::DenyList;
 use shared_structs::shared_structs::{Self, TokenConfig, Batch, Deposit};
+use sui::object::UID;
 use std::u64::{min, max};
 use sui::bag::{Self, Bag};
 use sui::clock::{Self, Clock};
 use sui::coin::{Self, Coin};
-use sui::dynamic_object_field as dof;
 use sui::event;
 use sui::table::{Self, Table};
 use sui::vec_set::{Self, VecSet};
-
-// === Structs ===
-
-public struct MintBurnCapKey has copy, drop, store {
-    token_type: vector<u8>,
-}
 
 // === Migration Events ===
 
@@ -64,8 +56,6 @@ const EMigrationStarted: u64 = 16;
 const EMigrationNotStarted: u64 = 17;
 const ENotPendingVersion: u64 = 18;
 const ENotNativeToken: u64 = 19;
-const EMintBurnCapNotFound: u64 = 20;
-const EMintBurnCapAlreadyRegistered: u64 = 21;
 const EIncompatibleTokenFlags: u64 = 22;
 
 const MAX_U64: u64 = 18446744073709551615;
@@ -325,35 +315,6 @@ public fun set_token_is_mint_burn<T>(
     events::emit_token_is_mint_burn_updated(key, is_mint_burn);
 }
 
-/// Register a MintCap<T> for a mint-burn token.
-public fun register_mint_burn_cap<T>(
-    safe: &mut BridgeSafe,
-    cap: MintCap<T>,
-    ctx: &TxContext,
-) {
-    safe.roles.owner_role().assert_sender_is_active_role(ctx);
-    let key = utils::type_name_bytes<T>();
-    assert_token_is_whitelisted(safe, key);
-    assert_token_is_mint_burn(safe, key);
-    let cap_key = MintBurnCapKey { token_type: key };
-    assert!(!dof::exists_(&safe.id, cap_key), EMintBurnCapAlreadyRegistered);
-    dof::add(&mut safe.id, cap_key, cap);
-}
-
-#[allow(lint(self_transfer))]
-public fun deregister_mint_burn_cap<T>(safe: &mut BridgeSafe, ctx: &TxContext) {
-    safe.roles.owner_role().assert_sender_is_active_role(ctx);
-    let key = utils::type_name_bytes<T>();
-    assert_token_is_not_whitelisted(safe, key);
-    let cap_key = MintBurnCapKey { token_type: key };
-    assert!(
-        dof::exists_with_type<MintBurnCapKey, MintCap<T>>(&safe.id, cap_key),
-        EMintBurnCapNotFound,
-    );
-    let cap = dof::remove<MintBurnCapKey, MintCap<T>>(&mut safe.id, cap_key);
-    transfer::public_transfer(cap, ctx.sender());
-}
-
 public fun set_bridge_addr(safe: &mut BridgeSafe, new_bridge_addr: address, ctx: &TxContext) {
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
 
@@ -428,7 +389,7 @@ public fun sync_supply<T>(safe: &mut BridgeSafe, mut coin_in: Coin<T>, ctx: &mut
 /// Shared helper: validates deposit preconditions, manages batching, records the deposit,
 /// and updates the token balance. Returns (key, amount, batch_nonce, dep_nonce).
 /// `expect_mint_burn` drives the variant guard: false for native, true for mint-burn.
-fun deposit_validate_and_record<T>(
+public(package) fun deposit_validate_and_record<T>(
     safe: &mut BridgeSafe,
     coin_in: &Coin<T>,
     recipient: vector<u8>,
@@ -498,29 +459,26 @@ public fun deposit<T>(
     events::emit_deposit(batch_nonce, dep_nonce, tx_context::sender(ctx), recipient, amount, key);
 }
 
-/// Deposit function for mint-burn tokens: coin is burned immediately via the stablecoin-sui treasury.
-public fun deposit_mint_burn<T>(
-    safe: &mut BridgeSafe,
-    coin_in: Coin<T>,
-    recipient: vector<u8>,
-    clock: &Clock,
-    xmn_treasury: &mut XmnTreasury<T>,
-    deny_list: &DenyList,
-    ctx: &mut TxContext,
-) {
-    let cap_key = MintBurnCapKey { token_type: utils::type_name_bytes<T>() };
-    assert!(dof::exists_with_type<MintBurnCapKey, MintCap<T>>(&safe.id, cap_key), EMintBurnCapNotFound);
-
-    let (key, amount, batch_nonce, dep_nonce) =
-        deposit_validate_and_record<T>(safe, &coin_in, recipient, true, clock, ctx);
-
-    stablecoin_treasury::burn(xmn_treasury, dof::borrow<MintBurnCapKey, MintCap<T>>(&safe.id, cap_key), deny_list, coin_in, ctx);
-
-    events::emit_deposit(batch_nonce, dep_nonce, tx_context::sender(ctx), recipient, amount, key);
-}
-
 public(package) fun checkOwnerRole(safe: &BridgeSafe, ctx: &TxContext) {
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
+}
+
+public(package) fun uid(safe: &BridgeSafe): &UID {
+    &safe.id
+}
+
+public(package) fun uid_mut(safe: &mut BridgeSafe): &mut UID {
+    &mut safe.id
+}
+
+public(package) fun has_token_config<T>(safe: &BridgeSafe): bool {
+    table::contains(&safe.token_cfg, utils::type_name_bytes<T>())
+}
+
+public(package) fun subtract_token_balance<T>(safe: &mut BridgeSafe, amount: u64) {
+    let key = utils::type_name_bytes<T>();
+    let cfg = table::borrow_mut(&mut safe.token_cfg, key);
+    shared_structs::subtract_from_token_config_total_balance(cfg, amount);
 }
 
 public fun get_batch(safe: &BridgeSafe, batch_nonce: u64, clock: &Clock): (Batch, bool) {
@@ -704,53 +662,6 @@ public(package) fun transfer<T>(
     true
 }
 
-/// Transfer function for mint-burn tokens: mints fresh coin directly to receiver via the stablecoin-sui treasury.
-/// Only the bridge role can call this function.
-public(package) fun transfer_mint_burn<T>(
-    safe: &mut BridgeSafe,
-    _bridge_cap: &bridge_roles::BridgeCap,
-    receiver: address,
-    amount: u64,
-    xmn_treasury: &mut XmnTreasury<T>,
-    deny_list: &DenyList,
-    ctx: &mut TxContext,
-): bool {
-    let key = utils::type_name_bytes<T>();
-
-    if (!table::contains(&safe.token_cfg, key)) {
-        return false
-    };
-
-    let (is_mint_burn, current_balance) = {
-        let cfg_ref = table::borrow(&safe.token_cfg, key);
-        (
-            shared_structs::token_config_is_mint_burn(cfg_ref),
-            shared_structs::token_config_total_balance(cfg_ref),
-        )
-    };
-
-    if (!is_mint_burn) {
-        return false
-    };
-
-    if (current_balance < amount) {
-        return false
-    };
-
-    let cap_key = MintBurnCapKey { token_type: key };
-    if (!dof::exists_with_type<MintBurnCapKey, MintCap<T>>(&safe.id, cap_key)) {
-        return false
-    };
-
-    let cap = dof::borrow<MintBurnCapKey, MintCap<T>>(&safe.id, cap_key);
-    stablecoin_treasury::mint(xmn_treasury, cap, deny_list, amount, receiver, ctx);
-
-    let cfg_mut = borrow_token_cfg_mut(safe, key);
-    shared_structs::subtract_from_token_config_total_balance(cfg_mut, amount);
-
-    true
-}
-
 public fun get_stored_coin_balance<T>(safe: &mut BridgeSafe): u64 {
     let key = utils::type_name_bytes<T>();
     if (!table::contains(&safe.token_cfg, key)) {
@@ -793,19 +704,19 @@ public(package) fun assert_is_compatible(safe: &BridgeSafe) {
     bridge_version_control::assert_object_version_is_compatible_with_package(safe.compatible_versions);
 }
 
-fun assert_token_is_whitelisted(safe: &BridgeSafe, key: vector<u8>) {
+public(package) fun assert_token_is_whitelisted(safe: &BridgeSafe, key: vector<u8>) {
     assert!(table::contains(&safe.token_cfg, key), ETokenNotWhitelisted);
     let cfg = table::borrow(&safe.token_cfg, key);
     assert!(shared_structs::token_config_whitelisted(cfg), ETokenNotWhitelisted);
 }
 
-fun assert_token_is_not_whitelisted(safe: &BridgeSafe, key: vector<u8>) {
+public(package) fun assert_token_is_not_whitelisted(safe: &BridgeSafe, key: vector<u8>) {
     assert!(table::contains(&safe.token_cfg, key), ETokenNotWhitelisted);
     let cfg = table::borrow(&safe.token_cfg, key);
     assert!(!shared_structs::token_config_whitelisted(cfg), ETokenAlreadyExists);
 }
 
-fun assert_token_is_mint_burn(safe: &BridgeSafe, key: vector<u8>) {
+public(package) fun assert_token_is_mint_burn(safe: &BridgeSafe, key: vector<u8>) {
     assert!(table::contains(&safe.token_cfg, key), ETokenNotWhitelisted);
     let cfg = table::borrow(&safe.token_cfg, key);
     assert!(shared_structs::token_config_is_mint_burn(cfg), EIncompatibleTokenFlags);

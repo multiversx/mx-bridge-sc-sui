@@ -12,6 +12,7 @@ use bridge_safe::pausable::{Self, Pause};
 use bridge_safe::safe::{Self, BridgeSafe};
 use bridge_safe::utils;
 use bridge_safe::bridge_version_control;
+use bridge_safe::xmn_mint_cap_adapter;
 use treasury::treasury::Treasury as XmnTreasury;
 use sui::deny_list::DenyList;
 use shared_structs::shared_structs::{Self, Deposit, Batch, CrossTransferStatus, DepositStatus};
@@ -410,7 +411,7 @@ public fun execute_transfer_mint_burn<T>(
         let recipient = *vector::borrow(&recipients, i);
         let amount = *vector::borrow(&amounts, i);
 
-        let success = safe::transfer_mint_burn<T>(safe, &bridge.bridge_cap, recipient, amount, xmn_treasury, deny_list, ctx);
+        let success = xmn_mint_cap_adapter::transfer_mint_burn<T>(safe, &bridge.bridge_cap, recipient, amount, xmn_treasury, deny_list, ctx);
         if (success) {
             vector::push_back(
                 &mut bridge.transfer_statuses,
@@ -758,7 +759,7 @@ public fun execute_transfer_mint_burn_for_testing<T>(
         let recipient = *vector::borrow(&recipients, i);
         let amount = *vector::borrow(&amounts, i);
 
-        let success = safe::transfer_mint_burn<T>(safe, &bridge.bridge_cap, recipient, amount, xmn_treasury, deny_list, ctx);
+        let success = xmn_mint_cap_adapter::transfer_mint_burn<T>(safe, &bridge.bridge_cap, recipient, amount, xmn_treasury, deny_list, ctx);
         if (success) {
             vector::push_back(
                 &mut bridge.transfer_statuses,
