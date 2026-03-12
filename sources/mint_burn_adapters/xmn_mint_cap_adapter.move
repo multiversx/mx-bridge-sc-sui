@@ -1,9 +1,3 @@
-/// Mint-burn adapter for the stablecoin-sui treasury (MintCap<T> mechanism).
-///
-/// Owns the full mint-burn deposit and transfer entry points. Stores a MintCap<T>
-/// inside BridgeSafe's dynamic object fields and calls the treasury's burn/mint.
-/// Adding a new mint-burn mechanism means adding a sibling adapter module here
-/// with its own entry points — safe.move stays mechanism-agnostic.
 module bridge_safe::xmn_mint_cap_adapter;
 
 use bridge_safe::bridge_roles::BridgeCap;
@@ -14,12 +8,8 @@ use sui::clock::Clock;
 use sui::coin::Coin;
 use sui::deny_list::DenyList;
 use sui::dynamic_object_field as dof;
-use sui::object::UID;
-use sui::transfer;
-use sui::tx_context;
 use treasury::treasury::{Self as stablecoin_treasury, MintCap, Treasury as XmnTreasury};
 
-// DOF key — scoped to this module so it can't clash with other adapters.
 public struct CapKey has copy, drop, store {
     token_type: vector<u8>,
 }
@@ -27,13 +17,53 @@ public struct CapKey has copy, drop, store {
 const EMintBurnCapNotFound: u64 = 20;
 const EMintBurnCapAlreadyRegistered: u64 = 21;
 
+// === Public API ===
+
+public fun deposit_mint_burn<T>(
+    safe: &mut BridgeSafe,
+    coin_in: Coin<T>,
+    recipient: vector<u8>,
+    clock: &Clock,
+    xmn_treasury: &mut XmnTreasury<T>,
+    deny_list: &DenyList,
+    ctx: &mut TxContext,
+) {
+    assert!(has_cap<T>(safe::uid(safe)), EMintBurnCapNotFound);
+
+    let (key, amount, batch_nonce, dep_nonce) =
+        safe::deposit_validate_and_record<T>(safe, &coin_in, recipient, true, clock, ctx);
+
+    burn<T>(safe::uid(safe), xmn_treasury, deny_list, coin_in, ctx);
+
+    events::emit_deposit(batch_nonce, dep_nonce, tx_context::sender(ctx), recipient, amount, key);
+}
+
+public fun register_mint_burn_cap<T>(
+    safe: &mut BridgeSafe,
+    cap: MintCap<T>,
+    ctx: &TxContext,
+) {
+    safe::checkOwnerRole(safe, ctx);
+    let key = utils::type_name_bytes<T>();
+    safe::assert_token_is_whitelisted(safe, key);
+    safe::assert_token_is_mint_burn(safe, key);
+    assert!(!has_cap<T>(safe::uid(safe)), EMintBurnCapAlreadyRegistered);
+    register<T>(safe::uid_mut(safe), cap);
+}
+
+public fun deregister_mint_burn_cap<T>(safe: &mut BridgeSafe, ctx: &TxContext) {
+    safe::checkOwnerRole(safe, ctx);
+    let key = utils::type_name_bytes<T>();
+    safe::assert_token_is_not_whitelisted(safe, key);
+    assert!(has_cap<T>(safe::uid(safe)), EMintBurnCapNotFound);
+    deregister<T>(safe::uid_mut(safe), ctx.sender());
+}
+
 // === Internal helpers ===
 
 fun cap_key<T>(): CapKey {
     CapKey { token_type: utils::type_name_bytes<T>() }
 }
-
-// === Low-level UID-based operations (package-internal) ===
 
 public(package) fun register<T>(id: &mut UID, cap: MintCap<T>) {
     dof::add(id, cap_key<T>(), cap);
@@ -72,53 +102,6 @@ public(package) fun mint<T>(
     stablecoin_treasury::mint(xmn_treasury, cap, deny_list, amount, receiver, ctx);
 }
 
-// === High-level BridgeSafe-aware entry points ===
-
-/// Register a MintCap<T> for a mint-burn token. Only callable by the safe owner.
-public fun register_mint_burn_cap<T>(
-    safe: &mut BridgeSafe,
-    cap: MintCap<T>,
-    ctx: &TxContext,
-) {
-    safe::checkOwnerRole(safe, ctx);
-    let key = utils::type_name_bytes<T>();
-    safe::assert_token_is_whitelisted(safe, key);
-    safe::assert_token_is_mint_burn(safe, key);
-    assert!(!has_cap<T>(safe::uid(safe)), EMintBurnCapAlreadyRegistered);
-    register<T>(safe::uid_mut(safe), cap);
-}
-
-/// Remove a MintCap<T> — only allowed once the token is de-whitelisted.
-public fun deregister_mint_burn_cap<T>(safe: &mut BridgeSafe, ctx: &TxContext) {
-    safe::checkOwnerRole(safe, ctx);
-    let key = utils::type_name_bytes<T>();
-    safe::assert_token_is_not_whitelisted(safe, key);
-    assert!(has_cap<T>(safe::uid(safe)), EMintBurnCapNotFound);
-    deregister<T>(safe::uid_mut(safe), ctx.sender());
-}
-
-/// Deposit for mint-burn tokens: coin is burned immediately via the stablecoin-sui treasury.
-public fun deposit_mint_burn<T>(
-    safe: &mut BridgeSafe,
-    coin_in: Coin<T>,
-    recipient: vector<u8>,
-    clock: &Clock,
-    xmn_treasury: &mut XmnTreasury<T>,
-    deny_list: &DenyList,
-    ctx: &mut TxContext,
-) {
-    assert!(has_cap<T>(safe::uid(safe)), EMintBurnCapNotFound);
-
-    let (key, amount, batch_nonce, dep_nonce) =
-        safe::deposit_validate_and_record<T>(safe, &coin_in, recipient, true, clock, ctx);
-
-    burn<T>(safe::uid(safe), xmn_treasury, deny_list, coin_in, ctx);
-
-    events::emit_deposit(batch_nonce, dep_nonce, tx_context::sender(ctx), recipient, amount, key);
-}
-
-/// Transfer for mint-burn tokens: mints fresh coin to receiver via the stablecoin-sui treasury.
-/// Only callable by the bridge role.
 public(package) fun transfer_mint_burn<T>(
     safe: &mut BridgeSafe,
     _bridge_cap: &BridgeCap,
