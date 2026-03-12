@@ -6,11 +6,17 @@ use bridge_safe::pausable;
 use bridge_safe::safe::{Self, BridgeSafe};
 use sui::clock;
 use sui::coin;
+use sui::deny_list::DenyList;
 use sui::test_scenario::{Self as ts, Scenario};
+use sui::test_utils;
+use treasury::treasury::{Self as stablecoin_treasury, Treasury as XmnTreasury};
 
 public struct TEST_COIN has drop {}
 public struct NATIVE_COIN has drop {}
 public struct NON_NATIVE_COIN has drop {}
+public struct MINT_BURN_COIN has drop {}
+// DEPOSIT_TRANSFER_TESTS matches the module name — required for OTW use in create_regulated_currency_v2
+public struct DEPOSIT_TRANSFER_TESTS has drop {}
 
 const ADMIN: address = @0xa11ce;
 const USER: address = @0xb0b;
@@ -831,6 +837,409 @@ fun test_deposit_then_transfer_integration() {
         ts::return_to_address(ADMIN, bridge_cap);
     };
 
+    ts::end(scenario);
+}
+
+// ===========================
+// Mint-Burn Deposit Tests
+// ===========================
+
+/// Whitelist MINT_BURN_COIN as a mint-burn token, using a dummy treasury ID.
+/// The treasury ID is only stored for SDK reference — not validated on deposit.
+fun setup_mint_burn(): Scenario {
+    let mut s = setup();
+    s.next_tx(ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&s);
+        safe::whitelist_token_mint_burn<MINT_BURN_COIN>(
+            &mut safe,
+            MIN_AMOUNT,
+            MAX_AMOUNT,
+            object::id_from_address(@0x1234),
+            s.ctx(),
+        );
+        ts::return_shared(safe);
+    };
+    s
+}
+
+/// Set up a BridgeSafe + Treasury<DEPOSIT_TRANSFER_TESTS> + DenyList.
+/// Used for tests that call the real deposit_mint_burn (e.g. cap-not-registered).
+fun setup_with_treasury(): Scenario {
+    // deny_list::create_for_test requires sender == @0x0 (system address)
+    let mut s = ts::begin(@0x0);
+    s.next_tx(@0x0);
+    {
+        sui::deny_list::create_for_testing(s.ctx());
+        let otw = test_utils::create_one_time_witness<DEPOSIT_TRANSFER_TESTS>();
+        let (treasury_cap, deny_cap, metadata) = coin::create_regulated_currency_v2(
+            otw,
+            6,
+            b"DT",
+            b"Deposit Transfer Test",
+            b"",
+            option::none(),
+            true,
+            s.ctx(),
+        );
+        let t = stablecoin_treasury::new(
+            treasury_cap,
+            deny_cap,
+            ADMIN,
+            ADMIN,
+            ADMIN,
+            ADMIN,
+            ADMIN,
+            s.ctx(),
+        );
+        transfer::public_share_object(t);
+        transfer::public_share_object(metadata);
+    };
+    // BridgeSafe created by ADMIN so ADMIN is the owner for whitelist calls
+    s.next_tx(ADMIN);
+    { safe::init_for_testing(s.ctx()); };
+    s
+}
+
+#[test]
+fun test_deposit_mint_burn_basic() {
+    let mut scenario = setup_mint_burn();
+
+    scenario.next_tx(USER);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        let clock = clock::create_for_testing(ts::ctx(&mut scenario));
+        let coin = coin::mint_for_testing<MINT_BURN_COIN>(DEPOSIT_AMOUNT, ts::ctx(&mut scenario));
+
+        assert!(safe::get_deposits_count(&safe) == 0, 0);
+        assert!(safe::get_batches_count(&safe) == 0, 1);
+
+        safe::deposit_mint_burn_for_testing<MINT_BURN_COIN>(
+            &mut safe,
+            coin,
+            RECIPIENT_VECTOR,
+            &clock,
+            ts::ctx(&mut scenario),
+        );
+
+        assert!(safe::get_deposits_count(&safe) == 1, 2);
+        assert!(safe::get_batches_count(&safe) == 1, 3);
+        // Coin was burned, not stored in bag
+        assert!(safe::get_coin_storage_balance<MINT_BURN_COIN>(&safe) == 0, 4);
+        // But total_balance accounting is updated
+        assert!(safe::get_stored_coin_balance<MINT_BURN_COIN>(&mut safe) == DEPOSIT_AMOUNT, 5);
+
+        clock::destroy_for_testing(clock);
+        ts::return_shared(safe);
+    };
+    ts::end(scenario);
+}
+
+#[test]
+fun test_deposit_mint_burn_batch_data() {
+    let mut scenario = setup_mint_burn();
+
+    scenario.next_tx(USER);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        let clock = clock::create_for_testing(ts::ctx(&mut scenario));
+        let coin = coin::mint_for_testing<MINT_BURN_COIN>(DEPOSIT_AMOUNT, ts::ctx(&mut scenario));
+
+        safe::deposit_mint_burn_for_testing<MINT_BURN_COIN>(
+            &mut safe,
+            coin,
+            RECIPIENT_VECTOR,
+            &clock,
+            ts::ctx(&mut scenario),
+        );
+
+        let (batch, _) = safe::get_batch(&safe, 1, &clock);
+        assert!(safe::get_batch_nonce(&batch) == 1, 0);
+        assert!(safe::get_batch_deposits_count(&batch) == 1, 1);
+
+        let (deposits, _) = safe::get_deposits(&safe, 1, &clock);
+        assert!(vector::length(&deposits) == 1, 2);
+
+        clock::destroy_for_testing(clock);
+        ts::return_shared(safe);
+    };
+    ts::end(scenario);
+}
+
+#[test]
+fun test_deposit_mint_burn_multiple_same_batch() {
+    let mut scenario = setup_mint_burn();
+
+    scenario.next_tx(ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        safe::set_batch_size(&mut safe, 5, ts::ctx(&mut scenario));
+        ts::return_shared(safe);
+    };
+
+    scenario.next_tx(USER);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        let clock = clock::create_for_testing(ts::ctx(&mut scenario));
+
+        let coin1 = coin::mint_for_testing<MINT_BURN_COIN>(1000, ts::ctx(&mut scenario));
+        let coin2 = coin::mint_for_testing<MINT_BURN_COIN>(2000, ts::ctx(&mut scenario));
+        let coin3 = coin::mint_for_testing<MINT_BURN_COIN>(3000, ts::ctx(&mut scenario));
+
+        safe::deposit_mint_burn_for_testing<MINT_BURN_COIN>(
+            &mut safe, coin1, RECIPIENT_VECTOR, &clock, ts::ctx(&mut scenario),
+        );
+        safe::deposit_mint_burn_for_testing<MINT_BURN_COIN>(
+            &mut safe, coin2, RECIPIENT_VECTOR, &clock, ts::ctx(&mut scenario),
+        );
+        safe::deposit_mint_burn_for_testing<MINT_BURN_COIN>(
+            &mut safe, coin3, RECIPIENT_VECTOR, &clock, ts::ctx(&mut scenario),
+        );
+
+        assert!(safe::get_deposits_count(&safe) == 3, 0);
+        assert!(safe::get_batches_count(&safe) == 1, 1);
+        assert!(safe::get_stored_coin_balance<MINT_BURN_COIN>(&mut safe) == 6000, 2);
+
+        let (batch, _) = safe::get_batch(&safe, 1, &clock);
+        assert!(safe::get_batch_deposits_count(&batch) == 3, 3);
+
+        clock::destroy_for_testing(clock);
+        ts::return_shared(safe);
+    };
+    ts::end(scenario);
+}
+
+#[test]
+fun test_deposit_mint_burn_triggers_new_batch() {
+    let mut scenario = setup_mint_burn();
+
+    scenario.next_tx(ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        safe::set_batch_size(&mut safe, 2, ts::ctx(&mut scenario));
+        ts::return_shared(safe);
+    };
+
+    scenario.next_tx(USER);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        let clock = clock::create_for_testing(ts::ctx(&mut scenario));
+
+        let coin1 = coin::mint_for_testing<MINT_BURN_COIN>(1000, ts::ctx(&mut scenario));
+        let coin2 = coin::mint_for_testing<MINT_BURN_COIN>(2000, ts::ctx(&mut scenario));
+        let coin3 = coin::mint_for_testing<MINT_BURN_COIN>(3000, ts::ctx(&mut scenario));
+
+        safe::deposit_mint_burn_for_testing<MINT_BURN_COIN>(
+            &mut safe, coin1, RECIPIENT_VECTOR, &clock, ts::ctx(&mut scenario),
+        );
+        safe::deposit_mint_burn_for_testing<MINT_BURN_COIN>(
+            &mut safe, coin2, RECIPIENT_VECTOR, &clock, ts::ctx(&mut scenario),
+        );
+        // Third deposit overflows batch_size=2, creates a new batch
+        safe::deposit_mint_burn_for_testing<MINT_BURN_COIN>(
+            &mut safe, coin3, RECIPIENT_VECTOR, &clock, ts::ctx(&mut scenario),
+        );
+
+        assert!(safe::get_deposits_count(&safe) == 3, 0);
+        assert!(safe::get_batches_count(&safe) == 2, 1);
+
+        let (batch1, _) = safe::get_batch(&safe, 1, &clock);
+        assert!(safe::get_batch_deposits_count(&batch1) == 2, 2);
+
+        let (batch2, _) = safe::get_batch(&safe, 2, &clock);
+        assert!(safe::get_batch_deposits_count(&batch2) == 1, 3);
+
+        clock::destroy_for_testing(clock);
+        ts::return_shared(safe);
+    };
+    ts::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = safe::EInvalidRecipient)]
+fun test_deposit_mint_burn_invalid_recipient() {
+    let mut scenario = setup_mint_burn();
+
+    scenario.next_tx(USER);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        let clock = clock::create_for_testing(ts::ctx(&mut scenario));
+        let coin = coin::mint_for_testing<MINT_BURN_COIN>(DEPOSIT_AMOUNT, ts::ctx(&mut scenario));
+
+        safe::deposit_mint_burn_for_testing<MINT_BURN_COIN>(
+            &mut safe, coin, b"0x0", &clock, ts::ctx(&mut scenario),
+        );
+
+        clock::destroy_for_testing(clock);
+        ts::return_shared(safe);
+    };
+    ts::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = safe::EZeroAmount)]
+fun test_deposit_mint_burn_zero_amount() {
+    let mut scenario = setup_mint_burn();
+
+    scenario.next_tx(USER);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        let clock = clock::create_for_testing(ts::ctx(&mut scenario));
+        let coin = coin::mint_for_testing<MINT_BURN_COIN>(0, ts::ctx(&mut scenario));
+
+        safe::deposit_mint_burn_for_testing<MINT_BURN_COIN>(
+            &mut safe, coin, RECIPIENT_VECTOR, &clock, ts::ctx(&mut scenario),
+        );
+
+        clock::destroy_for_testing(clock);
+        ts::return_shared(safe);
+    };
+    ts::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = safe::EAmountBelowMinimum)]
+fun test_deposit_mint_burn_below_minimum() {
+    let mut scenario = setup_mint_burn();
+
+    scenario.next_tx(USER);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        let clock = clock::create_for_testing(ts::ctx(&mut scenario));
+        let coin = coin::mint_for_testing<MINT_BURN_COIN>(MIN_AMOUNT - 1, ts::ctx(&mut scenario));
+
+        safe::deposit_mint_burn_for_testing<MINT_BURN_COIN>(
+            &mut safe, coin, RECIPIENT_VECTOR, &clock, ts::ctx(&mut scenario),
+        );
+
+        clock::destroy_for_testing(clock);
+        ts::return_shared(safe);
+    };
+    ts::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = safe::EAmountAboveMaximum)]
+fun test_deposit_mint_burn_above_maximum() {
+    let mut scenario = setup_mint_burn();
+
+    scenario.next_tx(USER);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        let clock = clock::create_for_testing(ts::ctx(&mut scenario));
+        let coin = coin::mint_for_testing<MINT_BURN_COIN>(MAX_AMOUNT + 1, ts::ctx(&mut scenario));
+
+        safe::deposit_mint_burn_for_testing<MINT_BURN_COIN>(
+            &mut safe, coin, RECIPIENT_VECTOR, &clock, ts::ctx(&mut scenario),
+        );
+
+        clock::destroy_for_testing(clock);
+        ts::return_shared(safe);
+    };
+    ts::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = safe::EIncompatibleTokenFlags)]
+fun test_deposit_mint_burn_wrong_variant() {
+    let mut scenario = setup();
+
+    scenario.next_tx(ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        // Whitelist as NATIVE — calling deposit_mint_burn_for_testing should fail
+        safe::whitelist_token<TEST_COIN>(&mut safe, MIN_AMOUNT, MAX_AMOUNT, ts::ctx(&mut scenario));
+        ts::return_shared(safe);
+    };
+
+    scenario.next_tx(USER);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        let clock = clock::create_for_testing(ts::ctx(&mut scenario));
+        let coin = coin::mint_for_testing<TEST_COIN>(DEPOSIT_AMOUNT, ts::ctx(&mut scenario));
+
+        safe::deposit_mint_burn_for_testing<TEST_COIN>(
+            &mut safe, coin, RECIPIENT_VECTOR, &clock, ts::ctx(&mut scenario),
+        );
+
+        clock::destroy_for_testing(clock);
+        ts::return_shared(safe);
+    };
+    ts::end(scenario);
+}
+
+/// Tests that deposit_mint_burn aborts when no MintCap is registered for the token.
+/// Uses the real deposit_mint_burn function (not the testing bypass) with a proper
+/// Treasury + DenyList. The abort happens before the treasury is accessed.
+#[test]
+#[expected_failure(abort_code = safe::EMintBurnCapNotFound)]
+fun test_deposit_mint_burn_cap_not_registered() {
+    let mut scenario = setup_with_treasury();
+
+    scenario.next_tx(ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        let mut treasury = ts::take_shared<XmnTreasury<DEPOSIT_TRANSFER_TESTS>>(&scenario);
+        let deny_list = ts::take_shared<DenyList>(&scenario);
+        let clock = clock::create_for_testing(ts::ctx(&mut scenario));
+
+        safe::whitelist_token_mint_burn<DEPOSIT_TRANSFER_TESTS>(
+            &mut safe,
+            MIN_AMOUNT,
+            MAX_AMOUNT,
+            object::id(&treasury),
+            ts::ctx(&mut scenario),
+        );
+
+        let coin = coin::mint_for_testing<DEPOSIT_TRANSFER_TESTS>(
+            DEPOSIT_AMOUNT,
+            ts::ctx(&mut scenario),
+        );
+
+        // No MintCap registered — expect EMintBurnCapNotFound
+        safe::deposit_mint_burn<DEPOSIT_TRANSFER_TESTS>(
+            &mut safe,
+            coin,
+            RECIPIENT_VECTOR,
+            &clock,
+            &mut treasury,
+            &deny_list,
+            ts::ctx(&mut scenario),
+        );
+
+        clock::destroy_for_testing(clock);
+        ts::return_shared(safe);
+        ts::return_shared(treasury);
+        ts::return_shared(deny_list);
+    };
+    ts::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = pausable::EContractPaused)]
+fun test_deposit_mint_burn_when_paused() {
+    let mut scenario = setup_mint_burn();
+
+    scenario.next_tx(ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        safe::pause_contract(&mut safe, ts::ctx(&mut scenario));
+        ts::return_shared(safe);
+    };
+
+    scenario.next_tx(USER);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        let clock = clock::create_for_testing(ts::ctx(&mut scenario));
+        let coin = coin::mint_for_testing<MINT_BURN_COIN>(DEPOSIT_AMOUNT, ts::ctx(&mut scenario));
+
+        safe::deposit_mint_burn_for_testing<MINT_BURN_COIN>(
+            &mut safe, coin, RECIPIENT_VECTOR, &clock, ts::ctx(&mut scenario),
+        );
+
+        clock::destroy_for_testing(clock);
+        ts::return_shared(safe);
+    };
     ts::end(scenario);
 }
 

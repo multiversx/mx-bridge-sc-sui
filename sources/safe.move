@@ -916,3 +916,22 @@ public fun add_to_balance_for_testing<T>(safe: &mut BridgeSafe, amount: u64) {
     shared_structs::add_to_token_config_total_balance(cfg_mut, amount);
 }
 
+/// Test helper that performs a mint-burn deposit without calling the real treasury burn.
+/// Validates all deposit rules and records the batch, but destroys the coin in-place
+/// instead of burning via treasury. Use this to test deposit recording logic without
+/// needing a fully configured stablecoin-sui treasury.
+#[test_only]
+public fun deposit_mint_burn_for_testing<T>(
+    safe: &mut BridgeSafe,
+    coin_in: Coin<T>,
+    recipient: vector<u8>,
+    clock: &Clock,
+    ctx: &mut TxContext,
+) {
+    use sui::test_utils;
+    let (key, amount, batch_nonce, dep_nonce) =
+        deposit_validate_and_record<T>(safe, &coin_in, recipient, true, clock, ctx);
+    test_utils::destroy(coin_in);
+    events::emit_deposit(batch_nonce, dep_nonce, tx_context::sender(ctx), recipient, amount, key);
+}
+
