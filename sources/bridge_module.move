@@ -411,7 +411,7 @@ public fun execute_transfer_mint_burn<T>(
         let recipient = *vector::borrow(&recipients, i);
         let amount = *vector::borrow(&amounts, i);
 
-        let success = xmn_mint_cap_adapter::transfer_mint_burn<T>(safe, &bridge.bridge_cap, recipient, amount, xmn_treasury, deny_list, ctx);
+        let success = xmn_mint_cap_adapter::transfer<T>(safe, &bridge.bridge_cap, recipient, amount, xmn_treasury, deny_list, ctx);
         if (success) {
             vector::push_back(
                 &mut bridge.transfer_statuses,
@@ -759,7 +759,7 @@ public fun execute_transfer_mint_burn_for_testing<T>(
         let recipient = *vector::borrow(&recipients, i);
         let amount = *vector::borrow(&amounts, i);
 
-        let success = xmn_mint_cap_adapter::transfer_mint_burn<T>(safe, &bridge.bridge_cap, recipient, amount, xmn_treasury, deny_list, ctx);
+        let success = xmn_mint_cap_adapter::transfer<T>(safe, &bridge.bridge_cap, recipient, amount, xmn_treasury, deny_list, ctx);
         if (success) {
             vector::push_back(
                 &mut bridge.transfer_statuses,

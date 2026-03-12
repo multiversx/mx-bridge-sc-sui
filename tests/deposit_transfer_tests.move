@@ -852,11 +852,13 @@ fun setup_mint_burn(): Scenario {
     s.next_tx(ADMIN);
     {
         let mut safe = ts::take_shared<BridgeSafe>(&s);
-        safe::whitelist_token_mint_burn<MINT_BURN_COIN>(
+        safe::whitelist_token_internal<MINT_BURN_COIN>(
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
-            object::id_from_address(@0x1234),
+            false,
+            option::some(object::id_from_address(@0x1234)),
+            true,
             s.ctx(),
         );
         ts::return_shared(safe);
@@ -1184,11 +1186,13 @@ fun test_deposit_mint_burn_cap_not_registered() {
         let deny_list = ts::take_shared<DenyList>(&scenario);
         let clock = clock::create_for_testing(ts::ctx(&mut scenario));
 
-        safe::whitelist_token_mint_burn<DEPOSIT_TRANSFER_TESTS>(
+        safe::whitelist_token_internal<DEPOSIT_TRANSFER_TESTS>(
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
-            object::id(&treasury),
+            false,
+            option::some(object::id(&treasury)),
+            true,
             ts::ctx(&mut scenario),
         );
 
@@ -1198,7 +1202,7 @@ fun test_deposit_mint_burn_cap_not_registered() {
         );
 
         // No MintCap registered — expect EMintBurnCapNotFound
-        xmn_mint_cap_adapter::deposit_mint_burn<DEPOSIT_TRANSFER_TESTS>(
+        xmn_mint_cap_adapter::deposit<DEPOSIT_TRANSFER_TESTS>(
             &mut safe,
             coin,
             RECIPIENT_VECTOR,

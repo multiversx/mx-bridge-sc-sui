@@ -19,7 +19,7 @@ const EMintBurnCapAlreadyRegistered: u64 = 21;
 
 // === Public API ===
 
-public fun deposit_mint_burn<T>(
+public fun deposit<T>(
     safe: &mut BridgeSafe,
     coin_in: Coin<T>,
     recipient: vector<u8>,
@@ -38,25 +38,47 @@ public fun deposit_mint_burn<T>(
     events::emit_deposit(batch_nonce, dep_nonce, tx_context::sender(ctx), recipient, amount, key);
 }
 
-public fun register_mint_burn_cap<T>(
+public(package) fun transfer<T>(
     safe: &mut BridgeSafe,
+    _bridge_cap: &BridgeCap,
+    receiver: address,
+    amount: u64,
+    xmn_treasury: &mut XmnTreasury<T>,
+    deny_list: &DenyList,
+    ctx: &mut TxContext,
+): bool {
+    if (!safe::has_token_config<T>(safe)) { return false };
+    if (!safe::get_token_is_mint_burn<T>(safe)) { return false };
+    if (safe::get_stored_coin_balance<T>(safe) < amount) { return false };
+    if (!has_cap<T>(safe::uid(safe))) { return false };
+
+    mint<T>(safe::uid(safe), xmn_treasury, deny_list, amount, receiver, ctx);
+    safe::subtract_token_balance<T>(safe, amount);
+
+    true
+}
+
+// === Admin Management ===
+
+public fun whitelist_token<T>(
+    safe: &mut BridgeSafe,
+    minimum_amount: u64,
+    maximum_amount: u64,
     cap: MintCap<T>,
+    treasury_id: ID,
     ctx: &TxContext,
 ) {
-    safe::checkOwnerRole(safe, ctx);
-    let key = utils::type_name_bytes<T>();
-    safe::assert_token_is_whitelisted(safe, key);
-    safe::assert_token_is_mint_burn(safe, key);
     assert!(!has_cap<T>(safe::uid(safe)), EMintBurnCapAlreadyRegistered);
+    safe::whitelist_token_internal<T>(safe, minimum_amount, maximum_amount, false, option::some(treasury_id), true, ctx);
     register<T>(safe::uid_mut(safe), cap);
 }
 
-public fun deregister_mint_burn_cap<T>(safe: &mut BridgeSafe, ctx: &TxContext) {
-    safe::checkOwnerRole(safe, ctx);
-    let key = utils::type_name_bytes<T>();
-    safe::assert_token_is_not_whitelisted(safe, key);
+/// Remove a mint-burn token from the whitelist and deregister its MintCap in one atomic operation.
+#[allow(lint(self_transfer))]
+public fun remove_token_from_whitelist<T>(safe: &mut BridgeSafe, ctx: &mut TxContext) {
     assert!(has_cap<T>(safe::uid(safe)), EMintBurnCapNotFound);
     deregister<T>(safe::uid_mut(safe), ctx.sender());
+    safe::remove_token_from_whitelist<T>(safe, ctx);
 }
 
 // === Internal helpers ===
@@ -100,24 +122,4 @@ public(package) fun mint<T>(
 ) {
     let cap = dof::borrow(id, cap_key<T>());
     stablecoin_treasury::mint(xmn_treasury, cap, deny_list, amount, receiver, ctx);
-}
-
-public(package) fun transfer_mint_burn<T>(
-    safe: &mut BridgeSafe,
-    _bridge_cap: &BridgeCap,
-    receiver: address,
-    amount: u64,
-    xmn_treasury: &mut XmnTreasury<T>,
-    deny_list: &DenyList,
-    ctx: &mut TxContext,
-): bool {
-    if (!safe::has_token_config<T>(safe)) { return false };
-    if (!safe::get_token_is_mint_burn<T>(safe)) { return false };
-    if (safe::get_stored_coin_balance<T>(safe) < amount) { return false };
-    if (!has_cap<T>(safe::uid(safe))) { return false };
-
-    mint<T>(safe::uid(safe), xmn_treasury, deny_list, amount, receiver, ctx);
-    safe::subtract_token_balance<T>(safe, amount);
-
-    true
 }

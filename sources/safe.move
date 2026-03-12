@@ -424,16 +424,6 @@ public fun whitelist_token<T>(
     whitelist_token_internal<T>(safe, minimum_amount, maximum_amount, true, option::none(), false, ctx);
 }
 
-public fun whitelist_token_mint_burn<T>(
-    safe: &mut BridgeSafe,
-    minimum_amount: u64,
-    maximum_amount: u64,
-    treasury_id: ID,
-    ctx: &mut TxContext,
-) {
-    whitelist_token_internal<T>(safe, minimum_amount, maximum_amount, false, option::some(treasury_id), true, ctx);
-}
-
 public fun remove_token_from_whitelist<T>(safe: &mut BridgeSafe, ctx: &mut TxContext) {
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
     let key = utils::type_name_bytes<T>();
@@ -651,7 +641,7 @@ public(package) fun assert_token_is_mint_burn(safe: &BridgeSafe, key: vector<u8>
 
 /// ==== Internal logic helpers ====
 
-fun whitelist_token_internal<T>(
+public(package) fun whitelist_token_internal<T>(
     safe: &mut BridgeSafe,
     minimum_amount: u64,
     maximum_amount: u64,
