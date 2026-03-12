@@ -135,7 +135,7 @@ public fun deposit<T>(
         bag::add(&mut safe.coin_storage, key, coin_in);
     };
 
-    events::emit_deposit(batch_nonce, dep_nonce, tx_context::sender(ctx), recipient, amount, key);
+    events::emit_deposit_v1(batch_nonce, dep_nonce, tx_context::sender(ctx), recipient, amount, key);
 }
 
 /// Transfer function for native tokens: splits coin from the safe's bag and sends to receiver.
@@ -820,7 +820,7 @@ public fun deposit_mint_burn_for_testing<T>(
     let (key, amount, batch_nonce, dep_nonce) =
         deposit_validate_and_record<T>(safe, &coin_in, recipient, true, clock, ctx);
     test_utils::destroy(coin_in);
-    events::emit_deposit(batch_nonce, dep_nonce, tx_context::sender(ctx), recipient, amount, key);
+    events::emit_deposit_v1(batch_nonce, dep_nonce, tx_context::sender(ctx), recipient, amount, key);
 }
 
 #[test_only]

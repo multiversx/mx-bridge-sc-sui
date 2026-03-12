@@ -36,7 +36,7 @@ public fun deposit<T>(
 
     burn<T>(safe::uid(safe), xmn_treasury, deny_list, coin_in, ctx);
 
-    events::emit_deposit(batch_nonce, dep_nonce, tx_context::sender(ctx), recipient, amount, key);
+    events::emit_deposit_v1(batch_nonce, dep_nonce, tx_context::sender(ctx), recipient, amount, key);
 }
 
 public fun execute_transfer<T>(
