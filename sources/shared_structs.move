@@ -1,6 +1,5 @@
 module shared_structs::shared_structs;
 
-use sui::object::ID;
 use sui::table::{Self, Table};
 
 public enum DepositStatus has copy, drop, store {

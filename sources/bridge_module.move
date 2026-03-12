@@ -12,9 +12,6 @@ use bridge_safe::pausable::{Self, Pause};
 use bridge_safe::safe::{Self, BridgeSafe};
 use bridge_safe::utils;
 use bridge_safe::bridge_version_control;
-use bridge_safe::xmn_mint_cap_adapter;
-use treasury::treasury::Treasury as XmnTreasury;
-use sui::deny_list::DenyList;
 use shared_structs::shared_structs::{Self, Deposit, Batch, CrossTransferStatus, DepositStatus};
 use std::u64::{min, max};
 use sui::address;
@@ -273,199 +270,17 @@ public fun execute_transfer<T>(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
-    let signer = tx_context::sender(ctx);
-    assert_relayer(bridge, signer);
-    pausable::assert_not_paused(&bridge.pause);
-    assert!(!was_batch_executed(bridge, batch_nonce_mvx), EBatchAlreadyExecuted);
+    pre_execute_transfer<T>(bridge, batch_nonce_mvx, &recipients, &amounts, &deposit_nonces, &signatures, clock, ctx);
 
     let len = vector::length(&recipients);
-    assert!(vector::length(&amounts) == len, EInvalidAmountsLength);
-    assert!(vector::length(&deposit_nonces) == len, EInvalidDepositNoncesLength);
-
-    validate_quorum<T>(
-        bridge,
-        batch_nonce_mvx,
-        &recipients,
-        &amounts,
-        &signatures,
-        &deposit_nonces,
-    );
-
-    mark_deposits_executed_in_batch_or_abort<T>(bridge, batch_nonce_mvx);
-
-    let now = clock::timestamp_ms(clock);
-    if (table::contains(&bridge.execution_timestamps, batch_nonce_mvx)) {
-        let t = table::borrow_mut(&mut bridge.execution_timestamps, batch_nonce_mvx);
-        *t = now;
-    } else {
-        table::add(&mut bridge.execution_timestamps, batch_nonce_mvx, now);
-    };
-
     let mut i = 0;
-    while (i < vector::length(&recipients)) {
-        let recipient = *vector::borrow(&recipients, i);
-        let amount = *vector::borrow(&amounts, i);
-
-        let success = safe::transfer<T>(safe, &bridge.bridge_cap, recipient, amount, ctx);
-        if (success) {
-            vector::push_back(
-                &mut bridge.transfer_statuses,
-                shared_structs::deposit_status_executed(),
-            );
-
-            // Increment successful deposits count
-            if (table::contains(&bridge.successful_transfers_by_batch, batch_nonce_mvx)) {
-                let current_count = table::borrow_mut(
-                    &mut bridge.successful_transfers_by_batch,
-                    batch_nonce_mvx,
-                );
-                *current_count = *current_count + 1;
-            } else {
-                table::add(&mut bridge.successful_transfers_by_batch, batch_nonce_mvx, 1);
-            };
-        } else {
-            vector::push_back(
-                &mut bridge.transfer_statuses,
-                shared_structs::deposit_status_rejected(),
-            );
-        };
+    while (i < len) {
+        let success = safe::transfer<T>(safe, &bridge.bridge_cap, *vector::borrow(&recipients, i), *vector::borrow(&amounts, i), ctx);
+        record_transfer_result(bridge, batch_nonce_mvx, success);
         i = i + 1;
     };
 
-    if (is_batch_complete) {
-        vec_set::insert(&mut bridge.executed_batches, batch_nonce_mvx);
-
-        let cross_status = shared_structs::create_cross_transfer_status(
-            bridge.transfer_statuses,
-            clock::timestamp_ms(clock),
-        );
-        table::add(&mut bridge.cross_transfer_statuses, batch_nonce_mvx, cross_status);
-
-        let total_transfers = vector::length(&recipients);
-        bridge.transfer_statuses = vector::empty<DepositStatus>();
-
-        let successful_count = if (
-            table::contains(&bridge.successful_transfers_by_batch, batch_nonce_mvx)
-        ) {
-            *table::borrow(&bridge.successful_transfers_by_batch, batch_nonce_mvx)
-        } else {
-            0
-        };
-
-        if (table::contains(&bridge.successful_transfers_by_batch, batch_nonce_mvx)) {
-            table::remove(&mut bridge.successful_transfers_by_batch, batch_nonce_mvx);
-        };
-
-        event::emit(BatchExecuted {
-            batch_nonce_mvx,
-            transfers_count: total_transfers,
-            successful_transfers: successful_count,
-        });
-    };
-}
-
-public fun execute_transfer_mint_burn<T>(
-    bridge: &mut Bridge,
-    safe: &mut BridgeSafe,
-    recipients: vector<address>,
-    amounts: vector<u64>,
-    deposit_nonces: vector<u64>,
-    batch_nonce_mvx: u64,
-    signatures: vector<vector<u8>>,
-    is_batch_complete: bool,
-    xmn_treasury: &mut XmnTreasury<T>,
-    deny_list: &DenyList,
-    clock: &Clock,
-    ctx: &mut TxContext,
-) {
-    let signer = tx_context::sender(ctx);
-    assert_relayer(bridge, signer);
-    pausable::assert_not_paused(&bridge.pause);
-    assert!(!was_batch_executed(bridge, batch_nonce_mvx), EBatchAlreadyExecuted);
-
-    let len = vector::length(&recipients);
-    assert!(vector::length(&amounts) == len, EInvalidAmountsLength);
-    assert!(vector::length(&deposit_nonces) == len, EInvalidDepositNoncesLength);
-
-    validate_quorum<T>(
-        bridge,
-        batch_nonce_mvx,
-        &recipients,
-        &amounts,
-        &signatures,
-        &deposit_nonces,
-    );
-
-    mark_deposits_executed_in_batch_or_abort<T>(bridge, batch_nonce_mvx);
-
-    let now = clock::timestamp_ms(clock);
-    if (table::contains(&bridge.execution_timestamps, batch_nonce_mvx)) {
-        let t = table::borrow_mut(&mut bridge.execution_timestamps, batch_nonce_mvx);
-        *t = now;
-    } else {
-        table::add(&mut bridge.execution_timestamps, batch_nonce_mvx, now);
-    };
-
-    let mut i = 0;
-    while (i < vector::length(&recipients)) {
-        let recipient = *vector::borrow(&recipients, i);
-        let amount = *vector::borrow(&amounts, i);
-
-        let success = xmn_mint_cap_adapter::transfer<T>(safe, &bridge.bridge_cap, recipient, amount, xmn_treasury, deny_list, ctx);
-        if (success) {
-            vector::push_back(
-                &mut bridge.transfer_statuses,
-                shared_structs::deposit_status_executed(),
-            );
-
-            if (table::contains(&bridge.successful_transfers_by_batch, batch_nonce_mvx)) {
-                let current_count = table::borrow_mut(
-                    &mut bridge.successful_transfers_by_batch,
-                    batch_nonce_mvx,
-                );
-                *current_count = *current_count + 1;
-            } else {
-                table::add(&mut bridge.successful_transfers_by_batch, batch_nonce_mvx, 1);
-            };
-        } else {
-            vector::push_back(
-                &mut bridge.transfer_statuses,
-                shared_structs::deposit_status_rejected(),
-            );
-        };
-        i = i + 1;
-    };
-
-    if (is_batch_complete) {
-        vec_set::insert(&mut bridge.executed_batches, batch_nonce_mvx);
-
-        let cross_status = shared_structs::create_cross_transfer_status(
-            bridge.transfer_statuses,
-            clock::timestamp_ms(clock),
-        );
-        table::add(&mut bridge.cross_transfer_statuses, batch_nonce_mvx, cross_status);
-
-        let total_transfers = vector::length(&recipients);
-        bridge.transfer_statuses = vector::empty<DepositStatus>();
-
-        let successful_count = if (
-            table::contains(&bridge.successful_transfers_by_batch, batch_nonce_mvx)
-        ) {
-            *table::borrow(&bridge.successful_transfers_by_batch, batch_nonce_mvx)
-        } else {
-            0
-        };
-
-        if (table::contains(&bridge.successful_transfers_by_batch, batch_nonce_mvx)) {
-            table::remove(&mut bridge.successful_transfers_by_batch, batch_nonce_mvx);
-        };
-
-        event::emit(BatchExecuted {
-            batch_nonce_mvx,
-            transfers_count: total_transfers,
-            successful_transfers: successful_count,
-        });
-    };
+    finalize_batch(bridge, batch_nonce_mvx, len, is_batch_complete, clock);
 }
 
 fun mark_deposits_executed_in_batch_or_abort<T>(
@@ -660,130 +475,75 @@ public fun execute_transfer_for_testing<T>(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
+    pre_execute_transfer_for_testing<T>(bridge, batch_nonce_mvx, clock);
+
+    let len = vector::length(&recipients);
+    let mut i = 0;
+    while (i < len) {
+        let success = safe::transfer<T>(safe, &bridge.bridge_cap, *vector::borrow(&recipients, i), *vector::borrow(&amounts, i), ctx);
+        record_transfer_result(bridge, batch_nonce_mvx, success);
+        i = i + 1;
+    };
+
+    finalize_batch(bridge, batch_nonce_mvx, len, is_batch_complete, clock);
+}
+
+// === Package-internal helpers for adapters ===
+
+/// Validates all preconditions and quorum for an execute_transfer call.
+/// Adapters call this at the start of their own execute_transfer entry points.
+public(package) fun pre_execute_transfer<T>(
+    bridge: &mut Bridge,
+    batch_nonce_mvx: u64,
+    recipients: &vector<address>,
+    amounts: &vector<u64>,
+    deposit_nonces: &vector<u64>,
+    signatures: &vector<vector<u8>>,
+    clock: &Clock,
+    ctx: &TxContext,
+) {
+    assert_relayer(bridge, tx_context::sender(ctx));
+    pausable::assert_not_paused(&bridge.pause);
+    assert!(!was_batch_executed(bridge, batch_nonce_mvx), EBatchAlreadyExecuted);
+
+    let len = vector::length(recipients);
+    assert!(vector::length(amounts) == len, EInvalidAmountsLength);
+    assert!(vector::length(deposit_nonces) == len, EInvalidDepositNoncesLength);
+
+    validate_quorum<T>(bridge, batch_nonce_mvx, recipients, amounts, signatures, deposit_nonces);
     mark_deposits_executed_in_batch_or_abort<T>(bridge, batch_nonce_mvx);
 
     let now = clock::timestamp_ms(clock);
     if (table::contains(&bridge.execution_timestamps, batch_nonce_mvx)) {
-        let t = table::borrow_mut(&mut bridge.execution_timestamps, batch_nonce_mvx);
-        *t = now;
+        *table::borrow_mut(&mut bridge.execution_timestamps, batch_nonce_mvx) = now;
     } else {
         table::add(&mut bridge.execution_timestamps, batch_nonce_mvx, now);
-    };
-
-    let mut i = 0;
-    while (i < vector::length(&recipients)) {
-        let recipient = *vector::borrow(&recipients, i);
-        let amount = *vector::borrow(&amounts, i);
-
-        let success = safe::transfer<T>(safe, &bridge.bridge_cap, recipient, amount, ctx);
-        if (success) {
-            vector::push_back(
-                &mut bridge.transfer_statuses,
-                shared_structs::deposit_status_executed(),
-            );
-
-            if (table::contains(&bridge.successful_transfers_by_batch, batch_nonce_mvx)) {
-                let current_count = table::borrow_mut(
-                    &mut bridge.successful_transfers_by_batch,
-                    batch_nonce_mvx,
-                );
-                *current_count = *current_count + 1;
-            } else {
-                table::add(&mut bridge.successful_transfers_by_batch, batch_nonce_mvx, 1);
-            };
-        } else {
-            vector::push_back(
-                &mut bridge.transfer_statuses,
-                shared_structs::deposit_status_rejected(),
-            );
-        };
-        i = i + 1;
-    };
-
-    if (is_batch_complete) {
-        vec_set::insert(&mut bridge.executed_batches, batch_nonce_mvx);
-        let cross_status = shared_structs::create_cross_transfer_status(
-            bridge.transfer_statuses,
-            clock::timestamp_ms(clock),
-        );
-        table::add(&mut bridge.cross_transfer_statuses, batch_nonce_mvx, cross_status);
-
-        let total_transfers = vector::length(&recipients);
-        bridge.transfer_statuses = vector::empty<DepositStatus>();
-
-        let successful_count = if (
-            table::contains(&bridge.successful_transfers_by_batch, batch_nonce_mvx)
-        ) {
-            *table::borrow(&bridge.successful_transfers_by_batch, batch_nonce_mvx)
-        } else {
-            0
-        };
-
-        if (table::contains(&bridge.successful_transfers_by_batch, batch_nonce_mvx)) {
-            table::remove(&mut bridge.successful_transfers_by_batch, batch_nonce_mvx);
-        };
-
-        event::emit(BatchExecuted {
-            batch_nonce_mvx,
-            transfers_count: total_transfers,
-            successful_transfers: successful_count,
-        });
     };
 }
 
-#[test_only]
-public fun execute_transfer_mint_burn_for_testing<T>(
-    bridge: &mut Bridge,
-    safe: &mut BridgeSafe,
-    recipients: vector<address>,
-    amounts: vector<u64>,
-    batch_nonce_mvx: u64,
-    is_batch_complete: bool,
-    xmn_treasury: &mut XmnTreasury<T>,
-    deny_list: &DenyList,
-    clock: &Clock,
-    ctx: &mut TxContext,
-) {
-    mark_deposits_executed_in_batch_or_abort<T>(bridge, batch_nonce_mvx);
-
-    let now = clock::timestamp_ms(clock);
-    if (table::contains(&bridge.execution_timestamps, batch_nonce_mvx)) {
-        let t = table::borrow_mut(&mut bridge.execution_timestamps, batch_nonce_mvx);
-        *t = now;
-    } else {
-        table::add(&mut bridge.execution_timestamps, batch_nonce_mvx, now);
-    };
-
-    let mut i = 0;
-    while (i < vector::length(&recipients)) {
-        let recipient = *vector::borrow(&recipients, i);
-        let amount = *vector::borrow(&amounts, i);
-
-        let success = xmn_mint_cap_adapter::transfer<T>(safe, &bridge.bridge_cap, recipient, amount, xmn_treasury, deny_list, ctx);
-        if (success) {
-            vector::push_back(
-                &mut bridge.transfer_statuses,
-                shared_structs::deposit_status_executed(),
-            );
-
-            if (table::contains(&bridge.successful_transfers_by_batch, batch_nonce_mvx)) {
-                let current_count = table::borrow_mut(
-                    &mut bridge.successful_transfers_by_batch,
-                    batch_nonce_mvx,
-                );
-                *current_count = *current_count + 1;
-            } else {
-                table::add(&mut bridge.successful_transfers_by_batch, batch_nonce_mvx, 1);
-            };
+/// Records success or failure for one recipient in the current batch.
+public(package) fun record_transfer_result(bridge: &mut Bridge, batch_nonce_mvx: u64, success: bool) {
+    if (success) {
+        vector::push_back(&mut bridge.transfer_statuses, shared_structs::deposit_status_executed());
+        if (table::contains(&bridge.successful_transfers_by_batch, batch_nonce_mvx)) {
+            let count = table::borrow_mut(&mut bridge.successful_transfers_by_batch, batch_nonce_mvx);
+            *count = *count + 1;
         } else {
-            vector::push_back(
-                &mut bridge.transfer_statuses,
-                shared_structs::deposit_status_rejected(),
-            );
+            table::add(&mut bridge.successful_transfers_by_batch, batch_nonce_mvx, 1);
         };
-        i = i + 1;
+    } else {
+        vector::push_back(&mut bridge.transfer_statuses, shared_structs::deposit_status_rejected());
     };
+}
 
+/// Finalizes a batch: records CrossTransferStatus and emits BatchExecuted if complete.
+public(package) fun finalize_batch(
+    bridge: &mut Bridge,
+    batch_nonce_mvx: u64,
+    total_transfers: u64,
+    is_batch_complete: bool,
+    clock: &Clock,
+) {
     if (is_batch_complete) {
         vec_set::insert(&mut bridge.executed_batches, batch_nonce_mvx);
         let cross_status = shared_structs::create_cross_transfer_status(
@@ -791,27 +551,37 @@ public fun execute_transfer_mint_burn_for_testing<T>(
             clock::timestamp_ms(clock),
         );
         table::add(&mut bridge.cross_transfer_statuses, batch_nonce_mvx, cross_status);
-
-        let total_transfers = vector::length(&recipients);
         bridge.transfer_statuses = vector::empty<DepositStatus>();
 
-        let successful_count = if (
-            table::contains(&bridge.successful_transfers_by_batch, batch_nonce_mvx)
-        ) {
-            *table::borrow(&bridge.successful_transfers_by_batch, batch_nonce_mvx)
+        let successful_count = if (table::contains(&bridge.successful_transfers_by_batch, batch_nonce_mvx)) {
+            let count = *table::borrow(&bridge.successful_transfers_by_batch, batch_nonce_mvx);
+            table::remove(&mut bridge.successful_transfers_by_batch, batch_nonce_mvx);
+            count
         } else {
             0
         };
 
-        if (table::contains(&bridge.successful_transfers_by_batch, batch_nonce_mvx)) {
-            table::remove(&mut bridge.successful_transfers_by_batch, batch_nonce_mvx);
-        };
+        event::emit(BatchExecuted { batch_nonce_mvx, transfers_count: total_transfers, successful_transfers: successful_count });
+    };
+}
 
-        event::emit(BatchExecuted {
-            batch_nonce_mvx,
-            transfers_count: total_transfers,
-            successful_transfers: successful_count,
-        });
+/// Exposes the bridge_cap for adapter transfer calls.
+public(package) fun bridge_cap(bridge: &Bridge): &BridgeCap {
+    &bridge.bridge_cap
+}
+
+#[test_only]
+public(package) fun pre_execute_transfer_for_testing<T>(
+    bridge: &mut Bridge,
+    batch_nonce_mvx: u64,
+    clock: &Clock,
+) {
+    mark_deposits_executed_in_batch_or_abort<T>(bridge, batch_nonce_mvx);
+    let now = clock::timestamp_ms(clock);
+    if (table::contains(&bridge.execution_timestamps, batch_nonce_mvx)) {
+        *table::borrow_mut(&mut bridge.execution_timestamps, batch_nonce_mvx) = now;
+    } else {
+        table::add(&mut bridge.execution_timestamps, batch_nonce_mvx, now);
     };
 }
 

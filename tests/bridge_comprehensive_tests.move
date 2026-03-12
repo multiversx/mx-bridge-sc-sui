@@ -1026,8 +1026,8 @@ fun setup_bridge_with_relayers_for_quorum(): (Scenario, vector<vector<u8>>, vect
 fun create_test_signature_for_quorum(public_key: &vector<u8>): vector<u8> {
     let mut signature = vector::empty<u8>();
     
-    let mut i = 0;
-    while (i < 64) {
+    let mut i = 0u64;
+    while (i < 64u64) {
         vector::push_back(&mut signature, (i % 256) as u8);
         i = i + 1;
     };

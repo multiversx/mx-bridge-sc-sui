@@ -1,5 +1,6 @@
 module bridge_safe::xmn_mint_cap_adapter;
 
+use bridge_safe::bridge::{Self as bridge_module, Bridge};
 use bridge_safe::bridge_roles::BridgeCap;
 use bridge_safe::events;
 use bridge_safe::safe::{Self, BridgeSafe};
@@ -38,24 +39,31 @@ public fun deposit<T>(
     events::emit_deposit(batch_nonce, dep_nonce, tx_context::sender(ctx), recipient, amount, key);
 }
 
-public(package) fun transfer<T>(
+public fun execute_transfer<T>(
+    bridge: &mut Bridge,
     safe: &mut BridgeSafe,
-    _bridge_cap: &BridgeCap,
-    receiver: address,
-    amount: u64,
+    recipients: vector<address>,
+    amounts: vector<u64>,
+    deposit_nonces: vector<u64>,
+    batch_nonce_mvx: u64,
+    signatures: vector<vector<u8>>,
+    is_batch_complete: bool,
     xmn_treasury: &mut XmnTreasury<T>,
     deny_list: &DenyList,
+    clock: &Clock,
     ctx: &mut TxContext,
-): bool {
-    if (!safe::has_token_config<T>(safe)) { return false };
-    if (!safe::get_token_is_mint_burn<T>(safe)) { return false };
-    if (safe::get_stored_coin_balance<T>(safe) < amount) { return false };
-    if (!has_cap<T>(safe::uid(safe))) { return false };
+) {
+    bridge_module::pre_execute_transfer<T>(bridge, batch_nonce_mvx, &recipients, &amounts, &deposit_nonces, &signatures, clock, ctx);
 
-    mint<T>(safe::uid(safe), xmn_treasury, deny_list, amount, receiver, ctx);
-    safe::subtract_token_balance<T>(safe, amount);
+    let len = vector::length(&recipients);
+    let mut i = 0;
+    while (i < len) {
+        let success = transfer<T>(safe, bridge_module::bridge_cap(bridge), *vector::borrow(&recipients, i), *vector::borrow(&amounts, i), xmn_treasury, deny_list, ctx);
+        bridge_module::record_transfer_result(bridge, batch_nonce_mvx, success);
+        i = i + 1;
+    };
 
-    true
+    bridge_module::finalize_batch(bridge, batch_nonce_mvx, len, is_batch_complete, clock);
 }
 
 // === Admin Management ===
@@ -82,6 +90,26 @@ public fun remove_token_from_whitelist<T>(safe: &mut BridgeSafe, ctx: &mut TxCon
 }
 
 // === Internal helpers ===
+
+public(package) fun transfer<T>(
+    safe: &mut BridgeSafe,
+    _bridge_cap: &BridgeCap,
+    receiver: address,
+    amount: u64,
+    xmn_treasury: &mut XmnTreasury<T>,
+    deny_list: &DenyList,
+    ctx: &mut TxContext,
+): bool {
+    if (!safe::has_token_config<T>(safe)) { return false };
+    if (!safe::get_token_is_mint_burn<T>(safe)) { return false };
+    if (safe::get_stored_coin_balance<T>(safe) < amount) { return false };
+    if (!has_cap<T>(safe::uid(safe))) { return false };
+
+    mint<T>(safe::uid(safe), xmn_treasury, deny_list, amount, receiver, ctx);
+    safe::subtract_token_balance<T>(safe, amount);
+
+    true
+}
 
 fun cap_key<T>(): CapKey {
     CapKey { token_type: utils::type_name_bytes<T>() }
@@ -122,4 +150,30 @@ public(package) fun mint<T>(
 ) {
     let cap = dof::borrow(id, cap_key<T>());
     stablecoin_treasury::mint(xmn_treasury, cap, deny_list, amount, receiver, ctx);
+}
+
+#[test_only]
+public fun execute_transfer_for_testing<T>(
+    bridge: &mut Bridge,
+    safe: &mut BridgeSafe,
+    recipients: vector<address>,
+    amounts: vector<u64>,
+    batch_nonce_mvx: u64,
+    is_batch_complete: bool,
+    xmn_treasury: &mut XmnTreasury<T>,
+    deny_list: &DenyList,
+    clock: &Clock,
+    ctx: &mut TxContext,
+) {
+    bridge_module::pre_execute_transfer_for_testing<T>(bridge, batch_nonce_mvx, clock);
+
+    let len = vector::length(&recipients);
+    let mut i = 0;
+    while (i < len) {
+        let success = transfer<T>(safe, bridge_module::bridge_cap(bridge), *vector::borrow(&recipients, i), *vector::borrow(&amounts, i), xmn_treasury, deny_list, ctx);
+        bridge_module::record_transfer_result(bridge, batch_nonce_mvx, success);
+        i = i + 1;
+    };
+
+    bridge_module::finalize_batch(bridge, batch_nonce_mvx, len, is_batch_complete, clock);
 }
