@@ -4,7 +4,6 @@ edition = "2024.beta"
 version = "0.0.1"
 
 [dependencies]
-locked_token = { git = "https://github.com/multiversx/mx-locked-token-sc-sui.git", rev = "dependency-fix", subdir = "" }
 treasury = { git = "https://github.com/multiversx/stablecoin-sui.git", rev="xmn-launch", subdir = "packages/treasury" }
 
 [addresses]
