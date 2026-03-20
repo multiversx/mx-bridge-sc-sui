@@ -61,7 +61,7 @@ fun setup_with_bridge(): Scenario {
     s
 }
 
-// === ISSUE-4: Quorum > relayer count on initialization ===
+// === Quorum > relayer count on initialization ===
 
 #[test]
 #[expected_failure(abort_code = bridge::EQuorumExceedsRelayers)]
@@ -123,7 +123,7 @@ fun test_initialize_quorum_equals_relayers() {
     ts::end(scenario);
 }
 
-// === ISSUE-5: Direct de-whitelisting of mint-burn token ===
+// === Direct de-whitelisting of mint-burn token ===
 
 #[test]
 #[expected_failure(abort_code = safe::EIncompatibleTokenFlags)]
@@ -182,7 +182,7 @@ fun test_remove_native_token_via_safe_succeeds() {
     ts::end(scenario);
 }
 
-// === ISSUE-7: Batch timeout minimum ===
+// === Batch timeout minimum ===
 
 #[test]
 #[expected_failure(abort_code = safe::EBatchTimeoutTooLow)]
@@ -234,7 +234,7 @@ fun test_batch_timeout_at_minimum_accepted() {
     ts::end(scenario);
 }
 
-// === ISSUE-8: Events for config updates (verify no aborts) ===
+// === Events for config updates (verify no aborts) ===
 
 #[test]
 fun test_config_update_events_emitted() {
