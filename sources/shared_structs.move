@@ -1,6 +1,6 @@
 module shared_structs::shared_structs;
 
-use sui::table::{Self, Table};
+use sui::table::Table;
 
 public enum DepositStatus has copy, drop, store {
     None,
@@ -203,8 +203,8 @@ public(package) fun upsert_token_config(
     treasury_id: Option<ID>,
     is_mint_burn: bool,
 ) {
-    if (table::contains(config, key)) {
-        let cfg = table::borrow_mut(config, key);
+    if (config.contains(key)) {
+        let cfg = config.borrow_mut(key);
         set_token_config(
             cfg,
             whitelisted,
@@ -226,7 +226,7 @@ public(package) fun upsert_token_config(
         treasury_id,
         is_mint_burn,
     );
-    table::add(config, key, cfg);
+    config.add(key, cfg);
 }
 
 public(package) fun set_token_config(

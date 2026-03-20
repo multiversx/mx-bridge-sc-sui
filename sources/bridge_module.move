@@ -107,12 +107,12 @@ public fun initialize(
     let mut relayer_public_keys = table::new<address, vector<u8>>(ctx);
     let mut i = 0;
     while (i < public_keys.length()) {
-        let pk = *vector::borrow(&public_keys, i);
+        let pk = *public_keys.borrow(i);
         assert!(pk.length() == ED25519_PUBLIC_KEY_LENGTH, EInvalidPublicKeyLength);
         let relayer_address = getAddressFromPublicKey(&pk);
 
         vec_set::insert(&mut relayers, relayer_address);
-        table::add(&mut relayer_public_keys, relayer_address, pk);
+        relayer_public_keys.add(relayer_address, pk);
         i = i + 1;
     };
 
@@ -150,7 +150,7 @@ fun getAddressFromPublicKey(public_key: &vector<u8>): address {
 
 /// Asserts that the caller is a registered relayer
 fun assert_relayer(bridge: &Bridge, signer: address) {
-    assert!(vec_set::contains(&bridge.relayers, &signer), ENotRelayer);
+    assert!(bridge.relayers.contains(&signer), ENotRelayer);
 }
 
 // === Configuration Management ===
@@ -204,10 +204,10 @@ public fun add_relayer(
 
     assert!(public_key.length() == ED25519_PUBLIC_KEY_LENGTH, EInvalidPublicKeyLength);
     let relayer_address = getAddressFromPublicKey(&public_key);
-    assert!(!vec_set::contains(&bridge.relayers, &relayer_address), ERelayerAlreadyExists);
+    assert!(!bridge.relayers.contains(&relayer_address), ERelayerAlreadyExists);
 
-    vec_set::insert(&mut bridge.relayers, relayer_address);
-    table::add(&mut bridge.relayer_public_keys, relayer_address, public_key);
+    bridge.relayers.insert(relayer_address);
+    bridge.relayer_public_keys.add(relayer_address, public_key);
     events::emit_relayer_added(relayer_address, tx_context::sender(ctx));
 }
 
@@ -223,9 +223,9 @@ public fun remove_relayer(
     let current_count = bridge.relayers.length();
     assert!(current_count > bridge.quorum, ECannotRemoveRelayerBelowQuorum);
 
-    vec_set::remove(&mut bridge.relayers, &relayer);
-    if (table::contains(&bridge.relayer_public_keys, relayer)) {
-        table::remove(&mut bridge.relayer_public_keys, relayer);
+    bridge.relayers.remove(&relayer);
+    if (bridge.relayer_public_keys.contains(relayer)) {
+        bridge.relayer_public_keys.remove(relayer);
     };
     events::emit_relayer_removed(relayer, tx_context::sender(ctx));
 }
@@ -243,7 +243,7 @@ public fun get_batch_deposits(
 }
 
 public fun was_batch_executed(bridge: &Bridge, batch_nonce_mvx: u64): bool {
-    vec_set::contains(&bridge.executed_batches, &batch_nonce_mvx)
+    bridge.executed_batches.contains(&batch_nonce_mvx)
 }
 
 public fun get_statuses_after_execution(
@@ -251,8 +251,8 @@ public fun get_statuses_after_execution(
     batch_nonce_mvx: u64,
     clock: &Clock,
 ): (vector<DepositStatus>, bool) {
-    if (table::contains(&bridge.cross_transfer_statuses, batch_nonce_mvx)) {
-        let cross_status = table::borrow(&bridge.cross_transfer_statuses, batch_nonce_mvx);
+    if (bridge.cross_transfer_statuses.contains(batch_nonce_mvx)) {
+        let cross_status = bridge.cross_transfer_statuses.borrow(batch_nonce_mvx);
         let statuses = shared_structs::cross_transfer_status_statuses(cross_status);
         let created_timestamp = shared_structs::cross_transfer_status_created_timestamp_ms(
             cross_status,
@@ -308,10 +308,7 @@ public fun execute_transfer<T>(
 
 fun mark_deposits_executed_in_batch_or_abort<T>(bridge: &mut Bridge, batch_nonce_mvx: u64) {
     let key = derive_key<T>(batch_nonce_mvx);
-    assert!(
-        !vec_set::contains(&bridge.executed_transfer_by_batch_type_arg, &key),
-        EDepositAlreadyExecuted,
-    );
+    assert!(!bridge.executed_transfer_by_batch_type_arg.contains(&key), EDepositAlreadyExecuted);
     vec_set::insert(&mut bridge.executed_transfer_by_batch_type_arg, key);
 }
 
@@ -340,7 +337,7 @@ public fun get_batch_settle_timeout_ms(bridge: &Bridge): u64 {
 }
 
 public fun is_relayer(bridge: &Bridge, addr: address): bool {
-    vec_set::contains(&bridge.relayers, &addr)
+    bridge.relayers.contains(&addr)
 }
 
 public fun get_admin(safe: &BridgeSafe): address {
@@ -352,7 +349,7 @@ public fun get_pause(bridge: &Bridge): bool {
 }
 
 public fun get_relayers(bridge: &Bridge): &vector<address> {
-    vec_set::keys(&bridge.relayers)
+    bridge.relayers.keys()
 }
 
 public fun get_relayer_count(bridge: &Bridge): u64 {
@@ -401,11 +398,11 @@ fun validate_quorum<T>(
 
         let relayer = option::extract(&mut relayer_opt);
 
-        assert!(!vec_set::contains(&verified_relayers, &relayer), EDuplicateSignature);
+        assert!(!verified_relayers.contains(&relayer), EDuplicateSignature);
 
         assert!(ed25519::ed25519_verify(&sig_bytes, &public_key, &message), EInvalidSignature);
 
-        vec_set::insert(&mut verified_relayers, relayer);
+        verified_relayers.insert(relayer);
         i = i + 1;
     };
 
@@ -477,8 +474,8 @@ fun find_relayer_by_public_key(bridge: &Bridge, public_key: &vector<u8>): Option
 
     while (i < relayers.length()) {
         let relayer = *relayers.borrow(i);
-        if (table::contains(&bridge.relayer_public_keys, relayer)) {
-            let stored_pk = table::borrow(&bridge.relayer_public_keys, relayer);
+        if (bridge.relayer_public_keys.contains(relayer)) {
+            let stored_pk = bridge.relayer_public_keys.borrow(relayer);
             if (stored_pk == public_key) {
                 return option::some(relayer)
             };
@@ -545,10 +542,10 @@ public(package) fun pre_execute_transfer<T>(
     mark_deposits_executed_in_batch_or_abort<T>(bridge, batch_nonce_mvx);
 
     let now = clock::timestamp_ms(clock);
-    if (table::contains(&bridge.execution_timestamps, batch_nonce_mvx)) {
-        *table::borrow_mut(&mut bridge.execution_timestamps, batch_nonce_mvx) = now;
+    if (bridge.execution_timestamps.contains(batch_nonce_mvx)) {
+        *bridge.execution_timestamps.borrow_mut(batch_nonce_mvx) = now;
     } else {
-        table::add(&mut bridge.execution_timestamps, batch_nonce_mvx, now);
+        bridge.execution_timestamps.add(batch_nonce_mvx, now);
     };
 }
 
@@ -560,14 +557,11 @@ public(package) fun record_transfer_result(
 ) {
     if (success) {
         vector::push_back(&mut bridge.transfer_statuses, shared_structs::deposit_status_executed());
-        if (table::contains(&bridge.successful_transfers_by_batch, batch_nonce_mvx)) {
-            let count = table::borrow_mut(
-                &mut bridge.successful_transfers_by_batch,
-                batch_nonce_mvx,
-            );
+        if (bridge.successful_transfers_by_batch.contains(batch_nonce_mvx)) {
+            let count = bridge.successful_transfers_by_batch.borrow_mut(batch_nonce_mvx);
             *count = *count + 1;
         } else {
-            table::add(&mut bridge.successful_transfers_by_batch, batch_nonce_mvx, 1);
+            bridge.successful_transfers_by_batch.add(batch_nonce_mvx, 1);
         };
     } else {
         vector::push_back(&mut bridge.transfer_statuses, shared_structs::deposit_status_rejected());
@@ -591,11 +585,9 @@ public(package) fun finalize_batch(
         table::add(&mut bridge.cross_transfer_statuses, batch_nonce_mvx, cross_status);
         bridge.transfer_statuses = vector::empty<DepositStatus>();
 
-        let successful_count = if (
-            table::contains(&bridge.successful_transfers_by_batch, batch_nonce_mvx)
-        ) {
-            let count = *table::borrow(&bridge.successful_transfers_by_batch, batch_nonce_mvx);
-            table::remove(&mut bridge.successful_transfers_by_batch, batch_nonce_mvx);
+        let successful_count = if (bridge.successful_transfers_by_batch.contains(batch_nonce_mvx)) {
+            let count = *bridge.successful_transfers_by_batch.borrow(batch_nonce_mvx);
+            bridge.successful_transfers_by_batch.remove(batch_nonce_mvx);
             count
         } else {
             0
@@ -622,10 +614,10 @@ public(package) fun pre_execute_transfer_for_testing<T>(
 ) {
     mark_deposits_executed_in_batch_or_abort<T>(bridge, batch_nonce_mvx);
     let now = clock::timestamp_ms(clock);
-    if (table::contains(&bridge.execution_timestamps, batch_nonce_mvx)) {
-        *table::borrow_mut(&mut bridge.execution_timestamps, batch_nonce_mvx) = now;
+    if (bridge.execution_timestamps.contains(batch_nonce_mvx)) {
+        *bridge.execution_timestamps.borrow_mut(batch_nonce_mvx) = now;
     } else {
-        table::add(&mut bridge.execution_timestamps, batch_nonce_mvx, now);
+        bridge.execution_timestamps.add(batch_nonce_mvx, now);
     };
 }
 

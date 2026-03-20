@@ -136,10 +136,10 @@ public fun deposit<T>(
         ctx,
     );
 
-    if (bag::contains(&safe.coin_storage, key)) {
-        coin::join(bag::borrow_mut<vector<u8>, Coin<T>>(&mut safe.coin_storage, key), coin_in);
+    if (safe.coin_storage.contains(key)) {
+        coin::join(safe.coin_storage.borrow_mut<vector<u8>, Coin<T>>(key), coin_in);
     } else {
-        bag::add(&mut safe.coin_storage, key, coin_in);
+        safe.coin_storage.add(key, coin_in);
     };
 
     events::emit_deposit_v1(
@@ -163,12 +163,12 @@ public(package) fun transfer<T>(
 ): bool {
     let key = utils::type_name_bytes<T>();
 
-    if (!table::contains(&safe.token_cfg, key)) {
+    if (!safe.token_cfg.contains(key)) {
         return false
     };
 
     let (is_mint_burn, current_balance) = {
-        let cfg_ref = table::borrow(&safe.token_cfg, key);
+        let cfg_ref = safe.token_cfg.borrow(key);
         (
             shared_structs::token_config_is_mint_burn(cfg_ref),
             shared_structs::token_config_total_balance(cfg_ref),
@@ -183,11 +183,11 @@ public(package) fun transfer<T>(
         return false
     };
 
-    if (!bag::contains(&safe.coin_storage, key)) {
+    if (!safe.coin_storage.contains(key)) {
         return false
     };
 
-    let stored_coin = bag::borrow_mut<vector<u8>, Coin<T>>(&mut safe.coin_storage, key);
+    let stored_coin = safe.coin_storage.borrow_mut<vector<u8>, Coin<T>>(key);
     let coin_value = coin::value(stored_coin);
     if (coin_value < amount) {
         return false
@@ -196,7 +196,7 @@ public(package) fun transfer<T>(
     let coin_to_transfer = coin::split(stored_coin, amount, ctx);
 
     if (coin::value(stored_coin) == 0) {
-        let empty_coin = bag::remove<vector<u8>, Coin<T>>(&mut safe.coin_storage, key);
+        let empty_coin = safe.coin_storage.remove<vector<u8>, Coin<T>>(key);
         coin::destroy_zero(empty_coin);
     };
     transfer::public_transfer(coin_to_transfer, receiver);
@@ -209,34 +209,34 @@ public(package) fun transfer<T>(
 
 public fun is_token_whitelisted<T>(safe: &BridgeSafe): bool {
     let key = utils::type_name_bytes<T>();
-    if (!table::contains(&safe.token_cfg, key)) {
+    if (!safe.token_cfg.contains(key)) {
         return false
     };
-    let cfg = table::borrow(&safe.token_cfg, key);
+    let cfg = safe.token_cfg.borrow(key);
     shared_structs::token_config_whitelisted(cfg)
 }
 
 public fun get_token_min_limit<T>(safe: &BridgeSafe): u64 {
     let key = utils::type_name_bytes<T>();
-    let cfg = table::borrow(&safe.token_cfg, key);
+    let cfg = safe.token_cfg.borrow(key);
     shared_structs::token_config_min_limit(cfg)
 }
 
 public fun get_token_max_limit<T>(safe: &BridgeSafe): u64 {
     let key = utils::type_name_bytes<T>();
-    let cfg = table::borrow(&safe.token_cfg, key);
+    let cfg = safe.token_cfg.borrow(key);
     shared_structs::token_config_max_limit(cfg)
 }
 
 public fun get_token_is_mint_burn<T>(safe: &BridgeSafe): bool {
     let key = utils::type_name_bytes<T>();
-    let cfg = table::borrow(&safe.token_cfg, key);
+    let cfg = safe.token_cfg.borrow(key);
     shared_structs::token_config_is_mint_burn(cfg)
 }
 
 public fun get_token_is_native<T>(safe: &BridgeSafe): bool {
     let key = utils::type_name_bytes<T>();
-    let cfg = table::borrow(&safe.token_cfg, key);
+    let cfg = safe.token_cfg.borrow(key);
     shared_structs::token_config_is_native(cfg)
 }
 
@@ -244,12 +244,12 @@ public fun get_batch(safe: &BridgeSafe, batch_nonce: u64, clock: &Clock): (Batch
     assert!(batch_nonce > 0, EBatchNotFound);
     let batch_index = batch_nonce - 1;
 
-    if (!table::contains(&safe.batches, batch_index)) {
+    if (!safe.batches.contains(batch_index)) {
         let empty_batch = shared_structs::create_batch(0, 0);
         return (empty_batch, false)
     };
 
-    let batch = *table::borrow(&safe.batches, batch_index);
+    let batch = *safe.batches.borrow(batch_index);
     let is_final = is_batch_final_internal(safe, &batch, clock);
     (batch, is_final)
 }
@@ -261,16 +261,16 @@ public fun get_deposits(
 ): (vector<Deposit>, bool) {
     assert!(batch_nonce > 0, EBatchNotFound);
     let batch_index = batch_nonce - 1;
-    let deposits = if (table::contains(&safe.batch_deposits, batch_index)) {
-        *table::borrow(&safe.batch_deposits, batch_index)
+    let deposits = if (safe.batch_deposits.contains(batch_index)) {
+        *safe.batch_deposits.borrow(batch_index)
     } else {
         vector::empty()
     };
-    if (!table::contains(&safe.batches, batch_index)) {
+    if (!safe.batches.contains(batch_index)) {
         return (deposits, false)
     };
 
-    let batch = table::borrow(&safe.batches, batch_index);
+    let batch = safe.batches.borrow(batch_index);
     let is_final = is_batch_final_internal(safe, batch, clock);
     (deposits, is_final)
 }
@@ -331,19 +331,19 @@ public fun get_batch_deposits_count(batch: &Batch): u16 {
 
 public fun get_stored_coin_balance<T>(safe: &mut BridgeSafe): u64 {
     let key = utils::type_name_bytes<T>();
-    if (!table::contains(&safe.token_cfg, key)) {
+    if (!safe.token_cfg.contains(key)) {
         return 0
     };
-    let cfg_ref = table::borrow(&safe.token_cfg, key);
+    let cfg_ref = safe.token_cfg.borrow(key);
     shared_structs::token_config_total_balance(cfg_ref)
 }
 
 public fun get_coin_storage_balance<T>(safe: &BridgeSafe): u64 {
     let key = utils::type_name_bytes<T>();
-    if (!bag::contains(&safe.coin_storage, key)) {
+    if (!safe.coin_storage.contains(key)) {
         return 0
     };
-    let stored_coin = bag::borrow<vector<u8>, Coin<T>>(&safe.coin_storage, key);
+    let stored_coin = safe.coin_storage.borrow<vector<u8>, Coin<T>>(key);
     coin::value(stored_coin)
 }
 
@@ -378,7 +378,7 @@ public fun init_supply<T>(safe: &mut BridgeSafe, coin_in: Coin<T>, ctx: &mut TxC
     let key = utils::type_name_bytes<T>();
 
     assert_token_is_whitelisted(safe, key);
-    let cfg_ref = table::borrow(&safe.token_cfg, key);
+    let cfg_ref = safe.token_cfg.borrow(key);
     assert!(shared_structs::token_config_is_native(cfg_ref), ENotNativeToken);
 
     let amount = coin::value(&coin_in);
@@ -386,11 +386,11 @@ public fun init_supply<T>(safe: &mut BridgeSafe, coin_in: Coin<T>, ctx: &mut TxC
     let cfg_mut = borrow_token_cfg_mut(safe, key);
     shared_structs::add_to_token_config_total_balance(cfg_mut, amount);
 
-    if (bag::contains(&safe.coin_storage, key)) {
-        let existing_coin = bag::borrow_mut<vector<u8>, Coin<T>>(&mut safe.coin_storage, key);
+    if (safe.coin_storage.contains(key)) {
+        let existing_coin = safe.coin_storage.borrow_mut<vector<u8>, Coin<T>>(key);
         coin::join(existing_coin, coin_in);
     } else {
-        bag::add(&mut safe.coin_storage, key, coin_in);
+        safe.coin_storage.add(key, coin_in);
     };
 }
 
@@ -402,13 +402,13 @@ public fun sync_supply<T>(safe: &mut BridgeSafe, mut coin_in: Coin<T>, ctx: &mut
     let key = utils::type_name_bytes<T>();
 
     assert_token_is_whitelisted(safe, key);
-    let cfg_ref = table::borrow(&safe.token_cfg, key);
+    let cfg_ref = safe.token_cfg.borrow(key);
     assert!(shared_structs::token_config_is_native(cfg_ref), ENotNativeToken);
 
     let expected_balance = shared_structs::token_config_total_balance(cfg_ref);
 
-    let actual_balance = if (bag::contains(&safe.coin_storage, key)) {
-        let stored_coin = bag::borrow<vector<u8>, Coin<T>>(&safe.coin_storage, key);
+    let actual_balance = if (safe.coin_storage.contains(key)) {
+        let stored_coin = safe.coin_storage.borrow<vector<u8>, Coin<T>>(key);
         coin::value(stored_coin)
     } else {
         0
@@ -421,11 +421,11 @@ public fun sync_supply<T>(safe: &mut BridgeSafe, mut coin_in: Coin<T>, ctx: &mut
 
     let top_up_coin = coin::split(&mut coin_in, deficit, ctx);
 
-    if (bag::contains(&safe.coin_storage, key)) {
-        let existing_coin = bag::borrow_mut<vector<u8>, Coin<T>>(&mut safe.coin_storage, key);
+    if (safe.coin_storage.contains(key)) {
+        let existing_coin = safe.coin_storage.borrow_mut<vector<u8>, Coin<T>>(key);
         coin::join(existing_coin, top_up_coin);
     } else {
-        bag::add(&mut safe.coin_storage, key, top_up_coin);
+        safe.coin_storage.add(key, top_up_coin);
     };
 
     if (coin::value(&coin_in) == 0) {
@@ -459,7 +459,7 @@ public fun remove_token_from_whitelist<T>(safe: &mut BridgeSafe, ctx: &mut TxCon
     assert_is_compatible(safe);
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
     let key = utils::type_name_bytes<T>();
-    let cfg_ref = table::borrow(&safe.token_cfg, key);
+    let cfg_ref = safe.token_cfg.borrow(key);
     assert!(!shared_structs::token_config_is_mint_burn(cfg_ref), EIncompatibleTokenFlags);
     unwhitelist_token(safe, key);
 }
@@ -672,20 +672,20 @@ public(package) fun assert_is_compatible(safe: &BridgeSafe) {
 }
 
 public(package) fun assert_token_is_whitelisted(safe: &BridgeSafe, key: vector<u8>) {
-    assert!(table::contains(&safe.token_cfg, key), ETokenNotWhitelisted);
-    let cfg = table::borrow(&safe.token_cfg, key);
+    assert!(safe.token_cfg.contains(key), ETokenNotWhitelisted);
+    let cfg = safe.token_cfg.borrow(key);
     assert!(shared_structs::token_config_whitelisted(cfg), ETokenNotWhitelisted);
 }
 
 public(package) fun assert_token_is_not_whitelisted(safe: &BridgeSafe, key: vector<u8>) {
-    assert!(table::contains(&safe.token_cfg, key), ETokenNotWhitelisted);
-    let cfg = table::borrow(&safe.token_cfg, key);
+    assert!(safe.token_cfg.contains(key), ETokenNotWhitelisted);
+    let cfg = safe.token_cfg.borrow(key);
     assert!(!shared_structs::token_config_whitelisted(cfg), ETokenAlreadyExists);
 }
 
 public(package) fun assert_token_is_mint_burn(safe: &BridgeSafe, key: vector<u8>) {
-    assert!(table::contains(&safe.token_cfg, key), ETokenNotWhitelisted);
-    let cfg = table::borrow(&safe.token_cfg, key);
+    assert!(safe.token_cfg.contains(key), ETokenNotWhitelisted);
+    let cfg = safe.token_cfg.borrow(key);
     assert!(shared_structs::token_config_is_mint_burn(cfg), EIncompatibleTokenFlags);
 }
 
@@ -707,7 +707,7 @@ public(package) fun whitelist_token_internal<T>(
     assert!(minimum_amount <= maximum_amount, EInvalidTokenLimits);
 
     let key = utils::type_name_bytes<T>();
-    let exists = table::contains(&safe.token_cfg, key);
+    let exists = safe.token_cfg.contains(key);
     if (exists) {
         assert_token_is_not_whitelisted(safe, key);
     };
@@ -747,7 +747,7 @@ public(package) fun deposit_validate_and_record<T>(
     assert!(recipient.length() == 32, EInvalidRecipient);
 
     let key = utils::type_name_bytes<T>();
-    let cfg_ref = table::borrow(&safe.token_cfg, key);
+    let cfg_ref = safe.token_cfg.borrow(key);
     assert!(shared_structs::token_config_whitelisted(cfg_ref), ETokenNotWhitelisted);
     assert!(
         shared_structs::token_config_is_mint_burn(cfg_ref) == expect_mint_burn,
@@ -764,7 +764,7 @@ public(package) fun deposit_validate_and_record<T>(
     };
 
     let batch_index = safe.batches_count - 1;
-    let batch = table::borrow_mut(&mut safe.batches, batch_index);
+    let batch = safe.batches.borrow_mut(batch_index);
 
     assert!(safe.deposits_count < MAX_U64, EOverflow);
     let dep_nonce = safe.deposits_count + 1;
@@ -776,10 +776,10 @@ public(package) fun deposit_validate_and_record<T>(
         recipient,
     );
 
-    if (!table::contains(&safe.batch_deposits, batch_index)) {
-        table::add(&mut safe.batch_deposits, batch_index, vector::empty());
+    if (!safe.batch_deposits.contains(batch_index)) {
+        safe.batch_deposits.add(batch_index, vector::empty());
     };
-    let vec_ref = table::borrow_mut(&mut safe.batch_deposits, batch_index);
+    let vec_ref = safe.batch_deposits.borrow_mut(batch_index);
     vector::push_back(vec_ref, dep);
 
     safe.deposits_count = dep_nonce;
@@ -798,14 +798,14 @@ fun create_new_batch_internal(safe: &mut BridgeSafe, clock: &Clock, _ctx: &mut T
     assert!(safe.batches_count < MAX_U64, EOverflow);
     let nonce = safe.batches_count + 1;
     let batch = shared_structs::create_batch(nonce, clock::timestamp_ms(clock));
-    table::add(&mut safe.batches, safe.batches_count, batch);
+    safe.batches.add(safe.batches_count, batch);
     safe.batches_count = nonce;
 }
 
 fun should_create_new_batch_internal(safe: &BridgeSafe, clock: &Clock): bool {
     if (safe.batches_count == 0) { return true };
     let last_index = safe.batches_count - 1;
-    let batch = table::borrow(&safe.batches, last_index);
+    let batch = safe.batches.borrow(last_index);
     is_batch_progress_over_internal(safe, shared_structs::batch_deposits_count(batch), shared_structs::batch_timestamp_ms(batch), clock) || (shared_structs::batch_deposits_count(batch) >= safe.batch_size)
 }
 
@@ -827,7 +827,7 @@ fun is_any_batch_in_progress_internal(safe: &BridgeSafe, clock: &Clock): bool {
     if (safe.batches_count == 0) { return false };
     let last_index = safe.batches_count - 1;
     if (!should_create_new_batch_internal(safe, clock)) { return true };
-    let batch = table::borrow(&safe.batches, last_index);
+    let batch = safe.batches.borrow(last_index);
     !is_batch_final_internal(safe, batch, clock)
 }
 
@@ -846,17 +846,17 @@ public(package) fun uid_mut(safe: &mut BridgeSafe): &mut UID {
 }
 
 public(package) fun has_token_config<T>(safe: &BridgeSafe): bool {
-    table::contains(&safe.token_cfg, utils::type_name_bytes<T>())
+    safe.token_cfg.contains(utils::type_name_bytes<T>())
 }
 
 public(package) fun subtract_token_balance<T>(safe: &mut BridgeSafe, amount: u64) {
     let key = utils::type_name_bytes<T>();
-    let cfg = table::borrow_mut(&mut safe.token_cfg, key);
+    let cfg = safe.token_cfg.borrow_mut(key);
     shared_structs::subtract_from_token_config_total_balance(cfg, amount);
 }
 
 fun borrow_token_cfg_mut(safe: &mut BridgeSafe, key: vector<u8>): &mut TokenConfig {
-    table::borrow_mut(&mut safe.token_cfg, key)
+    safe.token_cfg.borrow_mut(key)
 }
 
 public(package) fun roles_mut(safe: &mut BridgeSafe): &mut Roles<BridgeSafeTag> {

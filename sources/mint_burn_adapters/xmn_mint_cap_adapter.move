@@ -86,8 +86,8 @@ public fun execute_transfer<T>(
         let success = transfer<T>(
             safe,
             bridge_module::bridge_cap(bridge),
-            *vector::borrow(&recipients, i),
-            *vector::borrow(&amounts, i),
+            *recipients.borrow(i),
+            *amounts.borrow(i),
             xmn_treasury,
             deny_list,
             ctx,
