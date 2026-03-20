@@ -1,13 +1,13 @@
 /// Upgrade Manager - Coordinated System Upgrades
-/// 
+///
 /// This module manages coordinated upgrades across both Bridge and BridgeSafe objects,
 /// ensuring version compatibility and providing a unified upgrade interface.
 
 module bridge_safe::upgrade_manager;
 
 use bridge_safe::bridge::{Self, Bridge};
-use bridge_safe::safe::{Self, BridgeSafe};
 use bridge_safe::bridge_version_control;
+use bridge_safe::safe::{Self, BridgeSafe};
 use sui::event;
 
 // === Events ===
@@ -24,18 +24,14 @@ public struct SystemUpgradeCompleted has copy, drop {
 }
 
 /// Start coordinated migration across both Safe and Bridge
-public fun start_system_migration(
-    safe: &mut BridgeSafe,
-    bridge: &mut Bridge,
-    ctx: &mut TxContext,
-) {
+public fun start_system_migration(safe: &mut BridgeSafe, bridge: &mut Bridge, ctx: &mut TxContext) {
     // Verify ownership through safe
     safe::checkOwnerRole(safe, ctx);
-    
+
     // Start migration for both components
     safe::start_migration(safe, ctx);
     bridge::start_bridge_migration(bridge, safe, ctx);
-    
+
     event::emit(SystemUpgradeInitiated {
         safe_versions: safe::compatible_versions(safe),
         bridge_versions: bridge::bridge_compatible_versions(bridge),
@@ -50,11 +46,11 @@ public fun complete_system_migration(
     ctx: &mut TxContext,
 ) {
     safe::checkOwnerRole(safe, ctx);
-    
+
     // Complete migration for both components
     safe::complete_migration(safe, ctx);
     bridge::complete_bridge_migration(bridge, safe, ctx);
-    
+
     event::emit(SystemUpgradeCompleted {
         new_version: bridge_version_control::current_version(),
         previous_versions: vector[bridge_version_control::current_version() - 1], // Previous version
@@ -62,13 +58,9 @@ public fun complete_system_migration(
 }
 
 /// Abort coordinated migration if needed
-public fun abort_system_migration(
-    safe: &mut BridgeSafe,
-    bridge: &mut Bridge,
-    ctx: &mut TxContext,
-) {
+public fun abort_system_migration(safe: &mut BridgeSafe, bridge: &mut Bridge, ctx: &mut TxContext) {
     safe::checkOwnerRole(safe, ctx);
-    
+
     // Abort migration for both components
     safe::abort_migration(safe, ctx);
     bridge::abort_bridge_migration(bridge, safe, ctx);

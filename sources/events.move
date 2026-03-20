@@ -1,5 +1,5 @@
 /// Events Module - Event Definitions for Bridge Operations
-/// 
+///
 /// This module defines all event structures used across the bridge system
 /// for monitoring deposits, admin actions, relayer management, and token operations.
 

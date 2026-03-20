@@ -126,8 +126,14 @@ public fun deposit<T>(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
-    let (key, amount, batch_nonce, dep_nonce) =
-        deposit_validate_and_record<T>(safe, &coin_in, recipient, false, clock, ctx);
+    let (key, amount, batch_nonce, dep_nonce) = deposit_validate_and_record<T>(
+        safe,
+        &coin_in,
+        recipient,
+        false,
+        clock,
+        ctx,
+    );
 
     if (bag::contains(&safe.coin_storage, key)) {
         coin::join(bag::borrow_mut<vector<u8>, Coin<T>>(&mut safe.coin_storage, key), coin_in);
@@ -135,7 +141,14 @@ public fun deposit<T>(
         bag::add(&mut safe.coin_storage, key, coin_in);
     };
 
-    events::emit_deposit_v1(batch_nonce, dep_nonce, tx_context::sender(ctx), recipient, amount, key);
+    events::emit_deposit_v1(
+        batch_nonce,
+        dep_nonce,
+        tx_context::sender(ctx),
+        recipient,
+        amount,
+        key,
+    );
 }
 
 /// Transfer function for native tokens: splits coin from the safe's bag and sends to receiver.
@@ -421,7 +434,15 @@ public fun whitelist_token<T>(
     maximum_amount: u64,
     ctx: &mut TxContext,
 ) {
-    whitelist_token_internal<T>(safe, minimum_amount, maximum_amount, true, option::none(), false, ctx);
+    whitelist_token_internal<T>(
+        safe,
+        minimum_amount,
+        maximum_amount,
+        true,
+        option::none(),
+        false,
+        ctx,
+    );
 }
 
 public fun remove_token_from_whitelist<T>(safe: &mut BridgeSafe, ctx: &mut TxContext) {
@@ -699,7 +720,10 @@ public(package) fun deposit_validate_and_record<T>(
     let key = utils::type_name_bytes<T>();
     let cfg_ref = table::borrow(&safe.token_cfg, key);
     assert!(shared_structs::token_config_whitelisted(cfg_ref), ETokenNotWhitelisted);
-    assert!(shared_structs::token_config_is_mint_burn(cfg_ref) == expect_mint_burn, EIncompatibleTokenFlags);
+    assert!(
+        shared_structs::token_config_is_mint_burn(cfg_ref) == expect_mint_burn,
+        EIncompatibleTokenFlags,
+    );
 
     let amount = coin::value(coin_in);
     assert!(amount > 0, EZeroAmount);
@@ -715,7 +739,13 @@ public(package) fun deposit_validate_and_record<T>(
 
     assert!(safe.deposits_count < MAX_U64, EOverflow);
     let dep_nonce = safe.deposits_count + 1;
-    let dep = shared_structs::create_deposit(dep_nonce, key, amount, tx_context::sender(ctx), recipient);
+    let dep = shared_structs::create_deposit(
+        dep_nonce,
+        key,
+        amount,
+        tx_context::sender(ctx),
+        recipient,
+    );
 
     if (!table::contains(&safe.batch_deposits, batch_index)) {
         table::add(&mut safe.batch_deposits, batch_index, vector::empty());
@@ -817,10 +847,23 @@ public fun deposit_mint_burn_for_testing<T>(
     ctx: &mut TxContext,
 ) {
     use sui::test_utils;
-    let (key, amount, batch_nonce, dep_nonce) =
-        deposit_validate_and_record<T>(safe, &coin_in, recipient, true, clock, ctx);
+    let (key, amount, batch_nonce, dep_nonce) = deposit_validate_and_record<T>(
+        safe,
+        &coin_in,
+        recipient,
+        true,
+        clock,
+        ctx,
+    );
     test_utils::destroy(coin_in);
-    events::emit_deposit_v1(batch_nonce, dep_nonce, tx_context::sender(ctx), recipient, amount, key);
+    events::emit_deposit_v1(
+        batch_nonce,
+        dep_nonce,
+        tx_context::sender(ctx),
+        recipient,
+        amount,
+        key,
+    );
 }
 
 #[test_only]

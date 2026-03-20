@@ -202,12 +202,27 @@ public fun upsert_token_config(
 ) {
     if (table::contains(config, key)) {
         let cfg = table::borrow_mut(config, key);
-        set_token_config(cfg, whitelisted, is_native, min_limit, max_limit, treasury_id, is_mint_burn);
+        set_token_config(
+            cfg,
+            whitelisted,
+            is_native,
+            min_limit,
+            max_limit,
+            treasury_id,
+            is_mint_burn,
+        );
 
         return;
     };
 
-    let cfg = create_token_config(whitelisted, is_native, min_limit, max_limit, treasury_id, is_mint_burn);
+    let cfg = create_token_config(
+        whitelisted,
+        is_native,
+        min_limit,
+        max_limit,
+        treasury_id,
+        is_mint_burn,
+    );
     table::add(config, key, cfg);
 }
 

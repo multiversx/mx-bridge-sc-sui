@@ -984,19 +984,19 @@ fun test_getAddressFromPublicKey() {
 
 fun setup_bridge_with_relayers_for_quorum(): (Scenario, vector<vector<u8>>, vector<address>) {
     let mut scenario = ts::begin(ADMIN);
-    
+
     let pk1 = x"1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
     let pk2 = x"abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890";
     let pk3 = x"fedcba0987654321fedcba0987654321fedcba0987654321fedcba0987654321";
     let pk4 = x"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-    
+
     let public_keys = vector[pk1, pk2, pk3, pk4];
-    
+
     let addr1 = bridge::getAddressFromPublicKeyTest(&pk1);
     let addr2 = bridge::getAddressFromPublicKeyTest(&pk2);
     let addr3 = bridge::getAddressFromPublicKeyTest(&pk3);
     let addr4 = bridge::getAddressFromPublicKeyTest(&pk4);
-    
+
     let relayer_addresses = vector[addr1, addr2, addr3, addr4];
 
     scenario.next_tx(ADMIN);
@@ -1008,57 +1008,70 @@ fun setup_bridge_with_relayers_for_quorum(): (Scenario, vector<vector<u8>>, vect
     {
         let safe = scenario.take_shared<BridgeSafe>();
         let bridge_cap = scenario.take_from_address<BridgeCap>(ADMIN);
-        
+
         bridge::initialize(
             public_keys,
-            3, 
+            3,
             object::id_address(&safe),
             bridge_cap,
-            scenario.ctx()
+            scenario.ctx(),
         );
-        
+
         ts::return_shared(safe);
     };
-    
+
     (scenario, public_keys, relayer_addresses)
 }
 
 fun create_test_signature_for_quorum(public_key: &vector<u8>): vector<u8> {
     let mut signature = vector::empty<u8>();
-    
+
     let mut i = 0u64;
     while (i < 64u64) {
         vector::push_back(&mut signature, (i % 256) as u8);
         i = i + 1;
     };
-    
+
     vector::append(&mut signature, *public_key);
-    
+
     signature
 }
 
 #[test]
-#[expected_failure(abort_code = bridge::EInvalidSignature)] // Expecting failure at signature verification
+#[
+    expected_failure(
+        abort_code = bridge::EInvalidSignature,
+    ),
+] // Expecting failure at signature verification
 fun test_validate_quorum_reaches_signature_verification() {
     let (mut scenario, public_keys, _relayer_addresses) = setup_bridge_with_relayers_for_quorum();
-    
+
     scenario.next_tx(ADMIN);
     {
         let bridge = scenario.take_shared<Bridge>();
-        
+
         // Create test data
         let batch_id = 1u64;
         let recipients = vector[@0x123, @0x456, @0x789];
         let amounts = vector[100u64, 200u64, 300u64];
         let deposit_nonces = vector[1u64, 2u64, 3u64];
-        
+
         // Create signatures for 3 out of 4 relayers (meeting quorum of 3)
         // These will have correct format but invalid cryptographic signatures
         let mut signatures = vector::empty<vector<u8>>();
-        vector::push_back(&mut signatures, create_test_signature_for_quorum(vector::borrow(&public_keys, 0)));
-        vector::push_back(&mut signatures, create_test_signature_for_quorum(vector::borrow(&public_keys, 1)));
-        vector::push_back(&mut signatures, create_test_signature_for_quorum(vector::borrow(&public_keys, 2)));
-        
+        vector::push_back(
+            &mut signatures,
+            create_test_signature_for_quorum(vector::borrow(&public_keys, 0)),
+        );
+        vector::push_back(
+            &mut signatures,
+            create_test_signature_for_quorum(vector::borrow(&public_keys, 1)),
+        );
+        vector::push_back(
+            &mut signatures,
+            create_test_signature_for_quorum(vector::borrow(&public_keys, 2)),
+        );
+
         // This should fail at signature verification (proving we got through initial checks)
         bridge::validate_quorum_for_testing<TEST_COIN>(
             &bridge,
@@ -1066,12 +1079,12 @@ fun test_validate_quorum_reaches_signature_verification() {
             &recipients,
             &amounts,
             &signatures,
-            &deposit_nonces
+            &deposit_nonces,
         );
-        
+
         ts::return_shared(bridge);
     };
-    
+
     ts::end(scenario);
 }
 
@@ -1079,22 +1092,28 @@ fun test_validate_quorum_reaches_signature_verification() {
 #[expected_failure(abort_code = bridge::EQuorumNotReached)]
 fun test_validate_quorum_insufficient_signatures() {
     let (mut scenario, public_keys, _relayer_addresses) = setup_bridge_with_relayers_for_quorum();
-    
+
     scenario.next_tx(ADMIN);
     {
         let bridge = scenario.take_shared<Bridge>();
-        
+
         // Create test data
         let batch_id = 1u64;
         let recipients = vector[@0x123, @0x456];
         let amounts = vector[100u64, 200u64];
         let deposit_nonces = vector[1u64, 2u64];
-        
+
         // Create signatures for only 2 out of 4 relayers (below quorum of 3)
         let mut signatures = vector::empty<vector<u8>>();
-        vector::push_back(&mut signatures, create_test_signature_for_quorum(vector::borrow(&public_keys, 0)));
-        vector::push_back(&mut signatures, create_test_signature_for_quorum(vector::borrow(&public_keys, 1)));
-        
+        vector::push_back(
+            &mut signatures,
+            create_test_signature_for_quorum(vector::borrow(&public_keys, 0)),
+        );
+        vector::push_back(
+            &mut signatures,
+            create_test_signature_for_quorum(vector::borrow(&public_keys, 1)),
+        );
+
         // This should fail as we have fewer signatures than quorum
         bridge::validate_quorum_for_testing<TEST_COIN>(
             &bridge,
@@ -1102,12 +1121,12 @@ fun test_validate_quorum_insufficient_signatures() {
             &recipients,
             &amounts,
             &signatures,
-            &deposit_nonces
+            &deposit_nonces,
         );
-        
+
         ts::return_shared(bridge);
     };
-    
+
     ts::end(scenario);
 }
 
@@ -1115,24 +1134,24 @@ fun test_validate_quorum_insufficient_signatures() {
 #[expected_failure(abort_code = bridge::EInvalidSignatureLength)]
 fun test_validate_quorum_invalid_signature_length() {
     let (mut scenario, _public_keys, _relayer_addresses) = setup_bridge_with_relayers_for_quorum();
-    
+
     scenario.next_tx(ADMIN);
     {
         let bridge = scenario.take_shared<Bridge>();
-        
+
         // Create test data
         let batch_id = 1u64;
         let recipients = vector[@0x123];
         let amounts = vector[100u64];
         let deposit_nonces = vector[1u64];
-        
+
         // Create signatures with invalid length (should be 96 bytes)
         let mut signatures = vector::empty<vector<u8>>();
         let invalid_signature = vector[1u8, 2u8, 3u8]; // Only 3 bytes instead of 96
         vector::push_back(&mut signatures, invalid_signature);
         vector::push_back(&mut signatures, invalid_signature);
         vector::push_back(&mut signatures, invalid_signature);
-        
+
         // This should fail due to invalid signature length
         bridge::validate_quorum_for_testing<TEST_COIN>(
             &bridge,
@@ -1140,12 +1159,12 @@ fun test_validate_quorum_invalid_signature_length() {
             &recipients,
             &amounts,
             &signatures,
-            &deposit_nonces
+            &deposit_nonces,
         );
-        
+
         ts::return_shared(bridge);
     };
-    
+
     ts::end(scenario);
 }
 
@@ -1153,24 +1172,24 @@ fun test_validate_quorum_invalid_signature_length() {
 #[expected_failure(abort_code = bridge::ERelayerNotFound)]
 fun test_validate_quorum_unknown_relayer() {
     let (mut scenario, _public_keys, _relayer_addresses) = setup_bridge_with_relayers_for_quorum();
-    
+
     scenario.next_tx(ADMIN);
     {
         let bridge = scenario.take_shared<Bridge>();
-        
+
         // Create test data
         let batch_id = 1u64;
         let recipients = vector[@0x123];
         let amounts = vector[100u64];
         let deposit_nonces = vector[1u64];
-        
+
         // Create signatures with unknown public keys (not in relayer list)
         let unknown_pk = x"9999999999999999999999999999999999999999999999999999999999999999";
         let mut signatures = vector::empty<vector<u8>>();
         vector::push_back(&mut signatures, create_test_signature_for_quorum(&unknown_pk));
         vector::push_back(&mut signatures, create_test_signature_for_quorum(&unknown_pk));
         vector::push_back(&mut signatures, create_test_signature_for_quorum(&unknown_pk));
-        
+
         // This should fail because the public key is not from a known relayer
         bridge::validate_quorum_for_testing<TEST_COIN>(
             &bridge,
@@ -1178,11 +1197,11 @@ fun test_validate_quorum_unknown_relayer() {
             &recipients,
             &amounts,
             &signatures,
-            &deposit_nonces
+            &deposit_nonces,
         );
-        
+
         ts::return_shared(bridge);
     };
-    
+
     ts::end(scenario);
 }

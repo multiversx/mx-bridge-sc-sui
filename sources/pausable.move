@@ -1,5 +1,5 @@
 /// Pausable Module - Emergency Stop Functionality
-/// 
+///
 /// This module provides pausable functionality for emergency stops.
 
 module bridge_safe::pausable;

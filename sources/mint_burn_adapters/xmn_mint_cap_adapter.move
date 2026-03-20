@@ -31,12 +31,25 @@ public fun deposit<T>(
 ) {
     assert!(has_cap<T>(safe::uid(safe)), EMintBurnCapNotFound);
 
-    let (key, amount, batch_nonce, dep_nonce) =
-        safe::deposit_validate_and_record<T>(safe, &coin_in, recipient, true, clock, ctx);
+    let (key, amount, batch_nonce, dep_nonce) = safe::deposit_validate_and_record<T>(
+        safe,
+        &coin_in,
+        recipient,
+        true,
+        clock,
+        ctx,
+    );
 
     burn<T>(safe::uid(safe), xmn_treasury, deny_list, coin_in, ctx);
 
-    events::emit_deposit_v1(batch_nonce, dep_nonce, tx_context::sender(ctx), recipient, amount, key);
+    events::emit_deposit_v1(
+        batch_nonce,
+        dep_nonce,
+        tx_context::sender(ctx),
+        recipient,
+        amount,
+        key,
+    );
 }
 
 public fun execute_transfer<T>(
@@ -53,12 +66,29 @@ public fun execute_transfer<T>(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
-    bridge_module::pre_execute_transfer<T>(bridge, batch_nonce_mvx, &recipients, &amounts, &deposit_nonces, &signatures, clock, ctx);
+    bridge_module::pre_execute_transfer<T>(
+        bridge,
+        batch_nonce_mvx,
+        &recipients,
+        &amounts,
+        &deposit_nonces,
+        &signatures,
+        clock,
+        ctx,
+    );
 
     let len = vector::length(&recipients);
     let mut i = 0;
     while (i < len) {
-        let success = transfer<T>(safe, bridge_module::bridge_cap(bridge), *vector::borrow(&recipients, i), *vector::borrow(&amounts, i), xmn_treasury, deny_list, ctx);
+        let success = transfer<T>(
+            safe,
+            bridge_module::bridge_cap(bridge),
+            *vector::borrow(&recipients, i),
+            *vector::borrow(&amounts, i),
+            xmn_treasury,
+            deny_list,
+            ctx,
+        );
         bridge_module::record_transfer_result(bridge, batch_nonce_mvx, success);
         i = i + 1;
     };
@@ -77,7 +107,15 @@ public fun whitelist_token<T>(
     ctx: &TxContext,
 ) {
     assert!(!has_cap<T>(safe::uid(safe)), EMintBurnCapAlreadyRegistered);
-    safe::whitelist_token_internal<T>(safe, minimum_amount, maximum_amount, false, option::some(treasury_id), true, ctx);
+    safe::whitelist_token_internal<T>(
+        safe,
+        minimum_amount,
+        maximum_amount,
+        false,
+        option::some(treasury_id),
+        true,
+        ctx,
+    );
     register<T>(safe::uid_mut(safe), cap);
 }
 
@@ -170,7 +208,15 @@ public fun execute_transfer_for_testing<T>(
     let len = vector::length(&recipients);
     let mut i = 0;
     while (i < len) {
-        let success = transfer<T>(safe, bridge_module::bridge_cap(bridge), *vector::borrow(&recipients, i), *vector::borrow(&amounts, i), xmn_treasury, deny_list, ctx);
+        let success = transfer<T>(
+            safe,
+            bridge_module::bridge_cap(bridge),
+            *vector::borrow(&recipients, i),
+            *vector::borrow(&amounts, i),
+            xmn_treasury,
+            deny_list,
+            ctx,
+        );
         bridge_module::record_transfer_result(bridge, batch_nonce_mvx, success);
         i = i + 1;
     };

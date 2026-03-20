@@ -1,5 +1,5 @@
 /// Bridge Module - Cross-chain Bridge Implementation
-/// 
+///
 /// This module implements a secure cross-chain bridge that allows transferring
 /// tokens between different blockchain networks. It includes relayer management,
 /// batch processing, signature validation, and migration support.
@@ -7,11 +7,11 @@
 module bridge_safe::bridge;
 
 use bridge_safe::bridge_roles::BridgeCap;
+use bridge_safe::bridge_version_control;
 use bridge_safe::events;
 use bridge_safe::pausable::{Self, Pause};
 use bridge_safe::safe::{Self, BridgeSafe};
 use bridge_safe::utils;
-use bridge_safe::bridge_version_control;
 use shared_structs::shared_structs::{Self, Deposit, Batch, CrossTransferStatus, DepositStatus};
 use std::u64::{min, max};
 use sui::address;
@@ -270,12 +270,27 @@ public fun execute_transfer<T>(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
-    pre_execute_transfer<T>(bridge, batch_nonce_mvx, &recipients, &amounts, &deposit_nonces, &signatures, clock, ctx);
+    pre_execute_transfer<T>(
+        bridge,
+        batch_nonce_mvx,
+        &recipients,
+        &amounts,
+        &deposit_nonces,
+        &signatures,
+        clock,
+        ctx,
+    );
 
     let len = vector::length(&recipients);
     let mut i = 0;
     while (i < len) {
-        let success = safe::transfer<T>(safe, &bridge.bridge_cap, *vector::borrow(&recipients, i), *vector::borrow(&amounts, i), ctx);
+        let success = safe::transfer<T>(
+            safe,
+            &bridge.bridge_cap,
+            *vector::borrow(&recipients, i),
+            *vector::borrow(&amounts, i),
+            ctx,
+        );
         record_transfer_result(bridge, batch_nonce_mvx, success);
         i = i + 1;
     };
@@ -283,12 +298,12 @@ public fun execute_transfer<T>(
     finalize_batch(bridge, batch_nonce_mvx, len, is_batch_complete, clock);
 }
 
-fun mark_deposits_executed_in_batch_or_abort<T>(
-    bridge: &mut Bridge,
-    batch_nonce_mvx: u64,
-) {
+fun mark_deposits_executed_in_batch_or_abort<T>(bridge: &mut Bridge, batch_nonce_mvx: u64) {
     let key = derive_key<T>(batch_nonce_mvx);
-    assert!(!vec_set::contains(&bridge.executed_transfer_by_batch_type_arg, &key), EDepositAlreadyExecuted);
+    assert!(
+        !vec_set::contains(&bridge.executed_transfer_by_batch_type_arg, &key),
+        EDepositAlreadyExecuted,
+    );
     vec_set::insert(&mut bridge.executed_transfer_by_batch_type_arg, key);
 }
 
@@ -480,7 +495,13 @@ public fun execute_transfer_for_testing<T>(
     let len = vector::length(&recipients);
     let mut i = 0;
     while (i < len) {
-        let success = safe::transfer<T>(safe, &bridge.bridge_cap, *vector::borrow(&recipients, i), *vector::borrow(&amounts, i), ctx);
+        let success = safe::transfer<T>(
+            safe,
+            &bridge.bridge_cap,
+            *vector::borrow(&recipients, i),
+            *vector::borrow(&amounts, i),
+            ctx,
+        );
         record_transfer_result(bridge, batch_nonce_mvx, success);
         i = i + 1;
     };
@@ -522,11 +543,18 @@ public(package) fun pre_execute_transfer<T>(
 }
 
 /// Records success or failure for one recipient in the current batch.
-public(package) fun record_transfer_result(bridge: &mut Bridge, batch_nonce_mvx: u64, success: bool) {
+public(package) fun record_transfer_result(
+    bridge: &mut Bridge,
+    batch_nonce_mvx: u64,
+    success: bool,
+) {
     if (success) {
         vector::push_back(&mut bridge.transfer_statuses, shared_structs::deposit_status_executed());
         if (table::contains(&bridge.successful_transfers_by_batch, batch_nonce_mvx)) {
-            let count = table::borrow_mut(&mut bridge.successful_transfers_by_batch, batch_nonce_mvx);
+            let count = table::borrow_mut(
+                &mut bridge.successful_transfers_by_batch,
+                batch_nonce_mvx,
+            );
             *count = *count + 1;
         } else {
             table::add(&mut bridge.successful_transfers_by_batch, batch_nonce_mvx, 1);
@@ -553,7 +581,9 @@ public(package) fun finalize_batch(
         table::add(&mut bridge.cross_transfer_statuses, batch_nonce_mvx, cross_status);
         bridge.transfer_statuses = vector::empty<DepositStatus>();
 
-        let successful_count = if (table::contains(&bridge.successful_transfers_by_batch, batch_nonce_mvx)) {
+        let successful_count = if (
+            table::contains(&bridge.successful_transfers_by_batch, batch_nonce_mvx)
+        ) {
             let count = *table::borrow(&bridge.successful_transfers_by_batch, batch_nonce_mvx);
             table::remove(&mut bridge.successful_transfers_by_batch, batch_nonce_mvx);
             count
@@ -561,7 +591,11 @@ public(package) fun finalize_batch(
             0
         };
 
-        event::emit(BatchExecuted { batch_nonce_mvx, transfers_count: total_transfers, successful_transfers: successful_count });
+        event::emit(BatchExecuted {
+            batch_nonce_mvx,
+            transfers_count: total_transfers,
+            successful_transfers: successful_count,
+        });
     };
 }
 
