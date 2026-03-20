@@ -10,13 +10,13 @@ use bridge_safe::bridge_roles::BridgeCap;
 use bridge_safe::bridge_version_control;
 use bridge_safe::events;
 use bridge_safe::pausable::{Self, Pause};
-use bridge_safe::safe::{Self, BridgeSafe};
+use bridge_safe::safe::BridgeSafe;
 use bridge_safe::utils;
 use shared_structs::shared_structs::{Self, Deposit, Batch, CrossTransferStatus, DepositStatus};
 use std::u64::{min, max};
 use sui::address;
 use sui::bcs;
-use sui::clock::{Self, Clock};
+use sui::clock::Clock;
 use sui::ed25519;
 use sui::event;
 use sui::hash::blake2b256;
@@ -111,7 +111,7 @@ public fun initialize(
         assert!(pk.length() == ED25519_PUBLIC_KEY_LENGTH, EInvalidPublicKeyLength);
         let relayer_address = getAddressFromPublicKey(&pk);
 
-        vec_set::insert(&mut relayers, relayer_address);
+        relayers.insert(relayer_address);
         relayer_public_keys.add(relayer_address, pk);
         i = i + 1;
     };
@@ -143,7 +143,7 @@ public fun initialize(
 /// address = blake2b256( 0x00 || ed25519_pubkey )
 fun getAddressFromPublicKey(public_key: &vector<u8>): address {
     let mut long_public_key = vector[0u8];
-    vector::append(&mut long_public_key, *public_key);
+    long_public_key.append(*public_key);
     let relayer_bytes = sui::hash::blake2b256(&long_public_key);
     address::from_bytes(relayer_bytes)
 }
@@ -182,9 +182,9 @@ public fun set_batch_settle_timeout_ms(
     assert_bridge_is_compatible(bridge);
     safe.checkOwnerRole(ctx);
 
-    pausable::assert_paused(&bridge.pause);
-    assert!(new_timeout_ms >= safe::get_batch_timeout_ms(safe), ESettleTimeoutBelowSafeBatch);
-    assert!(!safe::is_any_batch_in_progress(safe, clock), EPendingBatches);
+    bridge.pause.assert_paused();
+    assert!(new_timeout_ms >= safe.get_batch_timeout_ms(), ESettleTimeoutBelowSafeBatch);
+    assert!(!safe.is_any_batch_in_progress(clock), EPendingBatches);
 
     bridge.batch_settle_timeout_ms = new_timeout_ms;
     events::emit_batch_settle_timeout_updated(new_timeout_ms);
@@ -208,7 +208,7 @@ public fun add_relayer(
 
     bridge.relayers.insert(relayer_address);
     bridge.relayer_public_keys.add(relayer_address, public_key);
-    events::emit_relayer_added(relayer_address, tx_context::sender(ctx));
+    events::emit_relayer_added(relayer_address, ctx.sender());
 }
 
 public fun remove_relayer(
@@ -227,11 +227,11 @@ public fun remove_relayer(
     if (bridge.relayer_public_keys.contains(relayer)) {
         bridge.relayer_public_keys.remove(relayer);
     };
-    events::emit_relayer_removed(relayer, tx_context::sender(ctx));
+    events::emit_relayer_removed(relayer, ctx.sender());
 }
 
 public fun get_batch(safe: &BridgeSafe, batch_nonce: u64, clock: &Clock): (Batch, bool) {
-    safe::get_batch(safe, batch_nonce, clock)
+    safe.get_batch(batch_nonce, clock)
 }
 
 public fun get_batch_deposits(
@@ -239,7 +239,7 @@ public fun get_batch_deposits(
     batch_nonce: u64,
     clock: &Clock,
 ): (vector<Deposit>, bool) {
-    safe::get_deposits(safe, batch_nonce, clock)
+    safe.get_deposits(batch_nonce, clock)
 }
 
 public fun was_batch_executed(bridge: &Bridge, batch_nonce_mvx: u64): bool {
@@ -253,10 +253,8 @@ public fun get_statuses_after_execution(
 ): (vector<DepositStatus>, bool) {
     if (bridge.cross_transfer_statuses.contains(batch_nonce_mvx)) {
         let cross_status = bridge.cross_transfer_statuses.borrow(batch_nonce_mvx);
-        let statuses = shared_structs::cross_transfer_status_statuses(cross_status);
-        let created_timestamp = shared_structs::cross_transfer_status_created_timestamp_ms(
-            cross_status,
-        );
+        let statuses = cross_status.cross_transfer_status_statuses();
+        let created_timestamp = cross_status.cross_transfer_status_created_timestamp_ms();
         let is_final = is_mvx_batch_final(bridge, created_timestamp, clock);
         (statuses, is_final)
     } else {
@@ -292,8 +290,7 @@ public fun execute_transfer<T>(
     let len = recipients.length();
     let mut i = 0;
     while (i < len) {
-        let success = safe::transfer<T>(
-            safe,
+        let success = safe.transfer<T>(
             &bridge.bridge_cap,
             *recipients.borrow(i),
             *amounts.borrow(i),
@@ -309,13 +306,13 @@ public fun execute_transfer<T>(
 fun mark_deposits_executed_in_batch_or_abort<T>(bridge: &mut Bridge, batch_nonce_mvx: u64) {
     let key = derive_key<T>(batch_nonce_mvx);
     assert!(!bridge.executed_transfer_by_batch_type_arg.contains(&key), EDepositAlreadyExecuted);
-    vec_set::insert(&mut bridge.executed_transfer_by_batch_type_arg, key);
+    bridge.executed_transfer_by_batch_type_arg.insert(key);
 }
 
 fun derive_key<T>(batch_nonce: u64): vector<u8> {
     let mut data = bcs::to_bytes(&batch_nonce);
     let type_bytes = utils::type_name_bytes<T>();
-    vector::append(&mut data, type_bytes);
+    data.append(type_bytes);
 
     blake2b256(&data)
 }
@@ -324,7 +321,7 @@ fun is_mvx_batch_final(bridge: &Bridge, created_timestamp_ms: u64, clock: &Clock
     if (created_timestamp_ms == 0) {
         false
     } else {
-        (created_timestamp_ms + bridge.batch_settle_timeout_ms) <= clock::timestamp_ms(clock)
+        (created_timestamp_ms + bridge.batch_settle_timeout_ms) <= clock.timestamp_ms()
     }
 }
 
@@ -341,7 +338,7 @@ public fun is_relayer(bridge: &Bridge, addr: address): bool {
 }
 
 public fun get_admin(safe: &BridgeSafe): address {
-    safe::get_owner(safe)
+    safe.get_owner()
 }
 
 public fun get_pause(bridge: &Bridge): bool {
@@ -359,13 +356,13 @@ public fun get_relayer_count(bridge: &Bridge): u64 {
 public fun pause_contract(bridge: &mut Bridge, safe: &BridgeSafe, ctx: &mut TxContext) {
     assert_bridge_is_compatible(bridge);
     safe.checkOwnerRole(ctx);
-    pausable::pause(&mut bridge.pause);
+    bridge.pause.pause();
 }
 
 public fun unpause_contract(bridge: &mut Bridge, safe: &BridgeSafe, ctx: &mut TxContext) {
     assert_bridge_is_compatible(bridge);
     safe.checkOwnerRole(ctx);
-    pausable::unpause(&mut bridge.pause);
+    bridge.pause.unpause();
 }
 
 fun validate_quorum<T>(
@@ -419,7 +416,7 @@ public fun compute_message(
     let message = construct_batch_message(batch_id, token, recipients, amounts, deposit_nonces);
     let encoded_msg = bcs::to_bytes(&message);
     let mut intent_message = vector[3u8, 0u8, 0u8];
-    vector::append(&mut intent_message, encoded_msg);
+    intent_message.append(encoded_msg);
     sui::hash::blake2b256(&intent_message)
 }
 
@@ -438,10 +435,10 @@ fun construct_batch_message(
         let amount = amounts.borrow(i);
         let deposit_nonce = deposit_nonces.borrow(i);
 
-        vector::append(&mut message, bcs::to_bytes(token));
-        vector::append(&mut message, bcs::to_bytes(recipient));
-        vector::append(&mut message, bcs::to_bytes(amount));
-        vector::append(&mut message, bcs::to_bytes(deposit_nonce));
+        message.append(bcs::to_bytes(token));
+        message.append(bcs::to_bytes(recipient));
+        message.append(bcs::to_bytes(amount));
+        message.append(bcs::to_bytes(deposit_nonce));
         i = i + 1;
     };
 
@@ -452,7 +449,7 @@ fun extract_public_key(signature: &vector<u8>): vector<u8> {
     let mut public_key = vector::empty<u8>();
     let mut i = signature.length() - ED25519_PUBLIC_KEY_LENGTH;
     while (i < signature.length()) {
-        vector::push_back(&mut public_key, *signature.borrow(i));
+        public_key.push_back(*signature.borrow(i));
         i = i + 1;
     };
     public_key
@@ -462,14 +459,14 @@ fun extract_signature(signature: &vector<u8>): vector<u8> {
     let mut sig_bytes = vector::empty<u8>();
     let mut i = 0;
     while (i < signature.length() - ED25519_PUBLIC_KEY_LENGTH) {
-        vector::push_back(&mut sig_bytes, *signature.borrow(i));
+        sig_bytes.push_back(*signature.borrow(i));
         i = i + 1;
     };
     sig_bytes
 }
 
 fun find_relayer_by_public_key(bridge: &Bridge, public_key: &vector<u8>): Option<address> {
-    let relayers = vec_set::keys(&bridge.relayers);
+    let relayers = bridge.relayers.keys();
     let mut i = 0;
 
     while (i < relayers.length()) {
@@ -502,8 +499,7 @@ public fun execute_transfer_for_testing<T>(
     let len = recipients.length();
     let mut i = 0;
     while (i < len) {
-        let success = safe::transfer<T>(
-            safe,
+        let success = safe.transfer<T>(
             &bridge.bridge_cap,
             *recipients.borrow(i),
             *amounts.borrow(i),
@@ -530,7 +526,7 @@ public(package) fun pre_execute_transfer<T>(
     clock: &Clock,
     ctx: &TxContext,
 ) {
-    assert_relayer(bridge, tx_context::sender(ctx));
+    assert_relayer(bridge, ctx.sender());
     bridge.pause.assert_not_paused();
     assert!(!was_batch_executed(bridge, batch_nonce_mvx), EBatchAlreadyExecuted);
 
@@ -541,7 +537,7 @@ public(package) fun pre_execute_transfer<T>(
     validate_quorum<T>(bridge, batch_nonce_mvx, recipients, amounts, signatures, deposit_nonces);
     mark_deposits_executed_in_batch_or_abort<T>(bridge, batch_nonce_mvx);
 
-    let now = clock::timestamp_ms(clock);
+    let now = clock.timestamp_ms();
     if (bridge.execution_timestamps.contains(batch_nonce_mvx)) {
         *bridge.execution_timestamps.borrow_mut(batch_nonce_mvx) = now;
     } else {
@@ -556,7 +552,7 @@ public(package) fun record_transfer_result(
     success: bool,
 ) {
     if (success) {
-        vector::push_back(&mut bridge.transfer_statuses, shared_structs::deposit_status_executed());
+        bridge.transfer_statuses.push_back(shared_structs::deposit_status_executed());
         if (bridge.successful_transfers_by_batch.contains(batch_nonce_mvx)) {
             let count = bridge.successful_transfers_by_batch.borrow_mut(batch_nonce_mvx);
             *count = *count + 1;
@@ -564,7 +560,7 @@ public(package) fun record_transfer_result(
             bridge.successful_transfers_by_batch.add(batch_nonce_mvx, 1);
         };
     } else {
-        vector::push_back(&mut bridge.transfer_statuses, shared_structs::deposit_status_rejected());
+        bridge.transfer_statuses.push_back(shared_structs::deposit_status_rejected());
     };
 }
 
@@ -577,12 +573,12 @@ public(package) fun finalize_batch(
     clock: &Clock,
 ) {
     if (is_batch_complete) {
-        vec_set::insert(&mut bridge.executed_batches, batch_nonce_mvx);
+        bridge.executed_batches.insert(batch_nonce_mvx);
         let cross_status = shared_structs::create_cross_transfer_status(
             bridge.transfer_statuses,
-            clock::timestamp_ms(clock),
+            clock.timestamp_ms(),
         );
-        table::add(&mut bridge.cross_transfer_statuses, batch_nonce_mvx, cross_status);
+        bridge.cross_transfer_statuses.add(batch_nonce_mvx, cross_status);
         bridge.transfer_statuses = vector::empty<DepositStatus>();
 
         let successful_count = if (bridge.successful_transfers_by_batch.contains(batch_nonce_mvx)) {
@@ -613,7 +609,7 @@ public(package) fun pre_execute_transfer_for_testing<T>(
     clock: &Clock,
 ) {
     mark_deposits_executed_in_batch_or_abort<T>(bridge, batch_nonce_mvx);
-    let now = clock::timestamp_ms(clock);
+    let now = clock.timestamp_ms();
     if (bridge.execution_timestamps.contains(batch_nonce_mvx)) {
         *bridge.execution_timestamps.borrow_mut(batch_nonce_mvx) = now;
     } else {

@@ -93,9 +93,9 @@ fun init(witness: SAFE, ctx: &mut TxContext) {
 
 #[allow(lint(self_transfer))]
 public fun initialize(ctx: &mut TxContext) {
-    let deployer = tx_context::sender(ctx);
+    let deployer = ctx.sender();
     let w = bridge_roles::grant_witness();
-    let (bridge_cap) = bridge_roles::publish_caps(w, ctx);
+    let (bridge_cap) = w.publish_caps(ctx);
 
     let safe = BridgeSafe {
         id: object::new(ctx),
@@ -137,7 +137,7 @@ public fun deposit<T>(
     );
 
     if (safe.coin_storage.contains(key)) {
-        coin::join(safe.coin_storage.borrow_mut<vector<u8>, Coin<T>>(key), coin_in);
+        safe.coin_storage.borrow_mut<vector<u8>, Coin<T>>(key).join(coin_in);
     } else {
         safe.coin_storage.add(key, coin_in);
     };
@@ -145,7 +145,7 @@ public fun deposit<T>(
     events::emit_deposit_v1(
         batch_nonce,
         dep_nonce,
-        tx_context::sender(ctx),
+        ctx.sender(),
         recipient,
         amount,
         key,
@@ -185,16 +185,16 @@ public(package) fun transfer<T>(
     };
 
     let stored_coin = safe.coin_storage.borrow_mut<vector<u8>, Coin<T>>(key);
-    let coin_value = coin::value(stored_coin);
+    let coin_value = stored_coin.value();
     if (coin_value < amount) {
         return false
     };
 
-    let coin_to_transfer = coin::split(stored_coin, amount, ctx);
+    let coin_to_transfer = stored_coin.split(amount, ctx);
 
-    if (coin::value(stored_coin) == 0) {
+    if (stored_coin.value() == 0) {
         let empty_coin = safe.coin_storage.remove<vector<u8>, Coin<T>>(key);
-        coin::destroy_zero(empty_coin);
+        empty_coin.destroy_zero();
     };
     transfer::public_transfer(coin_to_transfer, receiver);
 
@@ -261,7 +261,7 @@ public fun get_deposits(
     let deposits = if (safe.batch_deposits.contains(batch_index)) {
         *safe.batch_deposits.borrow(batch_index)
     } else {
-        vector::empty()
+        vector[]
     };
     if (!safe.batches.contains(batch_index)) {
         return (deposits, false)
@@ -282,12 +282,12 @@ public fun get_bridge_addr(safe: &BridgeSafe): address {
 
 /// Get the current owner address
 public fun get_owner(safe: &BridgeSafe): address {
-    bridge_roles::owner(&safe.roles)
+    safe.roles.owner()
 }
 
 /// Get the pending owner address (if any)
 public fun get_pending_owner(safe: &BridgeSafe): Option<address> {
-    bridge_roles::pending_owner(&safe.roles)
+    safe.roles.pending_owner()
 }
 
 public fun get_batch_size(safe: &BridgeSafe): u16 {
@@ -319,11 +319,11 @@ public(package) fun get_pause_mut(safe: &mut BridgeSafe): &mut Pause {
 }
 
 public fun get_batch_nonce(batch: &Batch): u64 {
-    shared_structs::batch_nonce(batch)
+    batch.batch_nonce()
 }
 
 public fun get_batch_deposits_count(batch: &Batch): u16 {
-    shared_structs::batch_deposits_count(batch)
+    batch.batch_deposits_count()
 }
 
 public fun get_stored_coin_balance<T>(safe: &mut BridgeSafe): u64 {
@@ -332,7 +332,7 @@ public fun get_stored_coin_balance<T>(safe: &mut BridgeSafe): u64 {
         return 0
     };
     let cfg_ref = safe.token_cfg.borrow(key);
-    shared_structs::token_config_total_balance(cfg_ref)
+    cfg_ref.token_config_total_balance()
 }
 
 public fun get_coin_storage_balance<T>(safe: &BridgeSafe): u64 {
@@ -341,7 +341,7 @@ public fun get_coin_storage_balance<T>(safe: &BridgeSafe): u64 {
         return 0
     };
     let stored_coin = safe.coin_storage.borrow<vector<u8>, Coin<T>>(key);
-    coin::value(stored_coin)
+    stored_coin.value()
 }
 
 // === Admin Management ===
@@ -349,13 +349,13 @@ public fun get_coin_storage_balance<T>(safe: &BridgeSafe): u64 {
 public fun pause_contract(safe: &mut BridgeSafe, ctx: &mut TxContext) {
     assert_is_compatible(safe);
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
-    pausable::pause(&mut safe.pause);
+    safe.pause.pause();
 }
 
 public fun unpause_contract(safe: &mut BridgeSafe, ctx: &mut TxContext) {
     assert_is_compatible(safe);
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
-    pausable::unpause(&mut safe.pause);
+    safe.pause.unpause();
 }
 
 public fun transfer_ownership(safe: &mut BridgeSafe, new_owner: address, ctx: &TxContext) {
@@ -376,7 +376,7 @@ public fun init_supply<T>(safe: &mut BridgeSafe, coin_in: Coin<T>, ctx: &mut TxC
 
     assert_token_is_whitelisted(safe, key);
     let cfg_ref = safe.token_cfg.borrow(key);
-    assert!(shared_structs::token_config_is_native(cfg_ref), ENotNativeToken);
+    assert!(cfg_ref.token_config_is_native(), ENotNativeToken);
 
     let amount = coin::value(&coin_in);
 
@@ -385,7 +385,7 @@ public fun init_supply<T>(safe: &mut BridgeSafe, coin_in: Coin<T>, ctx: &mut TxC
 
     if (safe.coin_storage.contains(key)) {
         let existing_coin = safe.coin_storage.borrow_mut<vector<u8>, Coin<T>>(key);
-        coin::join(existing_coin, coin_in);
+        existing_coin.join(coin_in);
     } else {
         safe.coin_storage.add(key, coin_in);
     };
@@ -400,13 +400,13 @@ public fun sync_supply<T>(safe: &mut BridgeSafe, mut coin_in: Coin<T>, ctx: &mut
 
     assert_token_is_whitelisted(safe, key);
     let cfg_ref = safe.token_cfg.borrow(key);
-    assert!(shared_structs::token_config_is_native(cfg_ref), ENotNativeToken);
+    assert!(cfg_ref.token_config_is_native(), ENotNativeToken);
 
-    let expected_balance = shared_structs::token_config_total_balance(cfg_ref);
+    let expected_balance = cfg_ref.token_config_total_balance();
 
     let actual_balance = if (safe.coin_storage.contains(key)) {
         let stored_coin = safe.coin_storage.borrow<vector<u8>, Coin<T>>(key);
-        coin::value(stored_coin)
+        stored_coin.value()
     } else {
         0
     };
@@ -414,21 +414,21 @@ public fun sync_supply<T>(safe: &mut BridgeSafe, mut coin_in: Coin<T>, ctx: &mut
     assert!(expected_balance > actual_balance, EInsufficientBalance);
 
     let deficit = expected_balance - actual_balance;
-    assert!(coin::value(&coin_in) >= deficit, EInsufficientBalance);
+    assert!(coin_in.value() >= deficit, EInsufficientBalance);
 
-    let top_up_coin = coin::split(&mut coin_in, deficit, ctx);
+    let top_up_coin = coin_in.split(deficit, ctx);
 
     if (safe.coin_storage.contains(key)) {
         let existing_coin = safe.coin_storage.borrow_mut<vector<u8>, Coin<T>>(key);
-        coin::join(existing_coin, top_up_coin);
+        existing_coin.join(top_up_coin);
     } else {
         safe.coin_storage.add(key, top_up_coin);
     };
 
-    if (coin::value(&coin_in) == 0) {
-        coin::destroy_zero(coin_in);
+    if (coin_in.value() == 0) {
+        coin_in.destroy_zero();
     } else {
-        transfer::public_transfer(coin_in, tx_context::sender(ctx));
+        transfer::public_transfer(coin_in, ctx.sender());
     };
 }
 
@@ -493,7 +493,7 @@ public fun set_batch_settle_timeout_ms(
     ctx: &mut TxContext,
 ) {
     assert_is_compatible(safe);
-    pausable::assert_paused(&safe.pause);
+    safe.pause.assert_paused();
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
     assert!(new_timeout_ms >= safe.batch_timeout_ms, EBatchSettleLimitBelowBlock);
     assert!(!is_any_batch_in_progress_internal(safe, clock), EBatchInProgress);
@@ -742,7 +742,7 @@ public(package) fun deposit_validate_and_record<T>(
     assert!(cfg_ref.token_config_whitelisted(), ETokenNotWhitelisted);
     assert!(cfg_ref.token_config_is_mint_burn() == expect_mint_burn, EIncompatibleTokenFlags);
 
-    let amount = coin::value(coin_in);
+    let amount = coin_in.value();
     assert!(amount > 0, EZeroAmount);
     assert!(amount >= cfg_ref.token_config_min_limit(), EAmountBelowMinimum);
     assert!(amount <= cfg_ref.token_config_max_limit(), EAmountAboveMaximum);
@@ -760,15 +760,15 @@ public(package) fun deposit_validate_and_record<T>(
         dep_nonce,
         key,
         amount,
-        tx_context::sender(ctx),
+        ctx.sender(),
         recipient,
     );
 
     if (!safe.batch_deposits.contains(batch_index)) {
-        safe.batch_deposits.add(batch_index, vector::empty());
+        safe.batch_deposits.add(batch_index, vector[]);
     };
     let vec_ref = safe.batch_deposits.borrow_mut(batch_index);
-    vector::push_back(vec_ref, dep);
+    vec_ref.push_back(dep);
 
     safe.deposits_count = dep_nonce;
     shared_structs::increment_batch_deposits(batch);
@@ -785,7 +785,7 @@ public(package) fun deposit_validate_and_record<T>(
 fun create_new_batch_internal(safe: &mut BridgeSafe, clock: &Clock, _ctx: &mut TxContext) {
     assert!(safe.batches_count < MAX_U64, EOverflow);
     let nonce = safe.batches_count + 1;
-    let batch = shared_structs::create_batch(nonce, clock::timestamp_ms(clock));
+    let batch = shared_structs::create_batch(nonce, clock.timestamp_ms());
     safe.batches.add(safe.batches_count, batch);
     safe.batches_count = nonce;
 }
@@ -804,11 +804,11 @@ fun is_batch_progress_over_internal(
     clock: &Clock,
 ): bool {
     if (dep_count == 0) { return false };
-    (timestamp_ms + safe.batch_timeout_ms) <= clock::timestamp_ms(clock)
+    (timestamp_ms + safe.batch_timeout_ms) <= clock.timestamp_ms()
 }
 
 fun is_batch_final_internal(safe: &BridgeSafe, batch: &Batch, clock: &Clock): bool {
-    (shared_structs::batch_last_updated_timestamp_ms(batch) + safe.batch_settle_timeout_ms) <= clock::timestamp_ms(clock)
+    (shared_structs::batch_last_updated_timestamp_ms(batch) + safe.batch_settle_timeout_ms) <= clock.timestamp_ms()
 }
 
 fun is_any_batch_in_progress_internal(safe: &BridgeSafe, clock: &Clock): bool {
@@ -876,7 +876,7 @@ public fun deposit_mint_burn_for_testing<T>(
     events::emit_deposit_v1(
         batch_nonce,
         dep_nonce,
-        tx_context::sender(ctx),
+        ctx.sender(),
         recipient,
         amount,
         key,
