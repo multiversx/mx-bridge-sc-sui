@@ -29,6 +29,7 @@ public fun deposit<T>(
     deny_list: &DenyList,
     ctx: &mut TxContext,
 ) {
+    safe::assert_is_compatible(safe);
     assert!(has_cap<T>(safe::uid(safe)), EMintBurnCapNotFound);
 
     let (key, amount, batch_nonce, dep_nonce) = safe::deposit_validate_and_record<T>(
@@ -66,6 +67,8 @@ public fun execute_transfer<T>(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
+    bridge_module::assert_bridge_is_compatible(bridge);
+    safe::assert_is_compatible(safe);
     bridge_module::pre_execute_transfer<T>(
         bridge,
         batch_nonce_mvx,
@@ -106,6 +109,7 @@ public fun whitelist_token<T>(
     treasury_id: ID,
     ctx: &TxContext,
 ) {
+    safe::assert_is_compatible(safe);
     assert!(!has_cap<T>(safe::uid(safe)), EMintBurnCapAlreadyRegistered);
     safe::whitelist_token_internal<T>(
         safe,
@@ -122,9 +126,12 @@ public fun whitelist_token<T>(
 /// Remove a mint-burn token from the whitelist and deregister its MintCap in one atomic operation.
 #[allow(lint(self_transfer))]
 public fun remove_token_from_whitelist<T>(safe: &mut BridgeSafe, ctx: &mut TxContext) {
+    safe::assert_is_compatible(safe);
+    safe::checkOwnerRole(safe, ctx);
     assert!(has_cap<T>(safe::uid(safe)), EMintBurnCapNotFound);
     deregister<T>(safe::uid_mut(safe), ctx.sender());
-    safe::remove_token_from_whitelist<T>(safe, ctx);
+    let key = utils::type_name_bytes<T>();
+    safe::unwhitelist_token(safe, key);
 }
 
 // === Internal helpers ===

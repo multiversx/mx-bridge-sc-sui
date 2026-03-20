@@ -101,6 +101,7 @@ public fun initialize(
     ctx: &mut TxContext,
 ) {
     assert!(initial_quorum >= MINIMUM_QUORUM, EQuorumTooLow);
+    assert!(initial_quorum <= vector::length(&public_keys), EQuorumExceedsRelayers);
 
     let mut relayers = vec_set::empty<address>();
     let mut relayer_public_keys = table::new<address, vector<u8>>(ctx);
@@ -161,6 +162,7 @@ public fun set_quorum(
     new_quorum: u64,
     ctx: &mut TxContext,
 ) {
+    assert_bridge_is_compatible(bridge);
     safe::checkOwnerRole(safe, ctx);
 
     assert!(new_quorum >= MINIMUM_QUORUM, EQuorumTooLow);
@@ -177,6 +179,7 @@ public fun set_batch_settle_timeout_ms(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
+    assert_bridge_is_compatible(bridge);
     safe::checkOwnerRole(safe, ctx);
 
     pausable::assert_paused(&bridge.pause);
@@ -184,6 +187,7 @@ public fun set_batch_settle_timeout_ms(
     assert!(!safe::is_any_batch_in_progress(safe, clock), EPendingBatches);
 
     bridge.batch_settle_timeout_ms = new_timeout_ms;
+    events::emit_batch_settle_timeout_updated(new_timeout_ms);
 }
 
 // === Relayer Management ===
@@ -195,6 +199,7 @@ public fun add_relayer(
     public_key: vector<u8>,
     ctx: &mut TxContext,
 ) {
+    assert_bridge_is_compatible(bridge);
     safe::checkOwnerRole(safe, ctx);
 
     assert!(vector::length(&public_key) == ED25519_PUBLIC_KEY_LENGTH, EInvalidPublicKeyLength);
@@ -212,6 +217,7 @@ public fun remove_relayer(
     relayer: address,
     ctx: &mut TxContext,
 ) {
+    assert_bridge_is_compatible(bridge);
     safe::checkOwnerRole(safe, ctx);
 
     let current_count = vec_set::length(&bridge.relayers);
@@ -270,6 +276,8 @@ public fun execute_transfer<T>(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
+    assert_bridge_is_compatible(bridge);
+    safe::assert_is_compatible(safe);
     pre_execute_transfer<T>(
         bridge,
         batch_nonce_mvx,
@@ -352,11 +360,13 @@ public fun get_relayer_count(bridge: &Bridge): u64 {
 }
 
 public fun pause_contract(bridge: &mut Bridge, safe: &BridgeSafe, ctx: &mut TxContext) {
+    assert_bridge_is_compatible(bridge);
     safe::checkOwnerRole(safe, ctx);
     pausable::pause(&mut bridge.pause);
 }
 
 public fun unpause_contract(bridge: &mut Bridge, safe: &BridgeSafe, ctx: &mut TxContext) {
+    assert_bridge_is_compatible(bridge);
     safe::checkOwnerRole(safe, ctx);
     pausable::unpause(&mut bridge.pause);
 }

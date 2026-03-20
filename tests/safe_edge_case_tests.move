@@ -56,14 +56,30 @@ fun test_batch_timeout_edge_cases() {
     {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
 
-        // Test setting batch timeout to 0 (should be allowed)
-        safe::set_batch_timeout_ms(&mut safe, 0, ts::ctx(&mut scenario));
-        assert!(safe::get_batch_timeout_ms(&safe) == 0, 0);
+        // Test setting batch timeout to minimum allowed value (1000ms)
+        safe::set_batch_timeout_ms(&mut safe, 1000, ts::ctx(&mut scenario));
+        assert!(safe::get_batch_timeout_ms(&safe) == 1000, 0);
 
         // Test setting batch timeout equal to settle timeout (should be allowed)
         let settle_timeout = safe::get_batch_settle_timeout_ms(&safe);
         safe::set_batch_timeout_ms(&mut safe, settle_timeout, ts::ctx(&mut scenario));
         assert!(safe::get_batch_timeout_ms(&safe) == settle_timeout, 1);
+
+        ts::return_shared(safe);
+    };
+    ts::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = safe::EBatchTimeoutTooLow)]
+fun test_batch_timeout_below_minimum() {
+    let mut scenario = setup();
+    scenario.next_tx(ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+
+        // Setting batch timeout to 0 should fail (minimum is 1000ms)
+        safe::set_batch_timeout_ms(&mut safe, 0, ts::ctx(&mut scenario));
 
         ts::return_shared(safe);
     };

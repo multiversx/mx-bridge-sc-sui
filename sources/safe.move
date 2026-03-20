@@ -55,7 +55,10 @@ const EMigrationStarted: u64 = 16;
 const EMigrationNotStarted: u64 = 17;
 const ENotPendingVersion: u64 = 18;
 const ENotNativeToken: u64 = 19;
+const EBatchTimeoutTooLow: u64 = 20;
 const EIncompatibleTokenFlags: u64 = 22;
+
+const MINIMUM_BATCH_TIMEOUT_MS: u64 = 1000;
 
 const MAX_U64: u64 = 18446744073709551615;
 const DEFAULT_BATCH_TIMEOUT_MS: u64 = 5 * 1000; // 5 seconds
@@ -126,6 +129,7 @@ public fun deposit<T>(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
+    assert_is_compatible(safe);
     let (key, amount, batch_nonce, dep_nonce) = deposit_validate_and_record<T>(
         safe,
         &coin_in,
@@ -316,7 +320,7 @@ public fun get_pause(safe: &BridgeSafe): &Pause {
     &safe.pause
 }
 
-public fun get_pause_mut(safe: &mut BridgeSafe): &mut Pause {
+public(package) fun get_pause_mut(safe: &mut BridgeSafe): &mut Pause {
     &mut safe.pause
 }
 
@@ -349,24 +353,29 @@ public fun get_coin_storage_balance<T>(safe: &BridgeSafe): u64 {
 // === Admin Management ===
 
 public fun pause_contract(safe: &mut BridgeSafe, ctx: &mut TxContext) {
+    assert_is_compatible(safe);
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
     pausable::pause(&mut safe.pause);
 }
 
 public fun unpause_contract(safe: &mut BridgeSafe, ctx: &mut TxContext) {
+    assert_is_compatible(safe);
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
     pausable::unpause(&mut safe.pause);
 }
 
 public fun transfer_ownership(safe: &mut BridgeSafe, new_owner: address, ctx: &TxContext) {
+    assert_is_compatible(safe);
     safe.roles_mut().owner_role_mut().begin_role_transfer(new_owner, ctx)
 }
 
 public fun accept_ownership(safe: &mut BridgeSafe, ctx: &TxContext) {
+    assert_is_compatible(safe);
     safe.roles_mut().owner_role_mut().accept_role(ctx)
 }
 
 public fun init_supply<T>(safe: &mut BridgeSafe, coin_in: Coin<T>, ctx: &mut TxContext) {
+    assert_is_compatible(safe);
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
 
     let key = utils::type_name_bytes<T>();
@@ -390,6 +399,7 @@ public fun init_supply<T>(safe: &mut BridgeSafe, coin_in: Coin<T>, ctx: &mut TxC
 
 #[allow(lint(self_transfer))]
 public fun sync_supply<T>(safe: &mut BridgeSafe, mut coin_in: Coin<T>, ctx: &mut TxContext) {
+    assert_is_compatible(safe);
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
 
     let key = utils::type_name_bytes<T>();
@@ -434,6 +444,7 @@ public fun whitelist_token<T>(
     maximum_amount: u64,
     ctx: &mut TxContext,
 ) {
+    assert_is_compatible(safe);
     whitelist_token_internal<T>(
         safe,
         minimum_amount,
@@ -445,16 +456,27 @@ public fun whitelist_token<T>(
     );
 }
 
+/// Removes a native (non-mint-burn) token from the whitelist.
+/// For mint-burn tokens, use the adapter's remove_token_from_whitelist instead.
 public fun remove_token_from_whitelist<T>(safe: &mut BridgeSafe, ctx: &mut TxContext) {
+    assert_is_compatible(safe);
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
     let key = utils::type_name_bytes<T>();
+    let cfg_ref = table::borrow(&safe.token_cfg, key);
+    assert!(!shared_structs::token_config_is_mint_burn(cfg_ref), EIncompatibleTokenFlags);
+    unwhitelist_token(safe, key);
+}
+
+/// Package-internal: marks a token as not whitelisted without the mint-burn guard.
+/// Used by the adapter which handles MintCap cleanup separately.
+public(package) fun unwhitelist_token(safe: &mut BridgeSafe, key: vector<u8>) {
     let cfg = borrow_token_cfg_mut(safe, key);
     shared_structs::set_token_config_whitelisted(cfg, false);
-
     events::emit_token_removed_from_whitelist(key);
 }
 
 public fun set_bridge_addr(safe: &mut BridgeSafe, new_bridge_addr: address, ctx: &TxContext) {
+    assert_is_compatible(safe);
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
 
     let previous_bridge = safe.bridge_addr;
@@ -463,9 +485,12 @@ public fun set_bridge_addr(safe: &mut BridgeSafe, new_bridge_addr: address, ctx:
 }
 
 public fun set_batch_timeout_ms(safe: &mut BridgeSafe, new_timeout_ms: u64, ctx: &mut TxContext) {
+    assert_is_compatible(safe);
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
+    assert!(new_timeout_ms >= MINIMUM_BATCH_TIMEOUT_MS, EBatchTimeoutTooLow);
     assert!(new_timeout_ms <= safe.batch_settle_timeout_ms, EBatchBlockLimitExceedsSettle);
     safe.batch_timeout_ms = new_timeout_ms;
+    events::emit_batch_timeout_updated(new_timeout_ms);
 }
 
 public fun set_batch_settle_timeout_ms(
@@ -474,21 +499,26 @@ public fun set_batch_settle_timeout_ms(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
+    assert_is_compatible(safe);
     pausable::assert_paused(&safe.pause);
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
     assert!(new_timeout_ms >= safe.batch_timeout_ms, EBatchSettleLimitBelowBlock);
     assert!(!is_any_batch_in_progress_internal(safe, clock), EBatchInProgress);
     safe.batch_settle_timeout_ms = new_timeout_ms;
+    events::emit_batch_settle_timeout_updated(new_timeout_ms);
 }
 
 public fun set_batch_size(safe: &mut BridgeSafe, new_size: u16, ctx: &mut TxContext) {
+    assert_is_compatible(safe);
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
     assert!(new_size > 0, EBatchSizeZero);
     assert!(new_size <= 100, EBatchSizeTooLarge);
     safe.batch_size = new_size;
+    events::emit_batch_size_updated(new_size);
 }
 
 public fun set_token_min_limit<T>(safe: &mut BridgeSafe, amount: u64, ctx: &mut TxContext) {
+    assert_is_compatible(safe);
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
 
     let key = utils::type_name_bytes<T>();
@@ -504,6 +534,7 @@ public fun set_token_min_limit<T>(safe: &mut BridgeSafe, amount: u64, ctx: &mut 
 }
 
 public fun set_token_max_limit<T>(safe: &mut BridgeSafe, amount: u64, ctx: &mut TxContext) {
+    assert_is_compatible(safe);
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
 
     let key = utils::type_name_bytes<T>();
@@ -517,6 +548,7 @@ public fun set_token_max_limit<T>(safe: &mut BridgeSafe, amount: u64, ctx: &mut 
 }
 
 public fun set_token_is_native<T>(safe: &mut BridgeSafe, is_native: bool, ctx: &mut TxContext) {
+    assert_is_compatible(safe);
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
 
     let key = utils::type_name_bytes<T>();
@@ -535,6 +567,7 @@ public fun set_token_is_mint_burn<T>(
     is_mint_burn: bool,
     ctx: &mut TxContext,
 ) {
+    assert_is_compatible(safe);
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
 
     let key = utils::type_name_bytes<T>();

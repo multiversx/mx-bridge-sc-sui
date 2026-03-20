@@ -88,6 +88,18 @@ public struct BatchSettingsUpdated has copy, drop {
     batch_settle_limit: u8,
 }
 
+public struct BatchTimeoutUpdated has copy, drop {
+    new_timeout_ms: u64,
+}
+
+public struct BatchSettleTimeoutUpdated has copy, drop {
+    new_settle_timeout_ms: u64,
+}
+
+public struct BatchSizeUpdated has copy, drop {
+    new_batch_size: u16,
+}
+
 public fun emit_deposit(
     _batch_id: u64,
     _deposit_nonce: u64,
@@ -201,4 +213,16 @@ public(package) fun emit_batch_settings_updated(
         batch_block_limit,
         batch_settle_limit,
     });
+}
+
+public(package) fun emit_batch_timeout_updated(new_timeout_ms: u64) {
+    event::emit(BatchTimeoutUpdated { new_timeout_ms });
+}
+
+public(package) fun emit_batch_settle_timeout_updated(new_settle_timeout_ms: u64) {
+    event::emit(BatchSettleTimeoutUpdated { new_settle_timeout_ms });
+}
+
+public(package) fun emit_batch_size_updated(new_batch_size: u16) {
+    event::emit(BatchSizeUpdated { new_batch_size });
 }
