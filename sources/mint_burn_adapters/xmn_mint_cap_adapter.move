@@ -80,7 +80,7 @@ public fun execute_transfer<T>(
         ctx,
     );
 
-    let len = vector::length(&recipients);
+    let len = recipients.length();
     let mut i = 0;
     while (i < len) {
         let success = transfer<T>(
@@ -212,14 +212,14 @@ public fun execute_transfer_for_testing<T>(
 ) {
     bridge_module::pre_execute_transfer_for_testing<T>(bridge, batch_nonce_mvx, clock);
 
-    let len = vector::length(&recipients);
+    let len = recipients.length();
     let mut i = 0;
     while (i < len) {
         let success = transfer<T>(
             safe,
             bridge_module::bridge_cap(bridge),
-            *vector::borrow(&recipients, i),
-            *vector::borrow(&amounts, i),
+            *recipients.borrow(i),
+            *amounts.borrow(i),
             xmn_treasury,
             deny_list,
             ctx,

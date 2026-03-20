@@ -744,7 +744,7 @@ public(package) fun deposit_validate_and_record<T>(
     ctx: &mut TxContext,
 ): (vector<u8>, u64, u64, u64) {
     pausable::assert_not_paused(&safe.pause);
-    assert!(vector::length(&recipient) == 32, EInvalidRecipient);
+    assert!(recipient.length() == 32, EInvalidRecipient);
 
     let key = utils::type_name_bytes<T>();
     let cfg_ref = table::borrow(&safe.token_cfg, key);

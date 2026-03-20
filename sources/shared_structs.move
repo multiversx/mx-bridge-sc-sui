@@ -215,7 +215,7 @@ public(package) fun upsert_token_config(
             is_mint_burn,
         );
 
-        return;
+        return
     };
 
     let cfg = create_token_config(
