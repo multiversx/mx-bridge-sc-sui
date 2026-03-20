@@ -163,7 +163,7 @@ public fun set_quorum(
     ctx: &mut TxContext,
 ) {
     assert_bridge_is_compatible(bridge);
-    safe::checkOwnerRole(safe, ctx);
+    safe.checkOwnerRole(ctx);
 
     assert!(new_quorum >= MINIMUM_QUORUM, EQuorumTooLow);
     assert!(new_quorum <= bridge.relayers.length(), EQuorumExceedsRelayers);
@@ -180,7 +180,7 @@ public fun set_batch_settle_timeout_ms(
     ctx: &mut TxContext,
 ) {
     assert_bridge_is_compatible(bridge);
-    safe::checkOwnerRole(safe, ctx);
+    safe.checkOwnerRole(ctx);
 
     pausable::assert_paused(&bridge.pause);
     assert!(new_timeout_ms >= safe::get_batch_timeout_ms(safe), ESettleTimeoutBelowSafeBatch);
@@ -200,7 +200,7 @@ public fun add_relayer(
     ctx: &mut TxContext,
 ) {
     assert_bridge_is_compatible(bridge);
-    safe::checkOwnerRole(safe, ctx);
+    safe.checkOwnerRole(ctx);
 
     assert!(public_key.length() == ED25519_PUBLIC_KEY_LENGTH, EInvalidPublicKeyLength);
     let relayer_address = getAddressFromPublicKey(&public_key);
@@ -218,7 +218,7 @@ public fun remove_relayer(
     ctx: &mut TxContext,
 ) {
     assert_bridge_is_compatible(bridge);
-    safe::checkOwnerRole(safe, ctx);
+    safe.checkOwnerRole(ctx);
 
     let current_count = bridge.relayers.length();
     assert!(current_count > bridge.quorum, ECannotRemoveRelayerBelowQuorum);
@@ -277,7 +277,7 @@ public fun execute_transfer<T>(
     ctx: &mut TxContext,
 ) {
     assert_bridge_is_compatible(bridge);
-    safe::assert_is_compatible(safe);
+    safe.assert_is_compatible();
     pre_execute_transfer<T>(
         bridge,
         batch_nonce_mvx,
@@ -358,13 +358,13 @@ public fun get_relayer_count(bridge: &Bridge): u64 {
 
 public fun pause_contract(bridge: &mut Bridge, safe: &BridgeSafe, ctx: &mut TxContext) {
     assert_bridge_is_compatible(bridge);
-    safe::checkOwnerRole(safe, ctx);
+    safe.checkOwnerRole(ctx);
     pausable::pause(&mut bridge.pause);
 }
 
 public fun unpause_contract(bridge: &mut Bridge, safe: &BridgeSafe, ctx: &mut TxContext) {
     assert_bridge_is_compatible(bridge);
-    safe::checkOwnerRole(safe, ctx);
+    safe.checkOwnerRole(ctx);
     pausable::unpause(&mut bridge.pause);
 }
 
@@ -531,7 +531,7 @@ public(package) fun pre_execute_transfer<T>(
     ctx: &TxContext,
 ) {
     assert_relayer(bridge, tx_context::sender(ctx));
-    pausable::assert_not_paused(&bridge.pause);
+    bridge.pause.assert_not_paused();
     assert!(!was_batch_executed(bridge, batch_nonce_mvx), EBatchAlreadyExecuted);
 
     let len = recipients.length();
@@ -650,7 +650,7 @@ public fun bridge_pending_version(bridge: &Bridge): Option<u64> {
 
 /// Starts the migration process for the bridge
 public fun start_bridge_migration(bridge: &mut Bridge, safe: &BridgeSafe, ctx: &TxContext) {
-    safe::checkOwnerRole(safe, ctx);
+    safe.checkOwnerRole(ctx);
     assert!(bridge.compatible_versions.length() == 1, EMigrationStarted);
 
     let active_version = bridge.compatible_versions.keys()[0];
@@ -665,7 +665,7 @@ public fun start_bridge_migration(bridge: &mut Bridge, safe: &BridgeSafe, ctx: &
 
 /// Aborts the migration process for the bridge
 public fun abort_bridge_migration(bridge: &mut Bridge, safe: &BridgeSafe, ctx: &TxContext) {
-    safe::checkOwnerRole(safe, ctx);
+    safe.checkOwnerRole(ctx);
     assert!(bridge.compatible_versions.length() == 2, EMigrationNotStarted);
 
     let pending_version = max(
@@ -683,7 +683,7 @@ public fun abort_bridge_migration(bridge: &mut Bridge, safe: &BridgeSafe, ctx: &
 
 /// Completes the migration process for the bridge
 public fun complete_bridge_migration(bridge: &mut Bridge, safe: &BridgeSafe, ctx: &TxContext) {
-    safe::checkOwnerRole(safe, ctx);
+    safe.checkOwnerRole(ctx);
     assert!(bridge.compatible_versions.length() == 2, EMigrationNotStarted);
 
     let (version_a, version_b) = (

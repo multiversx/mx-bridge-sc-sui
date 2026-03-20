@@ -17,10 +17,10 @@ fun test_token_config_is_mint_burn() {
     );
 
     shared_structs::set_token_config_is_mint_burn(&mut config, true);
-    assert!(shared_structs::token_config_is_mint_burn(&config) == true, 0);
+    assert!(config.token_config_is_mint_burn() == true, 0);
 
     shared_structs::set_token_config_is_mint_burn(&mut config, false);
-    assert!(shared_structs::token_config_is_mint_burn(&config) == false, 1);
+    assert!(config.token_config_is_mint_burn() == false, 1);
 }
 
 #[test]
@@ -242,21 +242,21 @@ fun test_combined_operations() {
 
     let mut batch = shared_structs::create_batch(42, 5000);
 
-    shared_structs::set_token_config_is_native(&mut config, true);
-    shared_structs::set_token_config_is_mint_burn(&mut config, true);
-    shared_structs::add_to_token_config_total_balance(&mut config, 500);
+    config.set_token_config_is_native(true);
+    config.set_token_config_is_mint_burn(true);
+    config.add_to_token_config_total_balance(500);
 
-    assert!(shared_structs::token_config_is_native(&config) == true, 0);
-    assert!(shared_structs::token_config_is_mint_burn(&config) == true, 2);
-    assert!(shared_structs::token_config_total_balance(&config) == 500, 3);
+    assert!(config.token_config_is_native() == true, 0);
+    assert!(config.token_config_is_mint_burn() == true, 2);
+    assert!(config.token_config_total_balance() == 500, 3);
 
-    shared_structs::set_batch_deposits_count(&mut batch, 10);
+    batch.set_batch_deposits_count(10);
     shared_structs::update_batch_last_updated(&mut batch, 6000);
 
-    assert!(shared_structs::batch_deposits_count(&batch) == 10, 4);
-    assert!(shared_structs::batch_last_updated_timestamp_ms(&batch) == 6000, 5);
-    assert!(shared_structs::batch_nonce(&batch) == 42, 6);
-    assert!(shared_structs::batch_timestamp_ms(&batch) == 5000, 7);
+    assert!(batch.batch_deposits_count() == 10, 4);
+    assert!(batch.batch_last_updated_timestamp_ms() == 6000, 5);
+    assert!(batch.batch_nonce() == 42, 6);
+    assert!(batch.batch_timestamp_ms() == 5000, 7);
 
     shared_structs::subtract_from_token_config_total_balance(&mut config, 200);
     assert!(shared_structs::token_config_total_balance(&config) == 300, 8);

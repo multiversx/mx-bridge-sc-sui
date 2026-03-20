@@ -169,10 +169,7 @@ public(package) fun transfer<T>(
 
     let (is_mint_burn, current_balance) = {
         let cfg_ref = safe.token_cfg.borrow(key);
-        (
-            shared_structs::token_config_is_mint_burn(cfg_ref),
-            shared_structs::token_config_total_balance(cfg_ref),
-        )
+        (cfg_ref.token_config_is_mint_burn(), cfg_ref.token_config_total_balance())
     };
 
     if (is_mint_burn) {
@@ -202,7 +199,7 @@ public(package) fun transfer<T>(
     transfer::public_transfer(coin_to_transfer, receiver);
 
     let cfg_mut = borrow_token_cfg_mut(safe, key);
-    shared_structs::subtract_from_token_config_total_balance(cfg_mut, amount);
+    cfg_mut.subtract_from_token_config_total_balance(amount);
 
     true
 }
@@ -213,31 +210,31 @@ public fun is_token_whitelisted<T>(safe: &BridgeSafe): bool {
         return false
     };
     let cfg = safe.token_cfg.borrow(key);
-    shared_structs::token_config_whitelisted(cfg)
+    cfg.token_config_whitelisted()
 }
 
 public fun get_token_min_limit<T>(safe: &BridgeSafe): u64 {
     let key = utils::type_name_bytes<T>();
     let cfg = safe.token_cfg.borrow(key);
-    shared_structs::token_config_min_limit(cfg)
+    cfg.token_config_min_limit()
 }
 
 public fun get_token_max_limit<T>(safe: &BridgeSafe): u64 {
     let key = utils::type_name_bytes<T>();
     let cfg = safe.token_cfg.borrow(key);
-    shared_structs::token_config_max_limit(cfg)
+    cfg.token_config_max_limit()
 }
 
 public fun get_token_is_mint_burn<T>(safe: &BridgeSafe): bool {
     let key = utils::type_name_bytes<T>();
     let cfg = safe.token_cfg.borrow(key);
-    shared_structs::token_config_is_mint_burn(cfg)
+    cfg.token_config_is_mint_burn()
 }
 
 public fun get_token_is_native<T>(safe: &BridgeSafe): bool {
     let key = utils::type_name_bytes<T>();
     let cfg = safe.token_cfg.borrow(key);
-    shared_structs::token_config_is_native(cfg)
+    cfg.token_config_is_native()
 }
 
 public fun get_batch(safe: &BridgeSafe, batch_nonce: u64, clock: &Clock): (Batch, bool) {
@@ -460,7 +457,7 @@ public fun remove_token_from_whitelist<T>(safe: &mut BridgeSafe, ctx: &mut TxCon
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
     let key = utils::type_name_bytes<T>();
     let cfg_ref = safe.token_cfg.borrow(key);
-    assert!(!shared_structs::token_config_is_mint_burn(cfg_ref), EIncompatibleTokenFlags);
+    assert!(!cfg_ref.token_config_is_mint_burn(), EIncompatibleTokenFlags);
     unwhitelist_token(safe, key);
 }
 
@@ -468,7 +465,7 @@ public fun remove_token_from_whitelist<T>(safe: &mut BridgeSafe, ctx: &mut TxCon
 /// Used by the adapter which handles MintCap cleanup separately.
 public(package) fun unwhitelist_token(safe: &mut BridgeSafe, key: vector<u8>) {
     let cfg = borrow_token_cfg_mut(safe, key);
-    shared_structs::set_token_config_whitelisted(cfg, false);
+    cfg.set_token_config_whitelisted(false);
     events::emit_token_removed_from_whitelist(key);
 }
 
@@ -519,12 +516,12 @@ public fun set_token_min_limit<T>(safe: &mut BridgeSafe, amount: u64, ctx: &mut 
 
     let key = utils::type_name_bytes<T>();
     let cfg = borrow_token_cfg_mut(safe, key);
-    let old_max = shared_structs::token_config_max_limit(cfg);
+    let old_max = cfg.token_config_max_limit();
 
     assert!(amount > 0, EZeroAmount);
     assert!(amount <= old_max, EInvalidTokenLimits);
 
-    shared_structs::set_token_config_min_limit(cfg, amount);
+    cfg.set_token_config_min_limit(amount);
 
     events::emit_token_limits_updated(key, amount, old_max);
 }
@@ -535,10 +532,10 @@ public fun set_token_max_limit<T>(safe: &mut BridgeSafe, amount: u64, ctx: &mut 
 
     let key = utils::type_name_bytes<T>();
     let cfg = borrow_token_cfg_mut(safe, key);
-    let old_min = shared_structs::token_config_min_limit(cfg);
+    let old_min = cfg.token_config_min_limit();
 
     assert!(amount >= old_min, EInvalidTokenLimits);
-    shared_structs::set_token_config_max_limit(cfg, amount);
+    cfg.set_token_config_max_limit(amount);
 
     events::emit_token_limits_updated(key, old_min, amount);
 }
@@ -549,11 +546,8 @@ public fun set_token_is_native<T>(safe: &mut BridgeSafe, is_native: bool, ctx: &
 
     let key = utils::type_name_bytes<T>();
     let cfg = borrow_token_cfg_mut(safe, key);
-    assert!(
-        !(is_native && shared_structs::token_config_is_mint_burn(cfg)),
-        EIncompatibleTokenFlags,
-    );
-    shared_structs::set_token_config_is_native(cfg, is_native);
+    assert!(!(is_native && cfg.token_config_is_mint_burn()), EIncompatibleTokenFlags);
+    cfg.set_token_config_is_native(is_native);
 
     events::emit_token_is_native_updated(key, is_native);
 }
@@ -568,11 +562,8 @@ public fun set_token_is_mint_burn<T>(
 
     let key = utils::type_name_bytes<T>();
     let cfg = borrow_token_cfg_mut(safe, key);
-    assert!(
-        !(is_mint_burn && shared_structs::token_config_is_native(cfg)),
-        EIncompatibleTokenFlags,
-    );
-    shared_structs::set_token_config_is_mint_burn(cfg, is_mint_burn);
+    assert!(!(is_mint_burn && cfg.token_config_is_native()), EIncompatibleTokenFlags);
+    cfg.set_token_config_is_mint_burn(is_mint_burn);
 
     events::emit_token_is_mint_burn_updated(key, is_mint_burn);
 }
@@ -686,7 +677,7 @@ public(package) fun assert_token_is_not_whitelisted(safe: &BridgeSafe, key: vect
 public(package) fun assert_token_is_mint_burn(safe: &BridgeSafe, key: vector<u8>) {
     assert!(safe.token_cfg.contains(key), ETokenNotWhitelisted);
     let cfg = safe.token_cfg.borrow(key);
-    assert!(shared_structs::token_config_is_mint_burn(cfg), EIncompatibleTokenFlags);
+    assert!(cfg.token_config_is_mint_burn(), EIncompatibleTokenFlags);
 }
 
 /// ==== Internal logic helpers ====
@@ -743,21 +734,18 @@ public(package) fun deposit_validate_and_record<T>(
     clock: &Clock,
     ctx: &mut TxContext,
 ): (vector<u8>, u64, u64, u64) {
-    pausable::assert_not_paused(&safe.pause);
+    safe.pause.assert_not_paused();
     assert!(recipient.length() == 32, EInvalidRecipient);
 
     let key = utils::type_name_bytes<T>();
     let cfg_ref = safe.token_cfg.borrow(key);
-    assert!(shared_structs::token_config_whitelisted(cfg_ref), ETokenNotWhitelisted);
-    assert!(
-        shared_structs::token_config_is_mint_burn(cfg_ref) == expect_mint_burn,
-        EIncompatibleTokenFlags,
-    );
+    assert!(cfg_ref.token_config_whitelisted(), ETokenNotWhitelisted);
+    assert!(cfg_ref.token_config_is_mint_burn() == expect_mint_burn, EIncompatibleTokenFlags);
 
     let amount = coin::value(coin_in);
     assert!(amount > 0, EZeroAmount);
-    assert!(amount >= shared_structs::token_config_min_limit(cfg_ref), EAmountBelowMinimum);
-    assert!(amount <= shared_structs::token_config_max_limit(cfg_ref), EAmountAboveMaximum);
+    assert!(amount >= cfg_ref.token_config_min_limit(), EAmountBelowMinimum);
+    assert!(amount <= cfg_ref.token_config_max_limit(), EAmountAboveMaximum);
 
     if (should_create_new_batch_internal(safe, clock)) {
         create_new_batch_internal(safe, clock, ctx);

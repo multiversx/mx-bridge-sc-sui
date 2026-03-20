@@ -26,7 +26,7 @@ public struct SystemUpgradeCompleted has copy, drop {
 /// Start coordinated migration across both Safe and Bridge
 public fun start_system_migration(safe: &mut BridgeSafe, bridge: &mut Bridge, ctx: &mut TxContext) {
     // Verify ownership through safe
-    safe::checkOwnerRole(safe, ctx);
+    safe.checkOwnerRole(ctx);
 
     // Start migration for both components
     safe::start_migration(safe, ctx);
@@ -45,7 +45,7 @@ public fun complete_system_migration(
     bridge: &mut Bridge,
     ctx: &mut TxContext,
 ) {
-    safe::checkOwnerRole(safe, ctx);
+    safe.checkOwnerRole(ctx);
 
     // Complete migration for both components
     safe::complete_migration(safe, ctx);
@@ -59,7 +59,7 @@ public fun complete_system_migration(
 
 /// Abort coordinated migration if needed
 public fun abort_system_migration(safe: &mut BridgeSafe, bridge: &mut Bridge, ctx: &mut TxContext) {
-    safe::checkOwnerRole(safe, ctx);
+    safe.checkOwnerRole(ctx);
 
     // Abort migration for both components
     safe::abort_migration(safe, ctx);
