@@ -182,58 +182,6 @@ fun test_remove_native_token_via_safe_succeeds() {
     ts::end(scenario);
 }
 
-// === Batch timeout minimum ===
-
-#[test]
-#[expected_failure(abort_code = safe::EBatchTimeoutTooLow)]
-fun test_batch_timeout_zero_rejected() {
-    let mut scenario = setup();
-
-    scenario.next_tx(ADMIN);
-    {
-        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
-
-        safe::set_batch_timeout_ms(&mut safe, 0, ts::ctx(&mut scenario));
-
-        ts::return_shared(safe);
-    };
-    ts::end(scenario);
-}
-
-#[test]
-#[expected_failure(abort_code = safe::EBatchTimeoutTooLow)]
-fun test_batch_timeout_below_minimum_rejected() {
-    let mut scenario = setup();
-
-    scenario.next_tx(ADMIN);
-    {
-        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
-
-        // 999ms is below the 1000ms minimum
-        safe::set_batch_timeout_ms(&mut safe, 999, ts::ctx(&mut scenario));
-
-        ts::return_shared(safe);
-    };
-    ts::end(scenario);
-}
-
-#[test]
-fun test_batch_timeout_at_minimum_accepted() {
-    let mut scenario = setup();
-
-    scenario.next_tx(ADMIN);
-    {
-        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
-
-        // Exactly 1000ms should work
-        safe::set_batch_timeout_ms(&mut safe, 1000, ts::ctx(&mut scenario));
-        assert!(safe::get_batch_timeout_ms(&safe) == 1000, 0);
-
-        ts::return_shared(safe);
-    };
-    ts::end(scenario);
-}
-
 // === Events for config updates (verify no aborts) ===
 
 #[test]

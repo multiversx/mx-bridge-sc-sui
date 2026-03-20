@@ -55,10 +55,7 @@ const EMigrationStarted: u64 = 16;
 const EMigrationNotStarted: u64 = 17;
 const ENotPendingVersion: u64 = 18;
 const ENotNativeToken: u64 = 19;
-const EBatchTimeoutTooLow: u64 = 20;
 const EIncompatibleTokenFlags: u64 = 22;
-
-const MINIMUM_BATCH_TIMEOUT_MS: u64 = 1000;
 
 const MAX_U64: u64 = 18446744073709551615;
 const DEFAULT_BATCH_TIMEOUT_MS: u64 = 5 * 1000; // 5 seconds
@@ -487,7 +484,6 @@ public fun set_bridge_addr(safe: &mut BridgeSafe, new_bridge_addr: address, ctx:
 public fun set_batch_timeout_ms(safe: &mut BridgeSafe, new_timeout_ms: u64, ctx: &mut TxContext) {
     assert_is_compatible(safe);
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
-    assert!(new_timeout_ms >= MINIMUM_BATCH_TIMEOUT_MS, EBatchTimeoutTooLow);
     assert!(new_timeout_ms <= safe.batch_settle_timeout_ms, EBatchBlockLimitExceedsSettle);
     safe.batch_timeout_ms = new_timeout_ms;
     events::emit_batch_timeout_updated(new_timeout_ms);
