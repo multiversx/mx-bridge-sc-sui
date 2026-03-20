@@ -14,7 +14,7 @@ use bridge_safe::utils;
 use shared_structs::shared_structs::{Self, TokenConfig, Batch, Deposit};
 use std::u64::{min, max};
 use sui::bag::{Self, Bag};
-use sui::clock::{Self, Clock};
+use sui::clock::Clock;
 use sui::coin::{Self, Coin};
 use sui::event;
 use sui::table::{Self, Table};
@@ -381,7 +381,7 @@ public fun init_supply<T>(safe: &mut BridgeSafe, coin_in: Coin<T>, ctx: &mut TxC
     let amount = coin::value(&coin_in);
 
     let cfg_mut = borrow_token_cfg_mut(safe, key);
-    shared_structs::add_to_token_config_total_balance(cfg_mut, amount);
+    cfg_mut.add_to_token_config_total_balance(amount);
 
     if (safe.coin_storage.contains(key)) {
         let existing_coin = safe.coin_storage.borrow_mut<vector<u8>, Coin<T>>(key);
@@ -665,13 +665,13 @@ public(package) fun assert_is_compatible(safe: &BridgeSafe) {
 public(package) fun assert_token_is_whitelisted(safe: &BridgeSafe, key: vector<u8>) {
     assert!(safe.token_cfg.contains(key), ETokenNotWhitelisted);
     let cfg = safe.token_cfg.borrow(key);
-    assert!(shared_structs::token_config_whitelisted(cfg), ETokenNotWhitelisted);
+    assert!(cfg.token_config_whitelisted(), ETokenNotWhitelisted);
 }
 
 public(package) fun assert_token_is_not_whitelisted(safe: &BridgeSafe, key: vector<u8>) {
     assert!(safe.token_cfg.contains(key), ETokenNotWhitelisted);
     let cfg = safe.token_cfg.borrow(key);
-    assert!(!shared_structs::token_config_whitelisted(cfg), ETokenAlreadyExists);
+    assert!(!cfg.token_config_whitelisted(), ETokenAlreadyExists);
 }
 
 public(package) fun assert_token_is_mint_burn(safe: &BridgeSafe, key: vector<u8>) {
@@ -771,13 +771,13 @@ public(package) fun deposit_validate_and_record<T>(
     vec_ref.push_back(dep);
 
     safe.deposits_count = dep_nonce;
-    shared_structs::increment_batch_deposits(batch);
-    shared_structs::set_batch_last_updated_timestamp_ms(batch, clock::timestamp_ms(clock));
+    batch.increment_batch_deposits();
+    batch.set_batch_last_updated_timestamp_ms(clock.timestamp_ms());
 
-    let batch_nonce = shared_structs::batch_nonce(batch);
+    let batch_nonce = batch.batch_nonce();
 
     let cfg = borrow_token_cfg_mut(safe, key);
-    shared_structs::add_to_token_config_total_balance(cfg, amount);
+    cfg.add_to_token_config_total_balance(amount);
 
     (key, amount, batch_nonce, dep_nonce)
 }
@@ -794,7 +794,7 @@ fun should_create_new_batch_internal(safe: &BridgeSafe, clock: &Clock): bool {
     if (safe.batches_count == 0) { return true };
     let last_index = safe.batches_count - 1;
     let batch = safe.batches.borrow(last_index);
-    is_batch_progress_over_internal(safe, shared_structs::batch_deposits_count(batch), shared_structs::batch_timestamp_ms(batch), clock) || (shared_structs::batch_deposits_count(batch) >= safe.batch_size)
+    is_batch_progress_over_internal(safe, batch.batch_deposits_count(), batch.batch_timestamp_ms(), clock) || (batch.batch_deposits_count() >= safe.batch_size)
 }
 
 fun is_batch_progress_over_internal(
@@ -808,7 +808,7 @@ fun is_batch_progress_over_internal(
 }
 
 fun is_batch_final_internal(safe: &BridgeSafe, batch: &Batch, clock: &Clock): bool {
-    (shared_structs::batch_last_updated_timestamp_ms(batch) + safe.batch_settle_timeout_ms) <= clock.timestamp_ms()
+    (batch.batch_last_updated_timestamp_ms() + safe.batch_settle_timeout_ms) <= clock.timestamp_ms()
 }
 
 fun is_any_batch_in_progress_internal(safe: &BridgeSafe, clock: &Clock): bool {
@@ -840,7 +840,7 @@ public(package) fun has_token_config<T>(safe: &BridgeSafe): bool {
 public(package) fun subtract_token_balance<T>(safe: &mut BridgeSafe, amount: u64) {
     let key = utils::type_name_bytes<T>();
     let cfg = safe.token_cfg.borrow_mut(key);
-    shared_structs::subtract_from_token_config_total_balance(cfg, amount);
+    cfg.subtract_from_token_config_total_balance(amount);
 }
 
 fun borrow_token_cfg_mut(safe: &mut BridgeSafe, key: vector<u8>): &mut TokenConfig {
@@ -897,5 +897,5 @@ public fun create_batch_for_testing(safe: &mut BridgeSafe, clock: &Clock, ctx: &
 public fun add_to_balance_for_testing<T>(safe: &mut BridgeSafe, amount: u64) {
     let key = utils::type_name_bytes<T>();
     let cfg_mut = borrow_token_cfg_mut(safe, key);
-    shared_structs::add_to_token_config_total_balance(cfg_mut, amount);
+    cfg_mut.add_to_token_config_total_balance(amount);
 }

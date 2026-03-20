@@ -126,7 +126,7 @@ public fun initialize(
         executed_batches: vec_set::empty<u64>(),
         execution_timestamps: table::new(ctx),
         cross_transfer_statuses: table::new(ctx),
-        transfer_statuses: vector::empty<DepositStatus>(),
+        transfer_statuses: vector<DepositStatus>[],
         safe: safe_address,
         bridge_cap,
         executed_transfer_by_batch_type_arg: vec_set::empty<vector<u8>>(),
@@ -258,7 +258,7 @@ public fun get_statuses_after_execution(
         let is_final = is_mvx_batch_final(bridge, created_timestamp, clock);
         (statuses, is_final)
     } else {
-        (vector::empty<DepositStatus>(), false)
+        (vector<DepositStatus>[], false)
     }
 }
 
@@ -446,7 +446,7 @@ fun construct_batch_message(
 }
 
 fun extract_public_key(signature: &vector<u8>): vector<u8> {
-    let mut public_key = vector::empty<u8>();
+    let mut public_key = vector<u8>[];
     let mut i = signature.length() - ED25519_PUBLIC_KEY_LENGTH;
     while (i < signature.length()) {
         public_key.push_back(*signature.borrow(i));
@@ -456,7 +456,7 @@ fun extract_public_key(signature: &vector<u8>): vector<u8> {
 }
 
 fun extract_signature(signature: &vector<u8>): vector<u8> {
-    let mut sig_bytes = vector::empty<u8>();
+    let mut sig_bytes = vector<u8>[];
     let mut i = 0;
     while (i < signature.length() - ED25519_PUBLIC_KEY_LENGTH) {
         sig_bytes.push_back(*signature.borrow(i));
@@ -579,7 +579,7 @@ public(package) fun finalize_batch(
             clock.timestamp_ms(),
         );
         bridge.cross_transfer_statuses.add(batch_nonce_mvx, cross_status);
-        bridge.transfer_statuses = vector::empty<DepositStatus>();
+        bridge.transfer_statuses = vector<DepositStatus>[];
 
         let successful_count = if (bridge.successful_transfers_by_batch.contains(batch_nonce_mvx)) {
             let count = *bridge.successful_transfers_by_batch.borrow(batch_nonce_mvx);
