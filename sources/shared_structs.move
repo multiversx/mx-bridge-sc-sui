@@ -204,7 +204,7 @@ public fun upsert_token_config(
         let cfg = table::borrow_mut(config, key);
         set_token_config(cfg, whitelisted, is_native, min_limit, max_limit, treasury_id, is_mint_burn);
 
-        return;
+        return
     };
 
     let cfg = create_token_config(whitelisted, is_native, min_limit, max_limit, treasury_id, is_mint_burn);
