@@ -13,7 +13,7 @@ use bridge_safe::upgrade_service_bridge;
 use bridge_safe::utils;
 use locked_token::bridge_token::BRIDGE_TOKEN;
 use locked_token::treasury::{Self as lkt};
-use shared_structs::shared_structs::{Self, TokenConfig, Batch, Deposit};
+use bridge_safe::shared_structs::{Self, TokenConfig, Batch, Deposit};
 use std::u64::{min, max};
 use sui::bag::{Self, Bag};
 use sui::clock::{Self, Clock};

@@ -1,4 +1,4 @@
-module shared_structs::shared_structs;
+module bridge_safe::shared_structs;
 
 use sui::table::{Self, Table};
 

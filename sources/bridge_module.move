@@ -13,8 +13,8 @@ use bridge_safe::safe::{Self, BridgeSafe};
 use bridge_safe::utils;
 use bridge_safe::bridge_version_control;
 use locked_token::bridge_token::BRIDGE_TOKEN;
-use locked_token::treasury;
-use shared_structs::shared_structs::{Self, Deposit, Batch, CrossTransferStatus, DepositStatus};
+use locked_token::treasury::{Self as lkt};
+use bridge_safe::shared_structs::{Self, Deposit, Batch, CrossTransferStatus, DepositStatus};
 use std::u64::{min, max};
 use sui::address;
 use sui::bcs;
@@ -269,7 +269,7 @@ public fun execute_transfer<T>(
     batch_nonce_mvx: u64,
     signatures: vector<vector<u8>>,
     is_batch_complete: bool,
-    treasury: &mut treasury::Treasury<BRIDGE_TOKEN>,
+    treasury: &mut lkt::Treasury<BRIDGE_TOKEN>,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
@@ -482,7 +482,7 @@ public fun execute_transfer_for_testing<T>(
     amounts: vector<u64>,
     batch_nonce_mvx: u64,
     is_batch_complete: bool,
-    treasury: &mut treasury::Treasury<BRIDGE_TOKEN>,
+    treasury: &mut lkt::Treasury<BRIDGE_TOKEN>,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {

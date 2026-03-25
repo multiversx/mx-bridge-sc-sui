@@ -1,7 +1,7 @@
 #[test_only]
-module shared_structs::shared_structs_tests;
+module bridge_safe::shared_structs_tests;
 
-use shared_structs::shared_structs;
+use bridge_safe::shared_structs;
 
 const MAX_U64: u64 = 18446744073709551615;
 
