@@ -77,7 +77,16 @@ public fun whitelist_token<T>(
     ctx: &TxContext,
 ) {
     assert!(!has_cap<T>(safe::uid(safe)), EMintBurnCapAlreadyRegistered);
-    safe::whitelist_token_internal<T>(safe, minimum_amount, maximum_amount, false, option::some(treasury_id), true, ctx);
+    safe::whitelist_token_internal<T>(
+        safe,
+        minimum_amount,
+        maximum_amount,
+        false,
+        option::some(treasury_id),
+        true,
+        false,
+        ctx,
+    );
     register<T>(safe::uid_mut(safe), cap);
 }
 

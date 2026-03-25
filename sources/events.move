@@ -48,6 +48,7 @@ public struct TokenWhitelisted has copy, drop {
     max_limit: u64,
     is_native: bool,
     is_mint_burn: bool,
+    is_locked: bool,
 }
 
 public struct TokenRemovedFromWhitelist has copy, drop {
@@ -63,6 +64,11 @@ public struct TokenLimitsUpdated has copy, drop {
 public struct TokenIsNativeUpdated has copy, drop {
     token_type: vector<u8>,
     is_native: bool,
+}
+
+public struct TokenIsLockedUpdated has copy, drop {
+    token_type: vector<u8>,
+    is_locked: bool,
 }
 
 public struct TokenIsMintBurnUpdated has copy, drop {
@@ -143,6 +149,7 @@ public(package) fun emit_token_whitelisted(
     max_limit: u64,
     is_native: bool,
     is_mint_burn: bool,
+    is_locked: bool,
 ) {
     event::emit(TokenWhitelisted {
         token_type,
@@ -150,6 +157,7 @@ public(package) fun emit_token_whitelisted(
         max_limit,
         is_native,
         is_mint_burn,
+        is_locked,
     });
 }
 
@@ -167,6 +175,10 @@ public(package) fun emit_token_limits_updated(
 
 public(package) fun emit_token_is_native_updated(token_type: vector<u8>, is_native: bool) {
     event::emit(TokenIsNativeUpdated { token_type, is_native });
+}
+
+public(package) fun emit_token_is_locked_updated(token_type: vector<u8>, is_locked: bool) {
+    event::emit(TokenIsLockedUpdated { token_type, is_locked });
 }
 
 public(package) fun emit_token_is_mint_burn_updated(token_type: vector<u8>, is_mint_burn: bool) {

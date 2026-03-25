@@ -5,6 +5,7 @@ version = "0.0.1"
 
 [dependencies]
 treasury = { git = "https://github.com/multiversx/stablecoin-sui.git", rev="xmn-launch", subdir = "packages/treasury" }
+locked_token = { git = "https://github.com/multiversx/mx-locked-token-sc-sui.git", rev = "fdeec1e875b5a36aa42f62da293e65e15623bba6", subdir = "" }
 
 [addresses]
 shared_structs = "0x0"

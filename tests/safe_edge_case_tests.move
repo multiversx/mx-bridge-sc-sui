@@ -3,6 +3,8 @@ module bridge_safe::safe_edge_case_tests;
 
 use bridge_safe::pausable::{Self, EContractNotPaused};
 use bridge_safe::safe::{Self, BridgeSafe};
+use locked_token::bridge_token::{Self as br, BRIDGE_TOKEN};
+use locked_token::treasury::{Self as lkt, Treasury, FromCoinCap};
 use sui::clock;
 use sui::coin;
 use sui::test_scenario::{Self as ts, Scenario};
@@ -21,9 +23,20 @@ const MAX_AMOUNT: u64 = 1000000;
 fun setup(): Scenario {
     let mut s = ts::begin(ADMIN);
 
+    br::init_for_testing(s.ctx());
+
     s.next_tx(ADMIN);
     {
-        safe::init_for_testing(s.ctx());
+        let mut treasury = s.take_shared<Treasury<BRIDGE_TOKEN>>();
+        lkt::transfer_to_coin_cap<BRIDGE_TOKEN>(&mut treasury, ADMIN, s.ctx());
+        lkt::transfer_from_coin_cap<BRIDGE_TOKEN>(&mut treasury, ADMIN, s.ctx());
+        ts::return_shared(treasury);
+    };
+
+    s.next_tx(ADMIN);
+    {
+        let from_cap_db = s.take_from_address<FromCoinCap<BRIDGE_TOKEN>>(ADMIN);
+        safe::init_for_testing(from_cap_db, s.ctx());
     };
 
     s
@@ -82,6 +95,7 @@ fun test_multiple_token_whitelist() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
+            false,
             ts::ctx(&mut scenario),
         );
 
@@ -90,6 +104,7 @@ fun test_multiple_token_whitelist() {
             &mut safe,
             MIN_AMOUNT * 2,
             MAX_AMOUNT * 2,
+            false,
             ts::ctx(&mut scenario),
         );
 
@@ -120,6 +135,7 @@ fun test_token_limit_updates() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
+            false,
             ts::ctx(&mut scenario),
         );
 
@@ -173,6 +189,7 @@ fun test_init_supply_zero_amount() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
+            false,
             ts::ctx(&mut scenario),
         );
 
@@ -204,6 +221,7 @@ fun test_init_supply_non_native_token() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
+            false,
             ts::ctx(&mut scenario),
         );
 
@@ -233,6 +251,7 @@ fun test_init_supply_removed_token() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
+            false,
             ts::ctx(&mut scenario),
         );
 

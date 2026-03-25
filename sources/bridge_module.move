@@ -12,6 +12,8 @@ use bridge_safe::pausable::{Self, Pause};
 use bridge_safe::safe::{Self, BridgeSafe};
 use bridge_safe::utils;
 use bridge_safe::bridge_version_control;
+use locked_token::bridge_token::BRIDGE_TOKEN;
+use locked_token::treasury;
 use shared_structs::shared_structs::{Self, Deposit, Batch, CrossTransferStatus, DepositStatus};
 use std::u64::{min, max};
 use sui::address;
@@ -267,6 +269,7 @@ public fun execute_transfer<T>(
     batch_nonce_mvx: u64,
     signatures: vector<vector<u8>>,
     is_batch_complete: bool,
+    treasury: &mut treasury::Treasury<BRIDGE_TOKEN>,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
@@ -275,7 +278,14 @@ public fun execute_transfer<T>(
     let len = vector::length(&recipients);
     let mut i = 0;
     while (i < len) {
-        let success = safe::transfer<T>(safe, &bridge.bridge_cap, *vector::borrow(&recipients, i), *vector::borrow(&amounts, i), ctx);
+        let success = safe::transfer<T>(
+            safe,
+            &bridge.bridge_cap,
+            *vector::borrow(&recipients, i),
+            *vector::borrow(&amounts, i),
+            treasury,
+            ctx,
+        );
         record_transfer_result(bridge, batch_nonce_mvx, success);
         i = i + 1;
     };
@@ -472,6 +482,7 @@ public fun execute_transfer_for_testing<T>(
     amounts: vector<u64>,
     batch_nonce_mvx: u64,
     is_batch_complete: bool,
+    treasury: &mut treasury::Treasury<BRIDGE_TOKEN>,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
@@ -480,7 +491,14 @@ public fun execute_transfer_for_testing<T>(
     let len = vector::length(&recipients);
     let mut i = 0;
     while (i < len) {
-        let success = safe::transfer<T>(safe, &bridge.bridge_cap, *vector::borrow(&recipients, i), *vector::borrow(&amounts, i), ctx);
+        let success = safe::transfer<T>(
+            safe,
+            &bridge.bridge_cap,
+            *vector::borrow(&recipients, i),
+            *vector::borrow(&amounts, i),
+            treasury,
+            ctx,
+        );
         record_transfer_result(bridge, batch_nonce_mvx, success);
         i = i + 1;
     };
