@@ -1,6 +1,6 @@
 module shared_structs::shared_structs;
 
-use sui::table::{Self, Table};
+use sui::table::Table;
 
 public enum DepositStatus has copy, drop, store {
     None,
@@ -95,11 +95,11 @@ public fun deposit_status_rejected(): DepositStatus {
     DepositStatus::Rejected
 }
 
-public fun update_batch_last_updated(batch: &mut Batch, timestamp_ms: u64) {
+public(package) fun update_batch_last_updated(batch: &mut Batch, timestamp_ms: u64) {
     batch.last_updated_timestamp_ms = timestamp_ms;
 }
 
-public fun increment_batch_deposits(batch: &mut Batch) {
+public(package) fun increment_batch_deposits(batch: &mut Batch) {
     batch.deposits_count = batch.deposits_count + 1;
 }
 
@@ -148,12 +148,15 @@ const EOverflow: u64 = 1;
 
 const MAX_U64: u64 = 18446744073709551615;
 
-public fun add_to_token_config_total_balance(config: &mut TokenConfig, amount: u64) {
+public(package) fun add_to_token_config_total_balance(config: &mut TokenConfig, amount: u64) {
     assert!(config.total_balance <= MAX_U64 - amount, EOverflow);
     config.total_balance = config.total_balance + amount;
 }
 
-public fun subtract_from_token_config_total_balance(config: &mut TokenConfig, amount: u64) {
+public(package) fun subtract_from_token_config_total_balance(
+    config: &mut TokenConfig,
+    amount: u64,
+) {
     assert!(config.total_balance >= amount, EUnderflow);
     config.total_balance = config.total_balance - amount;
 }
@@ -182,7 +185,7 @@ public fun batch_timestamp_ms(batch: &Batch): u64 {
     batch.timestamp_ms
 }
 
-public fun set_batch_deposits_count(batch: &mut Batch, count: u16) {
+public(package) fun set_batch_deposits_count(batch: &mut Batch, count: u16) {
     batch.deposits_count = count;
 }
 
@@ -190,7 +193,7 @@ public(package) fun set_batch_last_updated_timestamp_ms(batch: &mut Batch, times
     batch.last_updated_timestamp_ms = timestamp_ms;
 }
 
-public fun upsert_token_config(
+public(package) fun upsert_token_config(
     config: &mut Table<vector<u8>, TokenConfig>,
     key: vector<u8>,
     whitelisted: bool,
@@ -200,8 +203,8 @@ public fun upsert_token_config(
     treasury_id: Option<ID>,
     is_mint_burn: bool,
 ) {
-    if (table::contains(config, key)) {
-        let cfg = table::borrow_mut(config, key);
+    if (config.contains(key)) {
+        let cfg = config.borrow_mut(key);
         set_token_config(
             cfg,
             whitelisted,
@@ -212,7 +215,7 @@ public fun upsert_token_config(
             is_mint_burn,
         );
 
-        return;
+        return
     };
 
     let cfg = create_token_config(
@@ -223,10 +226,10 @@ public fun upsert_token_config(
         treasury_id,
         is_mint_burn,
     );
-    table::add(config, key, cfg);
+    config.add(key, cfg);
 }
 
-public fun set_token_config(
+public(package) fun set_token_config(
     config: &mut TokenConfig,
     whitelisted: bool,
     is_native: bool,

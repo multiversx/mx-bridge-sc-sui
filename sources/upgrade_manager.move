@@ -5,9 +5,9 @@
 
 module bridge_safe::upgrade_manager;
 
-use bridge_safe::bridge::{Self, Bridge};
+use bridge_safe::bridge::Bridge;
 use bridge_safe::bridge_version_control;
-use bridge_safe::safe::{Self, BridgeSafe};
+use bridge_safe::safe::BridgeSafe;
 use sui::event;
 
 // === Events ===
@@ -26,15 +26,15 @@ public struct SystemUpgradeCompleted has copy, drop {
 /// Start coordinated migration across both Safe and Bridge
 public fun start_system_migration(safe: &mut BridgeSafe, bridge: &mut Bridge, ctx: &mut TxContext) {
     // Verify ownership through safe
-    safe::checkOwnerRole(safe, ctx);
+    safe.checkOwnerRole(ctx);
 
     // Start migration for both components
-    safe::start_migration(safe, ctx);
-    bridge::start_bridge_migration(bridge, safe, ctx);
+    safe.start_migration(ctx);
+    bridge.start_bridge_migration(safe, ctx);
 
     event::emit(SystemUpgradeInitiated {
-        safe_versions: safe::compatible_versions(safe),
-        bridge_versions: bridge::bridge_compatible_versions(bridge),
+        safe_versions: safe.compatible_versions(),
+        bridge_versions: bridge.bridge_compatible_versions(),
         initiator: ctx.sender(),
     });
 }
@@ -45,11 +45,11 @@ public fun complete_system_migration(
     bridge: &mut Bridge,
     ctx: &mut TxContext,
 ) {
-    safe::checkOwnerRole(safe, ctx);
+    safe.checkOwnerRole(ctx);
 
     // Complete migration for both components
-    safe::complete_migration(safe, ctx);
-    bridge::complete_bridge_migration(bridge, safe, ctx);
+    safe.complete_migration(ctx);
+    bridge.complete_bridge_migration(safe, ctx);
 
     event::emit(SystemUpgradeCompleted {
         new_version: bridge_version_control::current_version(),
@@ -59,14 +59,14 @@ public fun complete_system_migration(
 
 /// Abort coordinated migration if needed
 public fun abort_system_migration(safe: &mut BridgeSafe, bridge: &mut Bridge, ctx: &mut TxContext) {
-    safe::checkOwnerRole(safe, ctx);
+    safe.checkOwnerRole(ctx);
 
     // Abort migration for both components
-    safe::abort_migration(safe, ctx);
-    bridge::abort_bridge_migration(bridge, safe, ctx);
+    safe.abort_migration(ctx);
+    bridge.abort_bridge_migration(safe, ctx);
 }
 
 /// Check if system-wide migration is in progress
 public fun is_system_migration_in_progress(safe: &BridgeSafe, bridge: &Bridge): bool {
-    safe::is_migration_in_progress(safe) || bridge::is_bridge_migration_in_progress(bridge)
+    safe.is_migration_in_progress() || bridge.is_bridge_migration_in_progress()
 }

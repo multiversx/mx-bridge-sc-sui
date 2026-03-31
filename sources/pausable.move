@@ -17,14 +17,14 @@ public fun new(): Pause {
     Pause { paused: false }
 }
 
-public fun pause(p: &mut Pause) {
+public(package) fun pause(p: &mut Pause) {
     if (!p.paused) {
         p.paused = true;
         events::emit_pause(true);
     }
 }
 
-public fun unpause(p: &mut Pause) {
+public(package) fun unpause(p: &mut Pause) {
     if (p.paused) {
         p.paused = false;
         events::emit_pause(false);
