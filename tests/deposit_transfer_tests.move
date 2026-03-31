@@ -5,6 +5,8 @@ use bridge_safe::bridge_roles::BridgeCap;
 use bridge_safe::pausable;
 use bridge_safe::safe::{Self, BridgeSafe};
 use bridge_safe::xmn_mint_cap_adapter;
+use locked_token::bridge_token::{Self as br, BRIDGE_TOKEN};
+use locked_token::treasury::{Self as lkt, Treasury, FromCoinCap};
 use sui::clock;
 use sui::coin;
 use sui::deny_list::DenyList;
@@ -32,9 +34,20 @@ const DEPOSIT_AMOUNT: u64 = 50000;
 fun setup(): Scenario {
     let mut s = ts::begin(ADMIN);
 
+    br::init_for_testing(s.ctx());
+
     s.next_tx(ADMIN);
     {
-        safe::init_for_testing(s.ctx());
+        let mut treasury = s.take_shared<Treasury<BRIDGE_TOKEN>>();
+        lkt::transfer_to_coin_cap<BRIDGE_TOKEN>(&mut treasury, ADMIN, s.ctx());
+        lkt::transfer_from_coin_cap<BRIDGE_TOKEN>(&mut treasury, ADMIN, s.ctx());
+        ts::return_shared(treasury);
+    };
+
+    s.next_tx(ADMIN);
+    {
+        let from_cap_db = s.take_from_address<FromCoinCap<BRIDGE_TOKEN>>(ADMIN);
+        safe::init_for_testing(from_cap_db, s.ctx());
     };
 
     s
@@ -53,6 +66,7 @@ fun test_deposit_basic() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
+            false,
             ts::ctx(&mut scenario),
         );
 
@@ -114,6 +128,7 @@ fun test_deposit_multiple_same_batch() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
+            false,
             ts::ctx(&mut scenario),
         );
 
@@ -185,6 +200,7 @@ fun test_deposit_triggers_new_batch() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
+            false,
             ts::ctx(&mut scenario),
         );
 
@@ -255,6 +271,7 @@ fun test_deposit_invalid_recipient() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
+            false,
             ts::ctx(&mut scenario),
         );
 
@@ -307,6 +324,7 @@ fun test_deposit_zero_amount() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
+            false,
             ts::ctx(&mut scenario),
         );
 
@@ -340,6 +358,7 @@ fun test_deposit_amount_below_minimum() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
+            false,
             ts::ctx(&mut scenario),
         );
 
@@ -373,6 +392,7 @@ fun test_deposit_amount_above_maximum() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
+            false,
             ts::ctx(&mut scenario),
         );
 
@@ -406,6 +426,7 @@ fun test_deposit_when_paused() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
+            false,
             ts::ctx(&mut scenario),
         );
 
@@ -441,6 +462,7 @@ fun test_transfer_basic() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
+            false,
             ts::ctx(&mut scenario),
         );
 
@@ -454,6 +476,7 @@ fun test_transfer_basic() {
     {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
         let bridge_cap = ts::take_from_address<BridgeCap>(&scenario, ADMIN);
+        let mut treasury = ts::take_shared<Treasury<BRIDGE_TOKEN>>(&scenario);
 
         // Verify initial balance
         assert!(safe::get_stored_coin_balance<TEST_COIN>(&mut safe) == 100000, 0);
@@ -464,6 +487,7 @@ fun test_transfer_basic() {
             &bridge_cap,
             RECIPIENT,
             DEPOSIT_AMOUNT,
+            &mut treasury,
             ts::ctx(&mut scenario),
         );
 
@@ -474,6 +498,7 @@ fun test_transfer_basic() {
         assert!(bag_balance == 100000 - DEPOSIT_AMOUNT, 10);
         assert!(bag_balance == safe::get_stored_coin_balance<TEST_COIN>(&mut safe), 11);
 
+        ts::return_shared(treasury);
         ts::return_shared(safe);
         ts::return_to_address(ADMIN, bridge_cap);
     };
@@ -501,6 +526,7 @@ fun test_transfer_exact_balance() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
+            false,
             ts::ctx(&mut scenario),
         );
 
@@ -515,6 +541,7 @@ fun test_transfer_exact_balance() {
     {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
         let bridge_cap = ts::take_from_address<BridgeCap>(&scenario, ADMIN);
+        let mut treasury = ts::take_shared<Treasury<BRIDGE_TOKEN>>(&scenario);
 
         // Transfer entire balance
         let success = safe::transfer<TEST_COIN>(
@@ -522,6 +549,7 @@ fun test_transfer_exact_balance() {
             &bridge_cap,
             RECIPIENT,
             DEPOSIT_AMOUNT,
+            &mut treasury,
             ts::ctx(&mut scenario),
         );
 
@@ -532,6 +560,7 @@ fun test_transfer_exact_balance() {
         assert!(bag_balance == 0, 10);
         assert!(bag_balance == safe::get_stored_coin_balance<TEST_COIN>(&mut safe), 11);
 
+        ts::return_shared(treasury);
         ts::return_shared(safe);
         ts::return_to_address(ADMIN, bridge_cap);
     };
@@ -547,6 +576,7 @@ fun test_transfer_token_not_whitelisted() {
     {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
         let bridge_cap = ts::take_from_address<BridgeCap>(&scenario, ADMIN);
+        let mut treasury = ts::take_shared<Treasury<BRIDGE_TOKEN>>(&scenario);
 
         // Try to transfer non-whitelisted token - should return false
         let success = safe::transfer<TEST_COIN>(
@@ -554,6 +584,7 @@ fun test_transfer_token_not_whitelisted() {
             &bridge_cap,
             RECIPIENT,
             DEPOSIT_AMOUNT,
+            &mut treasury,
             ts::ctx(&mut scenario),
         );
 
@@ -563,6 +594,7 @@ fun test_transfer_token_not_whitelisted() {
         assert!(bag_balance == 0, 10);
         assert!(bag_balance == safe::get_stored_coin_balance<TEST_COIN>(&mut safe), 11);
 
+        ts::return_shared(treasury);
         ts::return_shared(safe);
         ts::return_to_address(ADMIN, bridge_cap);
     };
@@ -583,6 +615,7 @@ fun test_transfer_token_removed_from_whitelist() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
+            false,
             ts::ctx(&mut scenario),
         );
 
@@ -598,6 +631,7 @@ fun test_transfer_token_removed_from_whitelist() {
     {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
         let bridge_cap = ts::take_from_address<BridgeCap>(&scenario, ADMIN);
+        let mut treasury = ts::take_shared<Treasury<BRIDGE_TOKEN>>(&scenario);
 
         // Try to transfer removed token - should be okay - we will use whitelisted check only for deposits
         let success = safe::transfer<TEST_COIN>(
@@ -605,6 +639,7 @@ fun test_transfer_token_removed_from_whitelist() {
             &bridge_cap,
             RECIPIENT,
             DEPOSIT_AMOUNT,
+            &mut treasury,
             ts::ctx(&mut scenario),
         );
 
@@ -614,6 +649,7 @@ fun test_transfer_token_removed_from_whitelist() {
         assert!(bag_balance == 100000 - DEPOSIT_AMOUNT, 10);
         assert!(bag_balance == safe::get_stored_coin_balance<TEST_COIN>(&mut safe), 11);
 
+        ts::return_shared(treasury);
         ts::return_shared(safe);
         ts::return_to_address(ADMIN, bridge_cap);
     };
@@ -633,6 +669,7 @@ fun test_transfer_insufficient_balance() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
+            false,
             ts::ctx(&mut scenario),
         );
 
@@ -647,6 +684,7 @@ fun test_transfer_insufficient_balance() {
     {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
         let bridge_cap = ts::take_from_address<BridgeCap>(&scenario, ADMIN);
+        let mut treasury = ts::take_shared<Treasury<BRIDGE_TOKEN>>(&scenario);
 
         // Try to transfer more than balance - should return false
         let success = safe::transfer<TEST_COIN>(
@@ -654,6 +692,7 @@ fun test_transfer_insufficient_balance() {
             &bridge_cap,
             RECIPIENT,
             DEPOSIT_AMOUNT, // Much larger than 1000
+            &mut treasury,
             ts::ctx(&mut scenario),
         );
 
@@ -664,6 +703,7 @@ fun test_transfer_insufficient_balance() {
         assert!(bag_balance == 1000, 10);
         assert!(bag_balance == safe::get_stored_coin_balance<TEST_COIN>(&mut safe), 11);
 
+        ts::return_shared(treasury);
         ts::return_shared(safe);
         ts::return_to_address(ADMIN, bridge_cap);
     };
@@ -684,6 +724,7 @@ fun test_transfer_no_coin_storage() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
+            false,
             ts::ctx(&mut scenario),
         );
 
@@ -694,6 +735,7 @@ fun test_transfer_no_coin_storage() {
     {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
         let bridge_cap = ts::take_from_address<BridgeCap>(&scenario, ADMIN);
+        let mut treasury = ts::take_shared<Treasury<BRIDGE_TOKEN>>(&scenario);
 
         // Try to transfer when no coins stored - should return false
         let success = safe::transfer<TEST_COIN>(
@@ -701,6 +743,7 @@ fun test_transfer_no_coin_storage() {
             &bridge_cap,
             RECIPIENT,
             DEPOSIT_AMOUNT,
+            &mut treasury,
             ts::ctx(&mut scenario),
         );
 
@@ -710,6 +753,7 @@ fun test_transfer_no_coin_storage() {
         assert!(bag_balance == 0, 10);
         assert!(bag_balance == safe::get_stored_coin_balance<TEST_COIN>(&mut safe), 11);
 
+        ts::return_shared(treasury);
         ts::return_shared(safe);
         ts::return_to_address(ADMIN, bridge_cap);
     };
@@ -729,6 +773,7 @@ fun test_transfer_multiple_partial() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
+            false,
             ts::ctx(&mut scenario),
         );
 
@@ -742,6 +787,7 @@ fun test_transfer_multiple_partial() {
     {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
         let bridge_cap = ts::take_from_address<BridgeCap>(&scenario, ADMIN);
+        let mut treasury = ts::take_shared<Treasury<BRIDGE_TOKEN>>(&scenario);
 
         // Multiple transfers
         let success1 = safe::transfer<TEST_COIN>(
@@ -749,6 +795,7 @@ fun test_transfer_multiple_partial() {
             &bridge_cap,
             RECIPIENT,
             10000,
+            &mut treasury,
             ts::ctx(&mut scenario),
         );
         let success2 = safe::transfer<TEST_COIN>(
@@ -756,6 +803,7 @@ fun test_transfer_multiple_partial() {
             &bridge_cap,
             RECIPIENT,
             20000,
+            &mut treasury,
             ts::ctx(&mut scenario),
         );
         let success3 = safe::transfer<TEST_COIN>(
@@ -763,6 +811,7 @@ fun test_transfer_multiple_partial() {
             &bridge_cap,
             RECIPIENT,
             30000,
+            &mut treasury,
             ts::ctx(&mut scenario),
         );
 
@@ -775,6 +824,7 @@ fun test_transfer_multiple_partial() {
         assert!(bag_balance == 40000, 10);
         assert!(bag_balance == safe::get_stored_coin_balance<TEST_COIN>(&mut safe), 11);
 
+        ts::return_shared(treasury);
         ts::return_shared(safe);
         ts::return_to_address(ADMIN, bridge_cap);
     };
@@ -794,6 +844,7 @@ fun test_deposit_then_transfer_integration() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
+            false,
             ts::ctx(&mut scenario),
         );
 
@@ -818,12 +869,14 @@ fun test_deposit_then_transfer_integration() {
     {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
         let bridge_cap = ts::take_from_address<BridgeCap>(&scenario, ADMIN);
+        let mut treasury = ts::take_shared<Treasury<BRIDGE_TOKEN>>(&scenario);
 
         let success = safe::transfer<TEST_COIN>(
             &mut safe,
             &bridge_cap,
             RECIPIENT,
             DEPOSIT_AMOUNT,
+            &mut treasury,
             ts::ctx(&mut scenario),
         );
 
@@ -834,6 +887,147 @@ fun test_deposit_then_transfer_integration() {
         assert!(bag_balance == 0, 10);
         assert!(bag_balance == safe::get_stored_coin_balance<TEST_COIN>(&mut safe), 11);
 
+        ts::return_shared(treasury);
+        ts::return_shared(safe);
+        ts::return_to_address(ADMIN, bridge_cap);
+    };
+
+    ts::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = safe::EIncompatibleTokenFlags)]
+fun test_whitelist_rejects_mint_burn_and_locked_combination() {
+    let mut scenario = setup();
+
+    scenario.next_tx(ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+
+        safe::whitelist_token_internal<MINT_BURN_COIN>(
+            &mut safe,
+            MIN_AMOUNT,
+            MAX_AMOUNT,
+            false,
+            option::some(object::id_from_address(@0x1234)),
+            true,
+            true,
+            ts::ctx(&mut scenario),
+        );
+
+        ts::return_shared(safe);
+    };
+
+    ts::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = safe::EIncompatibleTokenFlags)]
+fun test_set_token_is_locked_rejects_mint_burn_token() {
+    let mut scenario = setup_mint_burn();
+
+    scenario.next_tx(ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+
+        safe::set_token_is_locked<MINT_BURN_COIN>(&mut safe, true, ts::ctx(&mut scenario));
+
+        ts::return_shared(safe);
+    };
+
+    ts::end(scenario);
+}
+
+#[test]
+#[expected_failure(abort_code = safe::EIncompatibleTokenFlags)]
+fun test_set_token_is_mint_burn_rejects_locked_token() {
+    let mut scenario = setup();
+
+    scenario.next_tx(ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+
+        safe::whitelist_token<TEST_COIN>(
+            &mut safe,
+            MIN_AMOUNT,
+            MAX_AMOUNT,
+            true,
+            ts::ctx(&mut scenario),
+        );
+        safe::set_token_is_mint_burn<TEST_COIN>(&mut safe, true, ts::ctx(&mut scenario));
+
+        ts::return_shared(safe);
+    };
+
+    ts::end(scenario);
+}
+
+#[test]
+fun test_transfer_locked_token_path_decreases_balance() {
+    let mut scenario = setup();
+
+    scenario.next_tx(ADMIN);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        let mut treasury = ts::take_shared<Treasury<BRIDGE_TOKEN>>(&scenario);
+
+        safe::whitelist_token<BRIDGE_TOKEN>(
+            &mut safe,
+            MIN_AMOUNT,
+            MAX_AMOUNT,
+            true,
+            ts::ctx(&mut scenario),
+        );
+
+        lkt::mint_coin_to_receiver<BRIDGE_TOKEN>(
+            &mut treasury,
+            DEPOSIT_AMOUNT,
+            USER,
+            ts::ctx(&mut scenario),
+        );
+
+        ts::return_shared(treasury);
+        ts::return_shared(safe);
+    };
+
+    scenario.next_tx(USER);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        let clock = clock::create_for_testing(ts::ctx(&mut scenario));
+        let bridge_coin = ts::take_from_sender<coin::Coin<BRIDGE_TOKEN>>(&scenario);
+        safe::deposit<BRIDGE_TOKEN>(
+            &mut safe,
+            bridge_coin,
+            RECIPIENT_VECTOR,
+            &clock,
+            ts::ctx(&mut scenario),
+        );
+
+        assert!(safe::get_stored_coin_balance<BRIDGE_TOKEN>(&mut safe) == DEPOSIT_AMOUNT, 0);
+
+        clock::destroy_for_testing(clock);
+        ts::return_shared(safe);
+    };
+
+    scenario.next_tx(BRIDGE);
+    {
+        let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        let bridge_cap = ts::take_from_address<BridgeCap>(&scenario, ADMIN);
+        let mut treasury = ts::take_shared<Treasury<BRIDGE_TOKEN>>(&scenario);
+
+        let success = safe::transfer<BRIDGE_TOKEN>(
+            &mut safe,
+            &bridge_cap,
+            RECIPIENT,
+            DEPOSIT_AMOUNT,
+            &mut treasury,
+            ts::ctx(&mut scenario),
+        );
+
+        assert!(success, 1);
+        assert!(safe::get_stored_coin_balance<BRIDGE_TOKEN>(&mut safe) == 0, 2);
+
+        ts::return_shared(treasury);
         ts::return_shared(safe);
         ts::return_to_address(ADMIN, bridge_cap);
     };
@@ -859,6 +1053,7 @@ fun setup_mint_burn(): Scenario {
             false,
             option::some(object::id_from_address(@0x1234)),
             true,
+            false,
             s.ctx(),
         );
         ts::return_shared(safe);
@@ -871,6 +1066,7 @@ fun setup_mint_burn(): Scenario {
 fun setup_with_treasury(): Scenario {
     // deny_list::create_for_test requires sender == @0x0 (system address)
     let mut s = ts::begin(@0x0);
+    br::init_for_testing(s.ctx());
     s.next_tx(@0x0);
     {
         sui::deny_list::create_for_testing(s.ctx());
@@ -897,10 +1093,18 @@ fun setup_with_treasury(): Scenario {
         );
         transfer::public_share_object(t);
         transfer::public_share_object(metadata);
+
+        let mut bridge_token_treasury = s.take_shared<Treasury<BRIDGE_TOKEN>>();
+        lkt::transfer_to_coin_cap<BRIDGE_TOKEN>(&mut bridge_token_treasury, ADMIN, s.ctx());
+        lkt::transfer_from_coin_cap<BRIDGE_TOKEN>(&mut bridge_token_treasury, ADMIN, s.ctx());
+        ts::return_shared(bridge_token_treasury);
     };
     // BridgeSafe created by ADMIN so ADMIN is the owner for whitelist calls
     s.next_tx(ADMIN);
-    { safe::init_for_testing(s.ctx()); };
+    {
+        let from_cap_db = s.take_from_address<FromCoinCap<BRIDGE_TOKEN>>(ADMIN);
+        safe::init_for_testing(from_cap_db, s.ctx());
+    };
     s
 }
 
@@ -1191,7 +1395,13 @@ fun test_deposit_mint_burn_wrong_variant() {
     {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
         // Whitelist as NATIVE — calling deposit_mint_burn_for_testing should fail
-        safe::whitelist_token<TEST_COIN>(&mut safe, MIN_AMOUNT, MAX_AMOUNT, ts::ctx(&mut scenario));
+        safe::whitelist_token<TEST_COIN>(
+            &mut safe,
+            MIN_AMOUNT,
+            MAX_AMOUNT,
+            false,
+            ts::ctx(&mut scenario),
+        );
         ts::return_shared(safe);
     };
 
@@ -1237,6 +1447,7 @@ fun test_deposit_mint_burn_cap_not_registered() {
             false,
             option::some(object::id(&treasury)),
             true,
+            false,
             ts::ctx(&mut scenario),
         );
 
@@ -1338,6 +1549,7 @@ fun test_transfer_mint_burn_wrong_variant() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
+            false,
             ts::ctx(&mut scenario),
         );
         let supply = coin::mint_for_testing<DEPOSIT_TRANSFER_TESTS>(
@@ -1390,6 +1602,7 @@ fun test_transfer_mint_burn_zero_balance() {
             false,
             option::some(object::id(&treasury)),
             true,
+            false,
             ts::ctx(&mut scenario),
         );
         ts::return_shared(safe);
@@ -1437,6 +1650,7 @@ fun test_transfer_mint_burn_insufficient_balance() {
             false,
             option::some(object::id(&treasury)),
             true,
+            false,
             ts::ctx(&mut scenario),
         );
 
@@ -1485,6 +1699,8 @@ fun test_transfer_mint_burn_cap_not_registered() {
             false,
             option::some(object::id(&treasury)),
             true,
+            false,
+
             ts::ctx(&mut scenario),
         );
 

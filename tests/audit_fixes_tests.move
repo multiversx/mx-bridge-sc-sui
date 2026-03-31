@@ -4,6 +4,8 @@ module bridge_safe::audit_fixes_tests;
 use bridge_safe::bridge::{Self, Bridge};
 use bridge_safe::bridge_roles::BridgeCap;
 use bridge_safe::safe::{Self, BridgeSafe};
+use locked_token::bridge_token::{Self as br, BRIDGE_TOKEN};
+use locked_token::treasury::{Self as lkt, Treasury, FromCoinCap};
 use sui::test_scenario::{Self as ts, Scenario};
 
 public struct TEST_COIN has drop {}
@@ -13,6 +15,7 @@ const ADMIN: address = @0xa11ce;
 const INITIAL_QUORUM: u64 = 3;
 const MIN_AMOUNT: u64 = 100;
 const MAX_AMOUNT: u64 = 1_000_000;
+const DEFAULT_LOKED: bool = false;
 
 const PK1: vector<u8> = b"12345678901234567890123456789012";
 const PK2: vector<u8> = b"abcdefghijklmnopqrstuvwxyz123456";
@@ -21,9 +24,20 @@ const PK3: vector<u8> = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ123456";
 fun setup(): Scenario {
     let mut s = ts::begin(ADMIN);
 
+    br::init_for_testing(s.ctx());
+
     s.next_tx(ADMIN);
     {
-        safe::init_for_testing(s.ctx());
+        let mut treasury = s.take_shared<Treasury<BRIDGE_TOKEN>>();
+        lkt::transfer_to_coin_cap<BRIDGE_TOKEN>(&mut treasury, ADMIN, s.ctx());
+        lkt::transfer_from_coin_cap<BRIDGE_TOKEN>(&mut treasury, ADMIN, s.ctx());
+        ts::return_shared(treasury);
+    };
+
+    s.next_tx(ADMIN);
+    {
+        let from_cap_db = s.take_from_address<FromCoinCap<BRIDGE_TOKEN>>(ADMIN);
+        safe::init_for_testing(from_cap_db, s.ctx());
     };
 
     s
@@ -41,6 +55,7 @@ fun setup_with_bridge(): Scenario {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
+            DEFAULT_LOKED,
             ts::ctx(&mut s),
         );
 
@@ -139,6 +154,7 @@ fun test_remove_mint_burn_token_via_safe_fails() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
+            DEFAULT_LOKED,
             ts::ctx(&mut scenario),
         );
 
@@ -167,6 +183,7 @@ fun test_remove_native_token_via_safe_succeeds() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
+            DEFAULT_LOKED,
             ts::ctx(&mut scenario),
         );
 

@@ -115,6 +115,7 @@ public fun whitelist_token<T>(
         false,
         option::some(treasury_id),
         true,
+        false,
         ctx,
     );
     register<T>(safe.uid_mut(), cap);

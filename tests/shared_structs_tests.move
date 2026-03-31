@@ -1,7 +1,7 @@
 #[test_only]
-module shared_structs::shared_structs_tests;
+module bridge_safe::shared_structs_tests;
 
-use shared_structs::shared_structs;
+use bridge_safe::shared_structs;
 
 const MAX_U64: u64 = 18446744073709551615;
 
@@ -9,6 +9,7 @@ const MAX_U64: u64 = 18446744073709551615;
 fun test_token_config_is_mint_burn() {
     let mut config = shared_structs::create_token_config(
         true,
+        false,
         false,
         100,
         1000,
@@ -44,6 +45,7 @@ fun test_subtract_from_token_config_total_balance() {
     let mut config = shared_structs::create_token_config(
         true,
         false,
+        false,
         100,
         1000,
         option::none(),
@@ -66,6 +68,7 @@ fun test_subtract_from_token_config_total_balance_underflow() {
     let mut config = shared_structs::create_token_config(
         true,
         false,
+        false,
         100,
         1000,
         option::none(),
@@ -80,6 +83,7 @@ fun test_subtract_from_token_config_total_balance_underflow() {
 fun test_subtract_from_token_config_total_balance_insufficient_funds() {
     let mut config = shared_structs::create_token_config(
         true,
+        false,
         false,
         100,
         1000,
@@ -96,6 +100,7 @@ fun test_subtract_from_token_config_total_balance_insufficient_funds() {
 fun test_add_to_token_config_total_balance() {
     let mut config = shared_structs::create_token_config(
         true,
+        false,
         false,
         100,
         1000,
@@ -118,6 +123,7 @@ fun test_add_to_token_config_total_balance_overflow() {
     let mut config = shared_structs::create_token_config(
         true,
         false,
+        false,
         100,
         1000,
         option::none(),
@@ -135,6 +141,7 @@ fun test_add_to_token_config_total_balance_near_max_overflow() {
     let mut config = shared_structs::create_token_config(
         true,
         false,
+        false,
         100,
         1000,
         option::none(),
@@ -150,6 +157,7 @@ fun test_add_to_token_config_total_balance_near_max_overflow() {
 fun test_set_token_config_is_native() {
     let mut config = shared_structs::create_token_config(
         true,
+        false,
         false,
         100,
         1000,
@@ -233,6 +241,7 @@ fun test_update_batch_last_updated() {
 fun test_combined_operations() {
     let mut config = shared_structs::create_token_config(
         true,
+        false,
         false,
         100,
         1000,

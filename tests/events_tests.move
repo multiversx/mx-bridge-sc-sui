@@ -121,6 +121,7 @@ fun test_emit_token_whitelisted() {
             10000, // max_limit
             true, // is_native
             false, // is_mint_burn
+            false, // is_locked
         );
     };
 
@@ -140,6 +141,7 @@ fun test_emit_token_whitelisted_all_false() {
             5000, // max_limit
             false, // is_native
             false, // is_mint_burn
+            false, // is_locked
         );
     };
 
@@ -159,6 +161,7 @@ fun test_emit_token_whitelisted_mint_burn() {
             1000000, // max_limit
             false, // is_native
             true, // is_mint_burn
+            false, // is_locked
         );
     };
 
@@ -218,6 +221,30 @@ fun test_emit_token_is_native_updated_false() {
         events::emit_token_is_native_updated(b"NON_NATIVE_TOKEN", false);
     };
 
+    ts::end(scenario);
+}
+
+#[test]
+fun test_emit_token_is_locked_updated() {
+    let mut scenario = ts::begin(ADMIN);
+    
+    scenario.next_tx(ADMIN);
+    {
+        events::emit_token_is_locked_updated(b"LOCKED_TOKEN", true);
+    };
+    
+    ts::end(scenario);
+}
+
+#[test]
+fun test_emit_token_is_locked_updated_false() {
+    let mut scenario = ts::begin(ADMIN);
+    
+    scenario.next_tx(ADMIN);
+    {
+        events::emit_token_is_locked_updated(b"UNLOCKED_TOKEN", false);
+    };
+    
     ts::end(scenario);
 }
 
@@ -400,7 +427,7 @@ fun test_multiple_events_in_sequence() {
         events::emit_admin_role_transferred(ADMIN, NEW_ADMIN);
         events::emit_pause(true);
         events::emit_relayer_added(RELAYER, ADMIN);
-        events::emit_token_whitelisted(b"SEQ_TOKEN", 1, 1000, true, false);
+        events::emit_token_whitelisted(b"SEQ_TOKEN", 1, 1000, true, false, false);
         events::emit_batch_created(1, 100);
         events::emit_transfer_executed(USER, 500, b"SEQ_TOKEN", true);
         events::emit_pause(false);
