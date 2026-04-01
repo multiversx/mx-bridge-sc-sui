@@ -82,6 +82,11 @@ public struct BridgeSafe has key {
     compatible_versions: VecSet<u64>,
 }
 
+/// One-time capability minted in init and consumed in initialize.
+public struct SafeInitCap has key {
+    id: UID,
+}
+
 public struct SAFE has drop {}
 
 fun init(witness: SAFE, ctx: &mut TxContext) {
@@ -91,12 +96,17 @@ fun init(witness: SAFE, ctx: &mut TxContext) {
         ctx,
     );
 
+    transfer::transfer(SafeInitCap { id: object::new(ctx) }, ctx.sender());
+
     // Share the upgrade service object
     transfer::public_share_object(upgrade_service);
 }
 
 #[allow(lint(self_transfer))]
-public fun initialize(from_coin_cap: lkt::FromCoinCap<BRIDGE_TOKEN>, ctx: &mut TxContext) {
+public fun initialize(init_cap: SafeInitCap, from_coin_cap: lkt::FromCoinCap<BRIDGE_TOKEN>, ctx: &mut TxContext) {
+    let SafeInitCap { id } = init_cap;
+    object::delete(id);
+
     let deployer = ctx.sender();
     let safe_uid = object::new(ctx);
     let safe_id = object::uid_to_inner(&safe_uid);
@@ -941,7 +951,13 @@ public fun deposit_mint_burn_for_testing<T>(
 
 #[test_only]
 public fun init_for_testing(from_cap: lkt::FromCoinCap<BRIDGE_TOKEN>, ctx: &mut TxContext) {
-    initialize(from_cap, ctx);
+    let init_cap = SafeInitCap { id: object::new(ctx) };
+    initialize(init_cap, from_cap, ctx);
+}
+
+#[test_only]
+public fun trigger_init_for_testing(ctx: &mut TxContext) {
+    transfer::transfer(SafeInitCap { id: object::new(ctx) }, ctx.sender());
 }
 
 #[test_only]

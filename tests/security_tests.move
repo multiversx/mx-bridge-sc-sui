@@ -187,6 +187,49 @@ fun test_replay_allows_double_spend_with_same_deposit_nonce() {
     ts::end(scenario);
 }
 
+#[test]
+fun test_safe_init_cap_consumed_after_initialize() {
+    let mut scenario = ts::begin(ADMIN);
+
+    br::init_for_testing(scenario.ctx());
+
+    scenario.next_tx(ADMIN);
+    {
+        let mut treasury = ts::take_shared<lkt::Treasury<BRIDGE_TOKEN>>(&scenario);
+        lkt::transfer_to_coin_cap<BRIDGE_TOKEN>(&mut treasury, ADMIN, scenario.ctx());
+        lkt::transfer_from_coin_cap<BRIDGE_TOKEN>(&mut treasury, ADMIN, scenario.ctx());
+        ts::return_shared(treasury);
+    };
+
+    scenario.next_tx(ADMIN);
+    {
+        // Simulate module deployment: init() mints SafeInitCap and sends it to the deployer
+        safe::trigger_init_for_testing(scenario.ctx());
+    };
+
+    scenario.next_tx(ADMIN);
+    {
+        // Deployer takes the cap from their inventory and calls initialize — exactly the real flow
+        let init_cap = ts::take_from_sender<safe::SafeInitCap>(&scenario);
+        let from_cap = ts::take_from_sender<FromCoinCap<BRIDGE_TOKEN>>(&scenario);
+        safe::initialize(init_cap, from_cap, scenario.ctx());
+    };
+
+    scenario.next_tx(ADMIN);
+    {
+        // BridgeSafe was created: exactly one shared object exists
+        let safe_obj = ts::take_shared<BridgeSafe>(&scenario);
+
+        // SafeInitCap is gone: it has no address anymore because object::delete was called.
+        // Confirm the sender has no SafeInitCap in their inventory.
+        assert!(!ts::has_most_recent_for_sender<safe::SafeInitCap>(&scenario), 0);
+
+        ts::return_shared(safe_obj);
+    };
+
+    ts::end(scenario);
+}
+
 // Regression test: a BridgeCap minted for a different safe must be rejected by safe::transfer.
 #[test]
 #[expected_failure(abort_code = safe::EUnauthorizedBridgeCap)]

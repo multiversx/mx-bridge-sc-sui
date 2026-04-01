@@ -96,6 +96,7 @@ public struct Bridge has key {
     compatible_versions: VecSet<u64>,
 }
 
+/// This function can only be called ONCE given the requirement for a unique BridgeCap to be minted and consumed. 
 public fun initialize(
     public_keys: vector<vector<u8>>,
     initial_quorum: u64,
