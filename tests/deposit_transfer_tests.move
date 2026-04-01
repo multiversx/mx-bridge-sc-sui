@@ -1194,13 +1194,25 @@ fun test_deposit_mint_burn_multiple_same_batch() {
         let coin3 = coin::mint_for_testing<MINT_BURN_COIN>(3000, ts::ctx(&mut scenario));
 
         safe::deposit_mint_burn_for_testing<MINT_BURN_COIN>(
-            &mut safe, coin1, RECIPIENT_VECTOR, &clock, ts::ctx(&mut scenario),
+            &mut safe,
+            coin1,
+            RECIPIENT_VECTOR,
+            &clock,
+            ts::ctx(&mut scenario),
         );
         safe::deposit_mint_burn_for_testing<MINT_BURN_COIN>(
-            &mut safe, coin2, RECIPIENT_VECTOR, &clock, ts::ctx(&mut scenario),
+            &mut safe,
+            coin2,
+            RECIPIENT_VECTOR,
+            &clock,
+            ts::ctx(&mut scenario),
         );
         safe::deposit_mint_burn_for_testing<MINT_BURN_COIN>(
-            &mut safe, coin3, RECIPIENT_VECTOR, &clock, ts::ctx(&mut scenario),
+            &mut safe,
+            coin3,
+            RECIPIENT_VECTOR,
+            &clock,
+            ts::ctx(&mut scenario),
         );
 
         assert!(safe::get_deposits_count(&safe) == 3, 0);
@@ -1237,14 +1249,26 @@ fun test_deposit_mint_burn_triggers_new_batch() {
         let coin3 = coin::mint_for_testing<MINT_BURN_COIN>(3000, ts::ctx(&mut scenario));
 
         safe::deposit_mint_burn_for_testing<MINT_BURN_COIN>(
-            &mut safe, coin1, RECIPIENT_VECTOR, &clock, ts::ctx(&mut scenario),
+            &mut safe,
+            coin1,
+            RECIPIENT_VECTOR,
+            &clock,
+            ts::ctx(&mut scenario),
         );
         safe::deposit_mint_burn_for_testing<MINT_BURN_COIN>(
-            &mut safe, coin2, RECIPIENT_VECTOR, &clock, ts::ctx(&mut scenario),
+            &mut safe,
+            coin2,
+            RECIPIENT_VECTOR,
+            &clock,
+            ts::ctx(&mut scenario),
         );
         // Third deposit overflows batch_size=2, creates a new batch
         safe::deposit_mint_burn_for_testing<MINT_BURN_COIN>(
-            &mut safe, coin3, RECIPIENT_VECTOR, &clock, ts::ctx(&mut scenario),
+            &mut safe,
+            coin3,
+            RECIPIENT_VECTOR,
+            &clock,
+            ts::ctx(&mut scenario),
         );
 
         assert!(safe::get_deposits_count(&safe) == 3, 0);
@@ -1274,7 +1298,11 @@ fun test_deposit_mint_burn_invalid_recipient() {
         let coin = coin::mint_for_testing<MINT_BURN_COIN>(DEPOSIT_AMOUNT, ts::ctx(&mut scenario));
 
         safe::deposit_mint_burn_for_testing<MINT_BURN_COIN>(
-            &mut safe, coin, b"0x0", &clock, ts::ctx(&mut scenario),
+            &mut safe,
+            coin,
+            b"0x0",
+            &clock,
+            ts::ctx(&mut scenario),
         );
 
         clock::destroy_for_testing(clock);
@@ -1295,7 +1323,11 @@ fun test_deposit_mint_burn_zero_amount() {
         let coin = coin::mint_for_testing<MINT_BURN_COIN>(0, ts::ctx(&mut scenario));
 
         safe::deposit_mint_burn_for_testing<MINT_BURN_COIN>(
-            &mut safe, coin, RECIPIENT_VECTOR, &clock, ts::ctx(&mut scenario),
+            &mut safe,
+            coin,
+            RECIPIENT_VECTOR,
+            &clock,
+            ts::ctx(&mut scenario),
         );
 
         clock::destroy_for_testing(clock);
@@ -1316,7 +1348,11 @@ fun test_deposit_mint_burn_below_minimum() {
         let coin = coin::mint_for_testing<MINT_BURN_COIN>(MIN_AMOUNT - 1, ts::ctx(&mut scenario));
 
         safe::deposit_mint_burn_for_testing<MINT_BURN_COIN>(
-            &mut safe, coin, RECIPIENT_VECTOR, &clock, ts::ctx(&mut scenario),
+            &mut safe,
+            coin,
+            RECIPIENT_VECTOR,
+            &clock,
+            ts::ctx(&mut scenario),
         );
 
         clock::destroy_for_testing(clock);
@@ -1337,7 +1373,11 @@ fun test_deposit_mint_burn_above_maximum() {
         let coin = coin::mint_for_testing<MINT_BURN_COIN>(MAX_AMOUNT + 1, ts::ctx(&mut scenario));
 
         safe::deposit_mint_burn_for_testing<MINT_BURN_COIN>(
-            &mut safe, coin, RECIPIENT_VECTOR, &clock, ts::ctx(&mut scenario),
+            &mut safe,
+            coin,
+            RECIPIENT_VECTOR,
+            &clock,
+            ts::ctx(&mut scenario),
         );
 
         clock::destroy_for_testing(clock);
@@ -1372,7 +1412,11 @@ fun test_deposit_mint_burn_wrong_variant() {
         let coin = coin::mint_for_testing<TEST_COIN>(DEPOSIT_AMOUNT, ts::ctx(&mut scenario));
 
         safe::deposit_mint_burn_for_testing<TEST_COIN>(
-            &mut safe, coin, RECIPIENT_VECTOR, &clock, ts::ctx(&mut scenario),
+            &mut safe,
+            coin,
+            RECIPIENT_VECTOR,
+            &clock,
+            ts::ctx(&mut scenario),
         );
 
         clock::destroy_for_testing(clock);
@@ -1450,7 +1494,11 @@ fun test_deposit_mint_burn_when_paused() {
         let coin = coin::mint_for_testing<MINT_BURN_COIN>(DEPOSIT_AMOUNT, ts::ctx(&mut scenario));
 
         safe::deposit_mint_burn_for_testing<MINT_BURN_COIN>(
-            &mut safe, coin, RECIPIENT_VECTOR, &clock, ts::ctx(&mut scenario),
+            &mut safe,
+            coin,
+            RECIPIENT_VECTOR,
+            &clock,
+            ts::ctx(&mut scenario),
         );
 
         clock::destroy_for_testing(clock);
@@ -1458,7 +1506,6 @@ fun test_deposit_mint_burn_when_paused() {
     };
     ts::end(scenario);
 }
-
 
 #[test]
 fun test_transfer_mint_burn_not_configured() {
@@ -1472,7 +1519,13 @@ fun test_transfer_mint_burn_not_configured() {
         let bridge_cap = ts::take_from_address<BridgeCap>(&scenario, ADMIN);
 
         let success = xmn_mint_cap_adapter::transfer<DEPOSIT_TRANSFER_TESTS>(
-            &mut safe, &bridge_cap, RECIPIENT, DEPOSIT_AMOUNT, &mut treasury, &deny_list, ts::ctx(&mut scenario),
+            &mut safe,
+            &bridge_cap,
+            RECIPIENT,
+            DEPOSIT_AMOUNT,
+            &mut treasury,
+            &deny_list,
+            ts::ctx(&mut scenario),
         );
         assert!(!success, 0);
         ts::return_shared(safe);
@@ -1499,7 +1552,10 @@ fun test_transfer_mint_burn_wrong_variant() {
             false,
             ts::ctx(&mut scenario),
         );
-        let supply = coin::mint_for_testing<DEPOSIT_TRANSFER_TESTS>(DEPOSIT_AMOUNT * 2, ts::ctx(&mut scenario));
+        let supply = coin::mint_for_testing<DEPOSIT_TRANSFER_TESTS>(
+            DEPOSIT_AMOUNT * 2,
+            ts::ctx(&mut scenario),
+        );
         safe::init_supply<DEPOSIT_TRANSFER_TESTS>(&mut safe, supply, ts::ctx(&mut scenario));
         ts::return_shared(safe);
     };
@@ -1512,7 +1568,13 @@ fun test_transfer_mint_burn_wrong_variant() {
         let bridge_cap = ts::take_from_address<BridgeCap>(&scenario, ADMIN);
 
         let success = xmn_mint_cap_adapter::transfer<DEPOSIT_TRANSFER_TESTS>(
-            &mut safe, &bridge_cap, RECIPIENT, DEPOSIT_AMOUNT, &mut treasury, &deny_list, ts::ctx(&mut scenario),
+            &mut safe,
+            &bridge_cap,
+            RECIPIENT,
+            DEPOSIT_AMOUNT,
+            &mut treasury,
+            &deny_list,
+            ts::ctx(&mut scenario),
         );
         assert!(!success, 0);
         ts::return_shared(safe);
@@ -1534,8 +1596,14 @@ fun test_transfer_mint_burn_zero_balance() {
         let treasury = ts::take_shared<XmnTreasury<DEPOSIT_TRANSFER_TESTS>>(&scenario);
 
         safe::whitelist_token_internal<DEPOSIT_TRANSFER_TESTS>(
-            &mut safe, MIN_AMOUNT, MAX_AMOUNT, false,
-            option::some(object::id(&treasury)), true, false, ts::ctx(&mut scenario),
+            &mut safe,
+            MIN_AMOUNT,
+            MAX_AMOUNT,
+            false,
+            option::some(object::id(&treasury)),
+            true,
+            false,
+            ts::ctx(&mut scenario),
         );
         ts::return_shared(safe);
         ts::return_shared(treasury);
@@ -1549,7 +1617,13 @@ fun test_transfer_mint_burn_zero_balance() {
         let bridge_cap = ts::take_from_address<BridgeCap>(&scenario, ADMIN);
         // balance=0 < DEPOSIT_AMOUNT → returns false
         let success = xmn_mint_cap_adapter::transfer<DEPOSIT_TRANSFER_TESTS>(
-            &mut safe, &bridge_cap, RECIPIENT, DEPOSIT_AMOUNT, &mut treasury, &deny_list, ts::ctx(&mut scenario),
+            &mut safe,
+            &bridge_cap,
+            RECIPIENT,
+            DEPOSIT_AMOUNT,
+            &mut treasury,
+            &deny_list,
+            ts::ctx(&mut scenario),
         );
         assert!(!success, 0);
         ts::return_shared(safe);
@@ -1570,8 +1644,14 @@ fun test_transfer_mint_burn_insufficient_balance() {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
         let treasury = ts::take_shared<XmnTreasury<DEPOSIT_TRANSFER_TESTS>>(&scenario);
         safe::whitelist_token_internal<DEPOSIT_TRANSFER_TESTS>(
-            &mut safe, MIN_AMOUNT, MAX_AMOUNT, false,
-            option::some(object::id(&treasury)), true, false, ts::ctx(&mut scenario),
+            &mut safe,
+            MIN_AMOUNT,
+            MAX_AMOUNT,
+            false,
+            option::some(object::id(&treasury)),
+            true,
+            false,
+            ts::ctx(&mut scenario),
         );
 
         safe::add_to_balance_for_testing<DEPOSIT_TRANSFER_TESTS>(&mut safe, DEPOSIT_AMOUNT - 1);
@@ -1586,7 +1666,13 @@ fun test_transfer_mint_burn_insufficient_balance() {
         let deny_list = ts::take_shared<DenyList>(&scenario);
         let bridge_cap = ts::take_from_address<BridgeCap>(&scenario, ADMIN);
         let success = xmn_mint_cap_adapter::transfer<DEPOSIT_TRANSFER_TESTS>(
-            &mut safe, &bridge_cap, RECIPIENT, DEPOSIT_AMOUNT, &mut treasury, &deny_list, ts::ctx(&mut scenario),
+            &mut safe,
+            &bridge_cap,
+            RECIPIENT,
+            DEPOSIT_AMOUNT,
+            &mut treasury,
+            &deny_list,
+            ts::ctx(&mut scenario),
         );
         assert!(!success, 0);
         ts::return_shared(safe);
@@ -1607,8 +1693,15 @@ fun test_transfer_mint_burn_cap_not_registered() {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
         let treasury = ts::take_shared<XmnTreasury<DEPOSIT_TRANSFER_TESTS>>(&scenario);
         safe::whitelist_token_internal<DEPOSIT_TRANSFER_TESTS>(
-            &mut safe, MIN_AMOUNT, MAX_AMOUNT, false,
-            option::some(object::id(&treasury)), true, false, ts::ctx(&mut scenario),
+            &mut safe,
+            MIN_AMOUNT,
+            MAX_AMOUNT,
+            false,
+            option::some(object::id(&treasury)),
+            true,
+            false,
+
+            ts::ctx(&mut scenario),
         );
 
         safe::add_to_balance_for_testing<DEPOSIT_TRANSFER_TESTS>(&mut safe, DEPOSIT_AMOUNT);
@@ -1623,7 +1716,13 @@ fun test_transfer_mint_burn_cap_not_registered() {
         let deny_list = ts::take_shared<DenyList>(&scenario);
         let bridge_cap = ts::take_from_address<BridgeCap>(&scenario, ADMIN);
         let success = xmn_mint_cap_adapter::transfer<DEPOSIT_TRANSFER_TESTS>(
-            &mut safe, &bridge_cap, RECIPIENT, DEPOSIT_AMOUNT, &mut treasury, &deny_list, ts::ctx(&mut scenario),
+            &mut safe,
+            &bridge_cap,
+            RECIPIENT,
+            DEPOSIT_AMOUNT,
+            &mut treasury,
+            &deny_list,
+            ts::ctx(&mut scenario),
         );
         assert!(!success, 0);
         ts::return_shared(safe);

@@ -1,5 +1,5 @@
 /// Version Control - Package Version Management
-/// 
+///
 /// This module manages package versioning and compatibility checks
 /// for the bridge system upgrade process.
 

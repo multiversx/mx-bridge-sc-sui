@@ -1,5 +1,5 @@
 /// Events Module - Event Definitions for Bridge Operations
-/// 
+///
 /// This module defines all event structures used across the bridge system
 /// for monitoring deposits, admin actions, relayer management, and token operations.
 
@@ -92,6 +92,18 @@ public struct BatchSettingsUpdated has copy, drop {
     batch_size: u16,
     batch_block_limit: u8,
     batch_settle_limit: u8,
+}
+
+public struct BatchTimeoutUpdated has copy, drop {
+    new_timeout_ms: u64,
+}
+
+public struct BatchSettleTimeoutUpdated has copy, drop {
+    new_settle_timeout_ms: u64,
+}
+
+public struct BatchSizeUpdated has copy, drop {
+    new_batch_size: u16,
 }
 
 public fun emit_deposit(
@@ -213,4 +225,16 @@ public(package) fun emit_batch_settings_updated(
         batch_block_limit,
         batch_settle_limit,
     });
+}
+
+public(package) fun emit_batch_timeout_updated(new_timeout_ms: u64) {
+    event::emit(BatchTimeoutUpdated { new_timeout_ms });
+}
+
+public(package) fun emit_batch_settle_timeout_updated(new_settle_timeout_ms: u64) {
+    event::emit(BatchSettleTimeoutUpdated { new_settle_timeout_ms });
+}
+
+public(package) fun emit_batch_size_updated(new_batch_size: u16) {
+    event::emit(BatchSizeUpdated { new_batch_size });
 }
