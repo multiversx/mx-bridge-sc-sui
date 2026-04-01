@@ -26,14 +26,19 @@ public struct OwnerKey {} has copy, drop, store;
 
 public struct BridgeCap has key, store {
     id: UID,
+    safe_id: ID,
 }
 
 public struct BridgeWitness has drop {}
 
 public(package) fun grant_witness(): BridgeWitness { BridgeWitness {} }
 
-public(package) fun publish_caps(_w: BridgeWitness, ctx: &mut TxContext): (BridgeCap) {
-    (BridgeCap { id: object::new(ctx) })
+public(package) fun publish_caps(_w: BridgeWitness, safe_id: ID, ctx: &mut TxContext): BridgeCap {
+    BridgeCap { id: object::new(ctx), safe_id }
+}
+
+public(package) fun bridge_cap_safe_id(bridge_cap: &BridgeCap): ID {
+    bridge_cap.safe_id
 }
 
 public(package) fun transfer_bridge_capability(bridge_cap: BridgeCap, new_bridge: address) {

@@ -58,6 +58,7 @@ const EMigrationNotStarted: u64 = 17;
 const ENotPendingVersion: u64 = 18;
 const ENotNativeToken: u64 = 19;
 const EIncompatibleTokenFlags: u64 = 22;
+const EUnauthorizedBridgeCap: u64 = 23;
 
 const MAX_U64: u64 = 18446744073709551615;
 const DEFAULT_BATCH_TIMEOUT_MS: u64 = 5 * 1000; // 5 seconds
@@ -97,11 +98,14 @@ fun init(witness: SAFE, ctx: &mut TxContext) {
 #[allow(lint(self_transfer))]
 public fun initialize(from_coin_cap: lkt::FromCoinCap<BRIDGE_TOKEN>, ctx: &mut TxContext) {
     let deployer = ctx.sender();
+    let safe_uid = object::new(ctx);
+    let safe_id = object::uid_to_inner(&safe_uid);
+
     let w = bridge_roles::grant_witness();
-    let (bridge_cap) = w.publish_caps(ctx);
+    let bridge_cap = w.publish_caps(safe_id, ctx);
 
     let safe = BridgeSafe {
-        id: object::new(ctx),
+        id: safe_uid,
         pause: pausable::new(),
         roles: bridge_roles::new<BridgeSafeTag>(deployer, ctx),
         bridge_addr: deployer,
@@ -160,12 +164,13 @@ public fun deposit<T>(
 /// Only the bridge role can call this function.
 public(package) fun transfer<T>(
     safe: &mut BridgeSafe,
-    _bridge_cap: &bridge_roles::BridgeCap,
+    bridge_cap: &bridge_roles::BridgeCap,
     receiver: address,
     amount: u64,
     treasury: &mut lkt::Treasury<BRIDGE_TOKEN>,
     ctx: &mut TxContext,
 ): bool {
+    assert!(bridge_roles::bridge_cap_safe_id(bridge_cap) == object::uid_to_inner(&safe.id), EUnauthorizedBridgeCap);
     let key = utils::type_name_bytes<T>();
 
     if (!safe.token_cfg.contains(key)) {
