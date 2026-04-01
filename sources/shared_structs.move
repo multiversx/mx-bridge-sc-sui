@@ -1,7 +1,6 @@
 module bridge_safe::shared_structs;
 
 use sui::table::Table;
-use sui::kiosk::is_locked;
 
 const EUnderflow: u64 = 0;
 const EOverflow: u64 = 1;
