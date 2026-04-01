@@ -235,7 +235,7 @@ public(package) fun upsert_token_config(
         min_limit,
         max_limit,
         treasury_id,
-        is_mint_burn,
+        is_locked,
     );
     config.add(key, cfg);
 }
