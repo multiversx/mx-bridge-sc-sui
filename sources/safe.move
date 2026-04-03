@@ -58,6 +58,7 @@ const EMigrationNotStarted: u64 = 17;
 const ENotPendingVersion: u64 = 18;
 const ENotNativeToken: u64 = 19;
 const EIncompatibleTokenFlags: u64 = 22;
+const EUnauthorizedBridgeCap: u64 = 23;
 
 const MAX_U64: u64 = 18446744073709551615;
 const DEFAULT_BATCH_TIMEOUT_MS: u64 = 5 * 1000; // 5 seconds
@@ -81,6 +82,11 @@ public struct BridgeSafe has key {
     compatible_versions: VecSet<u64>,
 }
 
+/// One-time capability minted in init and consumed in initialize.
+public struct SafeInitCap has key {
+    id: UID,
+}
+
 public struct SAFE has drop {}
 
 fun init(witness: SAFE, ctx: &mut TxContext) {
@@ -90,18 +96,26 @@ fun init(witness: SAFE, ctx: &mut TxContext) {
         ctx,
     );
 
+    transfer::transfer(SafeInitCap { id: object::new(ctx) }, ctx.sender());
+
     // Share the upgrade service object
     transfer::public_share_object(upgrade_service);
 }
 
 #[allow(lint(self_transfer))]
-public fun initialize(from_coin_cap: lkt::FromCoinCap<BRIDGE_TOKEN>, ctx: &mut TxContext) {
+public fun initialize(init_cap: SafeInitCap, from_coin_cap: lkt::FromCoinCap<BRIDGE_TOKEN>, ctx: &mut TxContext) {
+    let SafeInitCap { id } = init_cap;
+    object::delete(id);
+
     let deployer = ctx.sender();
+    let safe_uid = object::new(ctx);
+    let safe_id = object::uid_to_inner(&safe_uid);
+
     let w = bridge_roles::grant_witness();
-    let (bridge_cap) = w.publish_caps(ctx);
+    let bridge_cap = w.publish_caps(safe_id, ctx);
 
     let safe = BridgeSafe {
-        id: object::new(ctx),
+        id: safe_uid,
         pause: pausable::new(),
         roles: bridge_roles::new<BridgeSafeTag>(deployer, ctx),
         bridge_addr: deployer,
@@ -160,12 +174,13 @@ public fun deposit<T>(
 /// Only the bridge role can call this function.
 public(package) fun transfer<T>(
     safe: &mut BridgeSafe,
-    _bridge_cap: &bridge_roles::BridgeCap,
+    bridge_cap: &bridge_roles::BridgeCap,
     receiver: address,
     amount: u64,
     treasury: &mut lkt::Treasury<BRIDGE_TOKEN>,
     ctx: &mut TxContext,
 ): bool {
+    assert!(bridge_roles::bridge_cap_safe_id(bridge_cap) == object::uid_to_inner(&safe.id), EUnauthorizedBridgeCap);
     let key = utils::type_name_bytes<T>();
 
     if (!safe.token_cfg.contains(key)) {
@@ -936,7 +951,13 @@ public fun deposit_mint_burn_for_testing<T>(
 
 #[test_only]
 public fun init_for_testing(from_cap: lkt::FromCoinCap<BRIDGE_TOKEN>, ctx: &mut TxContext) {
-    initialize(from_cap, ctx);
+    let init_cap = SafeInitCap { id: object::new(ctx) };
+    initialize(init_cap, from_cap, ctx);
+}
+
+#[test_only]
+public fun trigger_init_for_testing(ctx: &mut TxContext) {
+    transfer::transfer(SafeInitCap { id: object::new(ctx) }, ctx.sender());
 }
 
 #[test_only]

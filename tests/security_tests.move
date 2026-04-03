@@ -2,7 +2,7 @@
 module bridge_safe::security_tests;
 
 use bridge_safe::bridge::{Self, Bridge};
-use bridge_safe::bridge_roles::BridgeCap;
+use bridge_safe::bridge_roles::{Self as bridge_roles, BridgeCap};
 use bridge_safe::safe::{Self, BridgeSafe};
 use locked_token::bridge_token::{Self as br, BRIDGE_TOKEN};
 use locked_token::treasury::{Self as lkt, Treasury, FromCoinCap};
@@ -182,6 +182,83 @@ fun test_replay_allows_double_spend_with_same_deposit_nonce() {
         ts::return_shared(safe);
         ts::return_shared(treasury);
         clock::destroy_for_testing(clock);
+    };
+
+    ts::end(scenario);
+}
+
+#[test]
+fun test_safe_init_cap_consumed_after_initialize() {
+    let mut scenario = ts::begin(ADMIN);
+
+    br::init_for_testing(scenario.ctx());
+
+    scenario.next_tx(ADMIN);
+    {
+        let mut treasury = ts::take_shared<lkt::Treasury<BRIDGE_TOKEN>>(&scenario);
+        lkt::transfer_to_coin_cap<BRIDGE_TOKEN>(&mut treasury, ADMIN, scenario.ctx());
+        lkt::transfer_from_coin_cap<BRIDGE_TOKEN>(&mut treasury, ADMIN, scenario.ctx());
+        ts::return_shared(treasury);
+    };
+
+    scenario.next_tx(ADMIN);
+    {
+        // Simulate module deployment: init() mints SafeInitCap and sends it to the deployer
+        safe::trigger_init_for_testing(scenario.ctx());
+    };
+
+    scenario.next_tx(ADMIN);
+    {
+        // Deployer takes the cap from their inventory and calls initialize — exactly the real flow
+        let init_cap = ts::take_from_sender<safe::SafeInitCap>(&scenario);
+        let from_cap = ts::take_from_sender<FromCoinCap<BRIDGE_TOKEN>>(&scenario);
+        safe::initialize(init_cap, from_cap, scenario.ctx());
+    };
+
+    scenario.next_tx(ADMIN);
+    {
+        // BridgeSafe was created: exactly one shared object exists
+        let safe_obj = ts::take_shared<BridgeSafe>(&scenario);
+
+        // SafeInitCap is gone: it has no address anymore because object::delete was called.
+        // Confirm the sender has no SafeInitCap in their inventory.
+        assert!(!ts::has_most_recent_for_sender<safe::SafeInitCap>(&scenario), 0);
+
+        ts::return_shared(safe_obj);
+    };
+
+    ts::end(scenario);
+}
+
+// Regression test: a BridgeCap minted for a different safe must be rejected by safe::transfer.
+#[test]
+#[expected_failure(abort_code = safe::EUnauthorizedBridgeCap)]
+fun test_unauthorized_bridge_cap_rejected() {
+    let mut scenario = setup();
+
+    scenario.next_tx(ADMIN);
+    {
+        let mut safe_obj = ts::take_shared<BridgeSafe>(&scenario);
+        let mut treasury = ts::take_shared<lkt::Treasury<BRIDGE_TOKEN>>(&scenario);
+
+        // Simulate an attacker who obtained a BridgeCap bound to a different safe
+        let witness = bridge_roles::grant_witness();
+        let wrong_safe_id = object::id_from_address(@0xdeadbeef);
+        let rogue_cap = bridge_roles::publish_caps(witness, wrong_safe_id, scenario.ctx());
+
+        // Must abort with EUnauthorizedBridgeCap — the safe rejects the foreign cap
+        safe::transfer<TEST_COIN>(
+            &mut safe_obj,
+            &rogue_cap,
+            USER,
+            DRAIN_AMOUNT,
+            &mut treasury,
+            scenario.ctx(),
+        );
+
+        transfer::public_transfer(rogue_cap, ADMIN); // unreachable
+        ts::return_shared(safe_obj);
+        ts::return_shared(treasury);
     };
 
     ts::end(scenario);

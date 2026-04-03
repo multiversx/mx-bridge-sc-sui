@@ -73,7 +73,8 @@ fun test_publish_caps() {
     {
         // Test publishing capabilities
         let witness = bridge_roles::grant_witness();
-        let bridge_cap = bridge_roles::publish_caps(witness, scenario.ctx());
+        let dummy_safe_id = object::id_from_address(@0x1);
+        let bridge_cap = bridge_roles::publish_caps(witness, dummy_safe_id, scenario.ctx());
 
         // BridgeCap should be created successfully
         // Transfer it to admin for cleanup
@@ -90,7 +91,8 @@ fun test_transfer_bridge_capability() {
     scenario.next_tx(ADMIN);
     {
         let witness = bridge_roles::grant_witness();
-        let bridge_cap = bridge_roles::publish_caps(witness, scenario.ctx());
+        let dummy_safe_id = object::id_from_address(@0x1);
+        let bridge_cap = bridge_roles::publish_caps(witness, dummy_safe_id, scenario.ctx());
 
         // Test transferring bridge capability to a valid address
         bridge_roles::transfer_bridge_capability(bridge_cap, NEW_ADMIN);
@@ -114,7 +116,8 @@ fun test_transfer_bridge_capability_to_zero_address() {
     scenario.next_tx(ADMIN);
     {
         let witness = bridge_roles::grant_witness();
-        let bridge_cap = bridge_roles::publish_caps(witness, scenario.ctx());
+        let dummy_safe_id = object::id_from_address(@0x1);
+        let bridge_cap = bridge_roles::publish_caps(witness, dummy_safe_id, scenario.ctx());
 
         // This should fail because we're trying to transfer to zero address
         bridge_roles::transfer_bridge_capability(bridge_cap, INVALID_ADDRESS);
@@ -201,7 +204,8 @@ fun test_bridge_cap_properties() {
     scenario.next_tx(ADMIN);
     {
         let witness = bridge_roles::grant_witness();
-        let bridge_cap = bridge_roles::publish_caps(witness, scenario.ctx());
+        let dummy_safe_id = object::id_from_address(@0x1);
+        let bridge_cap = bridge_roles::publish_caps(witness, dummy_safe_id, scenario.ctx());
 
         // BridgeCap should have key and store abilities
         // We can transfer it, which tests both key and store
@@ -227,8 +231,10 @@ fun test_witness_usage_pattern() {
         let witness1 = bridge_roles::grant_witness();
         let witness2 = bridge_roles::grant_witness();
 
-        let cap1 = bridge_roles::publish_caps(witness1, scenario.ctx());
-        let cap2 = bridge_roles::publish_caps(witness2, scenario.ctx());
+        let safe_id1 = object::id_from_address(@0x1);
+        let safe_id2 = object::id_from_address(@0x2);
+        let cap1 = bridge_roles::publish_caps(witness1, safe_id1, scenario.ctx());
+        let cap2 = bridge_roles::publish_caps(witness2, safe_id2, scenario.ctx());
 
         transfer::public_transfer(cap1, ADMIN);
         transfer::public_transfer(cap2, ADMIN);
