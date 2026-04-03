@@ -1,4 +1,10 @@
-module shared_structs::shared_structs;
+module bridge_safe::shared_structs;
+
+use sui::table::Table;
+
+const EUnderflow: u64 = 0;
+const EOverflow: u64 = 1;
+const MAX_U64: u64 = 18446744073709551615;
 
 public enum DepositStatus has copy, drop, store {
     None,
@@ -35,6 +41,7 @@ public struct TokenConfig has copy, drop, store {
     min_limit: u64,
     max_limit: u64,
     total_balance: u64,
+    treasury_id: Option<ID>,
     is_locked: bool,
 }
 
@@ -93,11 +100,11 @@ public fun deposit_status_rejected(): DepositStatus {
     DepositStatus::Rejected
 }
 
-public fun update_batch_last_updated(batch: &mut Batch, timestamp_ms: u64) {
+public(package) fun update_batch_last_updated(batch: &mut Batch, timestamp_ms: u64) {
     batch.last_updated_timestamp_ms = timestamp_ms;
 }
 
-public fun increment_batch_deposits(batch: &mut Batch) {
+public(package) fun increment_batch_deposits(batch: &mut Batch) {
     batch.deposits_count = batch.deposits_count + 1;
 }
 
@@ -133,29 +140,31 @@ public(package) fun set_token_config_is_native(config: &mut TokenConfig, is_nati
     config.is_native = is_native;
 }
 
-public(package) fun set_token_config_is_locked(config: &mut TokenConfig, is_locked: bool) {
-    config.is_locked = is_locked;
-}
-
 public(package) fun set_token_config_is_mint_burn(config: &mut TokenConfig, is_mint_burn: bool) {
     config.is_mint_burn = is_mint_burn;
+}
+
+public fun token_config_treasury_id(config: &TokenConfig): Option<ID> {
+    config.treasury_id
+}
+
+public(package) fun set_token_config_is_locked(config: &mut TokenConfig, is_locked: bool) {
+    config.is_locked = is_locked;
 }
 
 public fun get_token_config_is_locked(config: &TokenConfig): bool {
     config.is_locked
 }
 
-const EUnderflow: u64 = 0;
-const EOverflow: u64 = 1;
-
-const MAX_U64: u64 = 18446744073709551615;
-
-public fun add_to_token_config_total_balance(config: &mut TokenConfig, amount: u64) {
+public(package) fun add_to_token_config_total_balance(config: &mut TokenConfig, amount: u64) {
     assert!(config.total_balance <= MAX_U64 - amount, EOverflow);
     config.total_balance = config.total_balance + amount;
 }
 
-public fun subtract_from_token_config_total_balance(config: &mut TokenConfig, amount: u64) {
+public(package) fun subtract_from_token_config_total_balance(
+    config: &mut TokenConfig,
+    amount: u64,
+) {
     assert!(config.total_balance >= amount, EUnderflow);
     config.total_balance = config.total_balance - amount;
 }
@@ -184,7 +193,7 @@ public fun batch_timestamp_ms(batch: &Batch): u64 {
     batch.timestamp_ms
 }
 
-public fun set_batch_deposits_count(batch: &mut Batch, count: u16) {
+public(package) fun set_batch_deposits_count(batch: &mut Batch, count: u16) {
     batch.deposits_count = count;
 }
 
@@ -192,20 +201,81 @@ public(package) fun set_batch_last_updated_timestamp_ms(batch: &mut Batch, times
     batch.last_updated_timestamp_ms = timestamp_ms;
 }
 
-public fun create_token_config(
+public(package) fun upsert_token_config(
+    config: &mut Table<vector<u8>, TokenConfig>,
+    key: vector<u8>,
     whitelisted: bool,
     is_native: bool,
     min_limit: u64,
     max_limit: u64,
+    treasury_id: Option<ID>,
+    is_mint_burn: bool,
+    is_locked: bool
+) {
+    if (config.contains(key)) {
+        let cfg = config.borrow_mut(key);
+        set_token_config(
+            cfg,
+            whitelisted,
+            is_native,
+            min_limit,
+            max_limit,
+            treasury_id,
+            is_mint_burn,
+            is_locked,
+        );
+
+        return
+    };
+
+    let cfg = create_token_config(
+        whitelisted,
+        is_native,
+        is_mint_burn,
+        min_limit,
+        max_limit,
+        treasury_id,
+        is_locked,
+    );
+    config.add(key, cfg);
+}
+
+public(package) fun set_token_config(
+    config: &mut TokenConfig,
+    whitelisted: bool,
+    is_native: bool,
+    min_limit: u64,
+    max_limit: u64,
+    treasury_id: Option<ID>,
+    is_mint_burn: bool,
+    is_locked: bool,
+) {
+    set_token_config_whitelisted(config, whitelisted);
+    set_token_config_is_native(config, is_native);
+    set_token_config_is_mint_burn(config, is_mint_burn);
+    set_token_config_min_limit(config, min_limit);
+    set_token_config_max_limit(config, max_limit);
+    config.treasury_id = treasury_id;
+    set_token_config_is_locked(config, is_locked);
+}
+
+public fun create_token_config(
+    whitelisted: bool,
+    is_native: bool,
+    is_mint_burn: bool,
+    min_limit: u64,
+    max_limit: u64,
+    treasury_id: Option<ID>,
     is_locked: bool,
 ): TokenConfig {
     TokenConfig {
         whitelisted,
         is_native,
-        is_mint_burn: false,
+        is_mint_burn,
         min_limit,
         max_limit,
         total_balance: 0,
+        treasury_id,
         is_locked,
     }
 }

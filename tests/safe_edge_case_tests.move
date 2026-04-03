@@ -95,8 +95,7 @@ fun test_multiple_token_whitelist() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
-            true,
-            false, // is_locked
+            false,
             ts::ctx(&mut scenario),
         );
 
@@ -105,8 +104,7 @@ fun test_multiple_token_whitelist() {
             &mut safe,
             MIN_AMOUNT * 2,
             MAX_AMOUNT * 2,
-            false, // not native
-            false, // is_locked
+            false,
             ts::ctx(&mut scenario),
         );
 
@@ -137,8 +135,7 @@ fun test_token_limit_updates() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
-            true,
-            false, // is_locked
+            false,
             ts::ctx(&mut scenario),
         );
 
@@ -192,8 +189,7 @@ fun test_init_supply_zero_amount() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
-            true,
-            false, // is_locked
+            false,
             ts::ctx(&mut scenario),
         );
 
@@ -212,9 +208,8 @@ fun test_init_supply_zero_amount() {
     ts::end(scenario);
 }
 
-// Test init_supply with non-native token (should fail)
+// Test init_supply with native token (whitelist_token always creates native)
 #[test]
-#[expected_failure(abort_code = safe::EInsufficientBalance)]
 fun test_init_supply_non_native_token() {
     let mut scenario = setup();
     scenario.next_tx(ADMIN);
@@ -227,7 +222,6 @@ fun test_init_supply_non_native_token() {
             MIN_AMOUNT,
             MAX_AMOUNT,
             false,
-            false, // is_locked
             ts::ctx(&mut scenario),
         );
 
@@ -257,8 +251,7 @@ fun test_init_supply_removed_token() {
             &mut safe,
             MIN_AMOUNT,
             MAX_AMOUNT,
-            true,
-            false, // is_locked
+            false,
             ts::ctx(&mut scenario),
         );
 

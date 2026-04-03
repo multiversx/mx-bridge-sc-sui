@@ -1,5 +1,5 @@
 /// Bridge Roles Module - Access Control and Capabilities
-/// 
+///
 /// This module manages roles, permissions, and capabilities for the bridge system.
 
 module bridge_safe::bridge_roles;
@@ -26,20 +26,22 @@ public struct OwnerKey {} has copy, drop, store;
 
 public struct BridgeCap has key, store {
     id: UID,
+    safe_id: ID,
 }
 
 public struct BridgeWitness has drop {}
 
 public(package) fun grant_witness(): BridgeWitness { BridgeWitness {} }
 
-public(package) fun publish_caps(_w: BridgeWitness, ctx: &mut TxContext): (BridgeCap) {
-    (BridgeCap { id: object::new(ctx) })
+public(package) fun publish_caps(_w: BridgeWitness, safe_id: ID, ctx: &mut TxContext): BridgeCap {
+    BridgeCap { id: object::new(ctx), safe_id }
 }
 
-public(package) fun transfer_bridge_capability(
-    bridge_cap: BridgeCap,
-    new_bridge: address,
-) {
+public(package) fun bridge_cap_safe_id(bridge_cap: &BridgeCap): ID {
+    bridge_cap.safe_id
+}
+
+public(package) fun transfer_bridge_capability(bridge_cap: BridgeCap, new_bridge: address) {
     assert!(new_bridge != @0x0, 0);
     transfer::public_transfer(bridge_cap, new_bridge);
 }
@@ -64,10 +66,7 @@ public fun pending_owner<T>(roles: &Roles<T>): Option<address> {
     roles.owner_role().pending_address()
 }
 
-public(package) fun new<T>(
-    owner: address,
-    ctx: &mut TxContext,
-): Roles<T> {
+public(package) fun new<T>(owner: address, ctx: &mut TxContext): Roles<T> {
     let mut data = bag::new(ctx);
     data.add(OwnerKey {}, two_step_role::new(OwnerRole<T> {}, owner));
     Roles {
