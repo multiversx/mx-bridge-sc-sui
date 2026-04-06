@@ -112,7 +112,7 @@ public fun whitelist_token<T>(
     safe.whitelist_token_internal<T>(
         minimum_amount,
         maximum_amount,
-        false,
+        true,
         option::some(treasury_id),
         true,
         false,
