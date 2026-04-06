@@ -756,7 +756,6 @@ public(package) fun whitelist_token_internal<T>(
 ) {
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
 
-    assert!(!(is_mint_burn && is_native), EIncompatibleTokenFlags);
     assert!(!(is_mint_burn && is_locked), EIncompatibleTokenFlags);
     assert!(minimum_amount > 0, EZeroAmount);
     assert!(minimum_amount <= maximum_amount, EInvalidTokenLimits);
