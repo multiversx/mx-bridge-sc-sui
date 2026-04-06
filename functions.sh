@@ -161,8 +161,8 @@ function whitelist-xmn() {
   echo "Max amount: $TOKEN_MAX_XMN"
   echo "Native: $TOKEN_IS_NATIVE_XMN"
   echo "Locked: $TOKEN_IS_LOCKED_XMN"
+  echo "Mint Cap: $XMN_MINT_CAP"
   echo "Treasury: $XMN_TREASURY"
-  echo "Deny list: $XMN_DENY_LIST"
   
   sui client call \
     --package "$PACKAGE_ID" \
@@ -173,8 +173,8 @@ function whitelist-xmn() {
       "$SAFE_ID" \
       "$TOKEN_MIN_XMN" \
       "$TOKEN_MAX_XMN" \
+      "$XMN_MINT_CAP" \
       "$XMN_TREASURY" \
-      "$XMN_DENY_LIST" \
     --gas-budget $GAS_BUDGET_DEFAULT --json > ./config/whitelist_xmn_output.json
   
   echo "✅ XMN Token whitelisted successfully"
