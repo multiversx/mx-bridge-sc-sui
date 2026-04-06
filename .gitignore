@@ -3,4 +3,6 @@ build/*
 .vscode
 .cursor
 .prettierrc
+.replay/
 node_modules/
+vendor/
