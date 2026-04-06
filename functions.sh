@@ -63,13 +63,14 @@ function deploy() {
   
   # Step 1: Publish package
   echo "Publishing package with unpublished dependencies..."
-  sui client publish --json > ./config/publish_output.json
+  sui client publish --with-unpublished-dependencies --json > ./config/publish_output.json
   
   PUBLISH_OUTPUT=$(cat ./config/publish_output.json)
   
   # Extract package ID and upgrade cap
   PACKAGE_ID=$(echo "$PUBLISH_OUTPUT" | jq -r '.objectChanges[] | select(.type=="published") | .packageId')
   UPGRADE_CAP_ID=$(echo "$PUBLISH_OUTPUT" | jq -r '.objectChanges[] | select(.objectType != null and (.objectType | contains("package::UpgradeCap"))) | .objectId')
+  SAFE_INIT_CAP_ID=$(echo "$PUBLISH_OUTPUT" | jq -r '.objectChanges[] | select(.objectType != null and (.objectType | contains("safe::SafeInitCap"))) | .objectId')
   
   echo "Package ID: $PACKAGE_ID"
   echo "Upgrade Cap: $UPGRADE_CAP_ID"
@@ -77,16 +78,18 @@ function deploy() {
   # Update config with package ID and upgrade cap
   update_config "PACKAGE_ID" "$PACKAGE_ID"
   update_config "UPGRADE_CAP_ID" "$UPGRADE_CAP_ID"
+  update_config "SAFE_INIT_CAP_ID" "$SAFE_INIT_CAP_ID"
   
   # Step 2: Initialize safe
   echo "Initializing safe..."
   echo "Using FROM_COIN_CAP: $FROM_COIN_CAP"
+  echo "Using SAFE_INIT_CAP: $SAFE_INIT_CAP_ID"
   
   sui client call \
     --package "$PACKAGE_ID" \
     --module safe \
     --function initialize \
-    --args "$FROM_COIN_CAP" \
+    --args "$SAFE_INIT_CAP_ID" "$FROM_COIN_CAP" \
     --gas-budget $GAS_BUDGET_DEFAULT \
     --json > ./config/safe_initialize_output.json
     
@@ -158,18 +161,20 @@ function whitelist-xmn() {
   echo "Max amount: $TOKEN_MAX_XMN"
   echo "Native: $TOKEN_IS_NATIVE_XMN"
   echo "Locked: $TOKEN_IS_LOCKED_XMN"
+  echo "Treasury: $XMN_TREASURY"
+  echo "Deny list: $XMN_DENY_LIST"
   
   sui client call \
     --package "$PACKAGE_ID" \
-    --module safe \
+    --module xmn_mint_cap_adapter \
     --function whitelist_token \
     --type-args "$TOKEN_TYPE_XMN" \
     --args \
       "$SAFE_ID" \
       "$TOKEN_MIN_XMN" \
       "$TOKEN_MAX_XMN" \
-      "$TOKEN_IS_NATIVE_XMN" \
-      "$TOKEN_IS_LOCKED_XMN" \
+      "$XMN_TREASURY" \
+      "$XMN_DENY_LIST" \
     --gas-budget $GAS_BUDGET_DEFAULT --json > ./config/whitelist_xmn_output.json
   
   echo "✅ XMN Token whitelisted successfully"
@@ -194,7 +199,6 @@ function whitelist-bridge() {
       "$SAFE_ID" \
       "$TOKEN_MIN_BRIDGE" \
       "$TOKEN_MAX_BRIDGE" \
-      "$TOKEN_IS_NATIVE_BRIDGE" \
       "$TOKEN_IS_LOCKED_BRIDGE" \
     --gas-budget $GAS_BUDGET_DEFAULT --json > ./config/whitelist_bridge_output.json
   
