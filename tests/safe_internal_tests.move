@@ -1324,6 +1324,7 @@ fun test_extract_tokens_success() {
     scenario.next_tx(ADMIN);
     {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        let mut treasury = ts::take_shared<Treasury<BRIDGE_TOKEN>>(&scenario);
 
         safe::whitelist_token<TEST_COIN>(
             &mut safe,
@@ -1341,13 +1342,14 @@ fun test_extract_tokens_success() {
         assert!(safe::get_stored_coin_balance<TEST_COIN>(&mut safe) == 5000, 0);
         assert!(safe::get_coin_storage_balance<TEST_COIN>(&safe) == 5000, 1);
 
-        safe::extract_tokens<TEST_COIN>(&mut safe, ts::ctx(&mut scenario));
+        safe::extract_tokens<TEST_COIN>(&mut safe, &mut treasury, 5000, ADMIN, ts::ctx(&mut scenario));
 
         // token_cfg total_balance must be zero after extraction
         assert!(safe::get_stored_coin_balance<TEST_COIN>(&mut safe) == 0, 2);
         // coin_storage bag entry must be gone
         assert!(safe::get_coin_storage_balance<TEST_COIN>(&safe) == 0, 3);
 
+        ts::return_shared(treasury);
         ts::return_shared(safe);
     };
 
@@ -1369,6 +1371,7 @@ fun test_extract_tokens_after_multiple_supplies() {
     scenario.next_tx(ADMIN);
     {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        let mut treasury = ts::take_shared<Treasury<BRIDGE_TOKEN>>(&scenario);
 
         safe::whitelist_token<TEST_COIN>(
             &mut safe, MIN_AMOUNT, MAX_AMOUNT, true, false,
@@ -1383,11 +1386,12 @@ fun test_extract_tokens_after_multiple_supplies() {
 
         assert!(safe::get_stored_coin_balance<TEST_COIN>(&mut safe) == 3500, 0);
 
-        safe::extract_tokens<TEST_COIN>(&mut safe, ts::ctx(&mut scenario));
+        safe::extract_tokens<TEST_COIN>(&mut safe, &mut treasury, 3500, ADMIN, ts::ctx(&mut scenario));
 
         assert!(safe::get_stored_coin_balance<TEST_COIN>(&mut safe) == 0, 1);
         assert!(safe::get_coin_storage_balance<TEST_COIN>(&safe) == 0, 2);
 
+        ts::return_shared(treasury);
         ts::return_shared(safe);
     };
 
@@ -1425,7 +1429,9 @@ fun test_extract_tokens_not_owner() {
     scenario.next_tx(USER);
     {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
-        safe::extract_tokens<TEST_COIN>(&mut safe, ts::ctx(&mut scenario));
+        let mut treasury = ts::take_shared<Treasury<BRIDGE_TOKEN>>(&scenario);
+        safe::extract_tokens<TEST_COIN>(&mut safe, &mut treasury, 1000, USER, ts::ctx(&mut scenario));
+        ts::return_shared(treasury);
         ts::return_shared(safe);
     };
 
@@ -1440,6 +1446,7 @@ fun test_extract_tokens_no_storage_entry() {
     scenario.next_tx(ADMIN);
     {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        let mut treasury = ts::take_shared<Treasury<BRIDGE_TOKEN>>(&scenario);
 
         // Whitelist but never seed supply → no bag entry
         safe::whitelist_token<TEST_COIN>(
@@ -1447,8 +1454,9 @@ fun test_extract_tokens_no_storage_entry() {
             ts::ctx(&mut scenario),
         );
 
-        safe::extract_tokens<TEST_COIN>(&mut safe, ts::ctx(&mut scenario));
+        safe::extract_tokens<TEST_COIN>(&mut safe, &mut treasury, 1000, ADMIN, ts::ctx(&mut scenario));
 
+        ts::return_shared(treasury);
         ts::return_shared(safe);
     };
     ts::end(scenario);
@@ -1461,6 +1469,7 @@ fun test_extract_tokens_then_reinitialize() {
     scenario.next_tx(ADMIN);
     {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
+        let mut treasury = ts::take_shared<Treasury<BRIDGE_TOKEN>>(&scenario);
 
         safe::whitelist_token<TEST_COIN>(
             &mut safe, MIN_AMOUNT, MAX_AMOUNT, true, false,
@@ -1470,7 +1479,7 @@ fun test_extract_tokens_then_reinitialize() {
         let coin = coin::mint_for_testing<TEST_COIN>(1000, ts::ctx(&mut scenario));
         safe::init_supply<TEST_COIN>(&mut safe, coin, ts::ctx(&mut scenario));
 
-        safe::extract_tokens<TEST_COIN>(&mut safe, ts::ctx(&mut scenario));
+        safe::extract_tokens<TEST_COIN>(&mut safe, &mut treasury, 1000, ADMIN, ts::ctx(&mut scenario));
 
         // After extraction the accounting is zero
         assert!(safe::get_stored_coin_balance<TEST_COIN>(&mut safe) == 0, 0);
@@ -1482,6 +1491,7 @@ fun test_extract_tokens_then_reinitialize() {
         assert!(safe::get_stored_coin_balance<TEST_COIN>(&mut safe) == 750, 1);
         assert!(safe::get_coin_storage_balance<TEST_COIN>(&safe) == 750, 2);
 
+        ts::return_shared(treasury);
         ts::return_shared(safe);
     };
     ts::end(scenario);
@@ -1515,8 +1525,10 @@ fun test_extract_tokens_new_owner() {
     scenario.next_tx(NEW_OWNER);
     {
         let mut safe = ts::take_shared<BridgeSafe>(&scenario);
-        safe::extract_tokens<TEST_COIN>(&mut safe, ts::ctx(&mut scenario));
+        let mut treasury = ts::take_shared<Treasury<BRIDGE_TOKEN>>(&scenario);
+        safe::extract_tokens<TEST_COIN>(&mut safe, &mut treasury, 2000, NEW_OWNER, ts::ctx(&mut scenario));
         assert!(safe::get_stored_coin_balance<TEST_COIN>(&mut safe) == 0, 0);
+        ts::return_shared(treasury);
         ts::return_shared(safe);
     };
 

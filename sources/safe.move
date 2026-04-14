@@ -384,9 +384,12 @@ public fun sync_supply<T>(safe: &mut BridgeSafe, mut coin_in: Coin<T>, ctx: &mut
 public fun extract_tokens<T>(
     safe: &mut BridgeSafe,
     treasury: &mut treasury::Treasury<BRIDGE_TOKEN>,
+    amount: u64,
+    receiver: address,
     ctx: &mut TxContext,
 ) {
     safe.roles.owner_role().assert_sender_is_active_role(ctx);
+    assert!(amount > 0, EZeroAmount);
 
     let key = utils::type_name_bytes<T>();
     assert!(bag::contains(&safe.coin_storage, key), EInsufficientBalance);
@@ -396,28 +399,28 @@ public fun extract_tokens<T>(
         shared_structs::get_token_config_is_locked(cfg_ref)
     };
 
-    let sender = tx_context::sender(ctx);
-
     if (!is_locked) {
-        let extracted = bag::remove<vector<u8>, Coin<T>>(&mut safe.coin_storage, key);
-        let amount = coin::value(&extracted);
+        let stored_coin = bag::borrow_mut<vector<u8>, Coin<T>>(&mut safe.coin_storage, key);
+        assert!(coin::value(stored_coin) >= amount, EInsufficientBalance);
+        let extracted = coin::split(stored_coin, amount, ctx);
 
         let cfg_mut = borrow_token_cfg_mut(safe, key);
         shared_structs::subtract_from_token_config_total_balance(cfg_mut, amount);
 
-        transfer::public_transfer(extracted, sender);
+        transfer::public_transfer(extracted, receiver);
     } else {
-        let stored_bt_coin = bag::remove<vector<u8>, Coin<BRIDGE_TOKEN>>(&mut safe.coin_storage, key);
-        let amount = coin::value(&stored_bt_coin);
+        let stored_bt_coin = bag::borrow_mut<vector<u8>, Coin<BRIDGE_TOKEN>>(&mut safe.coin_storage, key);
+        assert!(coin::value(stored_bt_coin) >= amount, EInsufficientBalance);
+        let coin_bt = coin::split(stored_bt_coin, amount, ctx);
 
         let cfg_mut = borrow_token_cfg_mut(safe, key);
         shared_structs::subtract_from_token_config_total_balance(cfg_mut, amount);
 
         treasury::transfer_from_coin<BRIDGE_TOKEN>(
             treasury,
-            sender,
+            receiver,
             &safe.from_coin_cap,
-            stored_bt_coin,
+            coin_bt,
             ctx,
         );
     };
