@@ -56,6 +56,7 @@ const EInvalidTokenLimits: u64 = 15;
 const EMigrationStarted: u64 = 16;
 const EMigrationNotStarted: u64 = 17;
 const ENotPendingVersion: u64 = 18;
+const ENotNativeToken: u64 = 19;
 
 const MAX_U64: u64 = 18446744073709551615;
 const DEFAULT_BATCH_TIMEOUT_MS: u64 = 5 * 1000; // 5 seconds
@@ -347,7 +348,7 @@ public fun sync_supply<T>(safe: &mut BridgeSafe, mut coin_in: Coin<T>, ctx: &mut
     assert!(table::contains(&safe.token_cfg, key), ETokenNotWhitelisted);
     let cfg_ref = table::borrow(&safe.token_cfg, key);
     assert!(shared_structs::token_config_whitelisted(cfg_ref), ETokenNotWhitelisted);
-    assert!(shared_structs::token_config_is_native(cfg_ref), EInsufficientBalance);
+    assert!(shared_structs::token_config_is_native(cfg_ref), ENotNativeToken);
 
     let expected_balance = shared_structs::token_config_total_balance(cfg_ref);
 
@@ -376,6 +377,52 @@ public fun sync_supply<T>(safe: &mut BridgeSafe, mut coin_in: Coin<T>, ctx: &mut
         coin::destroy_zero(coin_in);
     } else {
         transfer::public_transfer(coin_in, tx_context::sender(ctx));
+    };
+}
+
+#[allow(lint(self_transfer))]
+public fun extract_tokens<T>(
+    safe: &mut BridgeSafe,
+    treasury: &mut treasury::Treasury<BRIDGE_TOKEN>,
+    amount: u64,
+    receiver: address,
+    ctx: &mut TxContext,
+) {
+    safe.roles.owner_role().assert_sender_is_active_role(ctx);
+    assert!(amount > 0, EZeroAmount);
+
+    let key = utils::type_name_bytes<T>();
+    assert!(bag::contains(&safe.coin_storage, key), EInsufficientBalance);
+
+    let is_locked = {
+        let cfg_ref = table::borrow(&safe.token_cfg, key);
+        shared_structs::get_token_config_is_locked(cfg_ref)
+    };
+
+    if (!is_locked) {
+        let stored_coin = bag::borrow_mut<vector<u8>, Coin<T>>(&mut safe.coin_storage, key);
+        assert!(coin::value(stored_coin) >= amount, EInsufficientBalance);
+        let extracted = coin::split(stored_coin, amount, ctx);
+
+        let cfg_mut = borrow_token_cfg_mut(safe, key);
+        shared_structs::subtract_from_token_config_total_balance(cfg_mut, amount);
+
+        transfer::public_transfer(extracted, receiver);
+    } else {
+        let stored_bt_coin = bag::borrow_mut<vector<u8>, Coin<BRIDGE_TOKEN>>(&mut safe.coin_storage, key);
+        assert!(coin::value(stored_bt_coin) >= amount, EInsufficientBalance);
+        let coin_bt = coin::split(stored_bt_coin, amount, ctx);
+
+        let cfg_mut = borrow_token_cfg_mut(safe, key);
+        shared_structs::subtract_from_token_config_total_balance(cfg_mut, amount);
+
+        treasury::transfer_from_coin<BRIDGE_TOKEN>(
+            treasury,
+            receiver,
+            &safe.from_coin_cap,
+            coin_bt,
+            ctx,
+        );
     };
 }
 
