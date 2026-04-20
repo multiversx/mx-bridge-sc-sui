@@ -1,0 +1,3 @@
+[submodule "mx-bridge-typescript"]
+	path = mx-bridge-typescript
+	url = https://github.com/multiversx/mx-bridge-typescripts.git
